@@ -13,6 +13,7 @@ from datetime import date, datetime, time, timedelta
 
 import factory
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 
 from hotel.models import Guest, Reservation, ReservationStatus
@@ -33,10 +34,12 @@ class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = get_user_model()
         django_get_or_create = ("username",)
-        skip_postgeneration_save = True
 
     username = factory.Sequence(lambda n: f"atendente{n}")
-    password = factory.PostGenerationMethodCall("set_password", DEFAULT_PASSWORD)
+    # O hash entra no proprio INSERT. Com PostGenerationMethodCall e
+    # skip_postgeneration_save, set_password roda em memoria e nunca e salvo:
+    # authenticate() devolve None e todo login via factory falha.
+    password = factory.LazyFunction(lambda: make_password(DEFAULT_PASSWORD))
 
 
 class GuestFactory(factory.django.DjangoModelFactory):
