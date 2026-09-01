@@ -115,6 +115,13 @@ class Command(BaseCommand):
             attendant.set_password(ATTENDANT_PASSWORD)
             attendant.save(update_fields=["password"])
             self.stdout.write(f"  atendente criado: {ATTENDANT_USERNAME}")
+        elif attendant.is_staff or attendant.is_superuser:
+            # Fora do `if created` de proposito: `get_or_create` nao mexe em
+            # linha existente, entao sem isto todo banco que subiu o compose
+            # antes desta correcao guardaria para sempre um superusuario com
+            # senha publica -- e o /admin/ nao passa pelo throttle do DRF.
+            user_model.objects.filter(pk=attendant.pk).update(is_staff=False, is_superuser=False)
+            self.stdout.write("  atendente rebaixado para usuario comum (SPEC 1.1)")
 
     def _ensure_guest(self, full_name: str, document: str, phone: str) -> Guest:
         guest, created = Guest.objects.get_or_create(

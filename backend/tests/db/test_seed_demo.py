@@ -69,3 +69,24 @@ def test_seed_never_logs_pii():
 
     assert "123.456.789-01" not in output
     assert "98888-7777" not in output
+
+
+def test_seed_demotes_an_existing_privileged_attendant():
+    """A correcao precisa alcancar banco ja provisionado.
+
+    `get_or_create` nao toca em linha existente, entao um banco que subiu o
+    compose antes da correcao guardaria para sempre um superusuario com a senha
+    publicada no README -- e o /admin/ nao passa pelo throttle do DRF.
+    """
+    user_model = get_user_model()
+    user_model.objects.create_user(
+        username="atendente", password="atendente123", is_staff=True, is_superuser=True
+    )
+
+    call_command("seed_demo")
+
+    attendant = user_model.objects.get(username="atendente")
+    assert attendant.is_staff is False
+    assert attendant.is_superuser is False
+    # A senha do seed continua valendo: rebaixar nao e trocar credencial.
+    assert attendant.check_password("atendente123")
