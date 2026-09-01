@@ -185,6 +185,14 @@ REST_FRAMEWORK = {
         "login": env("THROTTLE_LOGIN", "10/min"),
         "ai": env("THROTTLE_AI", "20/min"),
     },
+    # Quantos proxies confiaveis existem ANTES da aplicacao. Com o default do
+    # DRF (None) o `get_ident` usa `X-Forwarded-For` quando o header vem, e
+    # como aqui o gunicorn atende direto, qualquer cliente inventa o proprio
+    # IP e zera o limite: 14 senhas erradas com XFF rotativo passavam sem um
+    # unico 429. Zero = usar REMOTE_ADDR e ignorar o header. Se um reverse
+    # proxy entrar na frente, suba para o numero real de hops e garanta que
+    # ele SOBRESCREVA o header em vez de concatenar.
+    "NUM_PROXIES": int(env("NUM_PROXIES", "0")),
     # Envelope de erro unico {"code","detail","extra"} (SPEC 4.1).
     "EXCEPTION_HANDLER": "hotel.exceptions.api_exception_handler",
 }

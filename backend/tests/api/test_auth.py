@@ -123,3 +123,27 @@ def test_login_is_rate_limited(api_client, attendant, monkeypatch):
     )
     assert blocked.status_code == 429
     assert blocked.data["code"] == "THROTTLED"
+
+
+def test_login_throttle_ignores_a_spoofed_forwarded_for(api_client, attendant, monkeypatch):
+    """O limite conta por REMOTE_ADDR, nao pelo header que o cliente escolhe.
+
+    Com o default do DRF (`NUM_PROXIES = None`) o `get_ident` usa
+    `X-Forwarded-For` quando ele vem. Como o gunicorn atende direto, bastava
+    girar o header para ter tentativas ilimitadas -- medido: 14 senhas erradas
+    com XFF rotativo, nenhum 429. Throttle contornavel e pior que nenhum,
+    porque parece resolvido.
+    """
+    monkeypatch.setattr(LoginRateThrottle, "rate", "3/min", raising=False)
+
+    codes = [
+        api_client.post(
+            "/api/auth/token/",
+            {"username": attendant.username, "password": "senha-errada"},
+            format="json",
+            HTTP_X_FORWARDED_FOR=f"10.0.0.{attempt}",
+        ).status_code
+        for attempt in range(4)
+    ]
+
+    assert codes == [401, 401, 401, 429]
