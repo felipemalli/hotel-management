@@ -198,9 +198,9 @@ Três notas honestas sobre esse caminho:
 
 ## 3. Verificação: as suítes de teste
 
-Os números abaixo são os do último commit: **179 testes de backend** (unitários
+Os números abaixo são os do último commit: **190 testes de backend** (unitários
 puros do motor financeiro, testes de banco com PostgreSQL real e testes de API
-ponta a ponta) e **41 testes de frontend** em 12 arquivos.
+ponta a ponta) e **42 testes de frontend** em 13 arquivos.
 
 ```bash
 # backend — comando canônico, com o piso de cobertura
