@@ -152,7 +152,8 @@ Compose cobre os dois em um comando, e é o caminho canônico da seção 1.
 Ainda assim, documenta-se o caminho híbrido por resiliência: se o Docker do
 avaliador não colaborar com a build das imagens, o banco em container e as duas
 aplicações nativas resolvem. Pré-requisitos extras: **Python 3.12+** com
-[`uv`](https://docs.astral.sh/uv/) e **Node 20+**.
+[`uv`](https://docs.astral.sh/uv/) e **Node 24**, a mesma versão da imagem do
+frontend e do CI — é a única em que este caminho foi de fato exercitado.
 
 ```bash
 # 0. o .env da seção 1 já preenchido; para o caminho híbrido, DB_PORT deve valer
@@ -198,9 +199,10 @@ Três notas honestas sobre esse caminho:
 
 ## 3. Verificação: as suítes de teste
 
-Os números abaixo são os do último commit: **190 testes de backend** (unitários
-puros do motor financeiro, testes de banco com PostgreSQL real e testes de API
-ponta a ponta) e **42 testes de frontend** em 13 arquivos.
+Retrato do commit `b690433`: **192 testes de backend** (unitários puros do motor
+financeiro, testes de banco com PostgreSQL real e testes de API ponta a ponta) e
+**43 testes de frontend** em 13 arquivos. O número sobe conforme testes entram —
+os comandos abaixo é que valem como verdade, não a contagem.
 
 ```bash
 # backend — comando canônico, com o piso de cobertura

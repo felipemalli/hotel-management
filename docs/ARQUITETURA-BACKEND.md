@@ -9,7 +9,16 @@
 ## 0. Método e o que foi de fato verificado
 
 Toda afirmação sobre o código abaixo tem `arquivo:linha`. Toda afirmação sobre
-comportamento foi medida na stack de pé, não inferida. O que rodei:
+comportamento foi medida na stack de pé, não inferida.
+
+> **Leia os `arquivo:linha` como do commit `0478737`**, que era o `HEAD` quando
+> esta análise foi escrita. A rodada de correções da seção 0.1 mexeu em vários
+> desses arquivos, então parte dos números deslocou alguns pontos — os nomes de
+> função, classe e módulo continuam exatos, e são eles que localizam o trecho.
+> Os números medidos abaixo (suíte, cobertura, workers) também são daquele
+> commit; os atuais estão em `README.md` e no `docs/GUIA-DO-PROJETO.md`.
+
+O que rodei:
 
 | Verificação | Comando | Resultado |
 |---|---|---|
@@ -24,14 +33,12 @@ comportamento foi medida na stack de pé, não inferida. O que rodei:
 | Mascaramento e busca | `GET /api/guests/`, `/guests/1/`, `?search=` | conforme SPEC §2.2/§4.3 |
 | Rota de detalhe de reserva | `GET /api/reservations/1/` | **404 HTML** — não existe `retrieve` |
 
-> **Nota de sujeira que eu deixei.** O probe do duplo check-in (T3) foi
-> executado via `manage.py shell` esperando rollback por savepoint; em
-> autocommit o savepoint é no-op, então ele **persistiu** no banco de demo:
-> `Guest id=8 "Probe Concorrencia"` com as reservas `id=7` (CHECKED_IN) e
-> `id=8` (PENDING). A limpeza foi bloqueada pela política de permissões desta
-> sessão. `docker compose down -v && docker compose up -d` restaura o cenário
-> do seed. Peço desculpas pelo ruído; ele é reversível e não tocou nas 4 fichas
-> do seed.
+> **Nota sobre uma sujeira que existiu.** A sonda do duplo check-in (T3) rodou
+> via `manage.py shell` esperando rollback por savepoint; em autocommit o
+> savepoint e no-op, e ela persistiu `Guest id=8 "Probe Concorrencia"` no banco
+> de demo. **Ja foi removida** com `docker compose down -v`: o banco atual tem
+> as 4 fichas do seed e 3 reservas. A nota fica como registro de que os numeros
+> desta secao foram medidos com aquele ruido presente, sem efeito sobre eles.
 
 ---
 
