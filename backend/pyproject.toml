@@ -35,7 +35,7 @@ select = ["E", "F", "I", "UP", "B", "DJ"]
 
 [tool.ruff.lint.per-file-ignores]
 # Migracoes sao geradas pelo Django; nao se reformatam a mao.
-"*/migrations/*" = ["E501"]
+"*/migrations/*" = ["E501", "I001"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
