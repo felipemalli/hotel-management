@@ -7,15 +7,16 @@
  * alcancar as tres de uma vez.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'
+import { GUESTS_ROOT, useInvalidateServerState } from '@/lib/queryKeys'
 
 import { createGuest, fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from './api'
 import type { CreateGuestPayload, Guest } from './types'
 
 export const guestKeys = {
-  all: ['guests'] as const,
+  all: GUESTS_ROOT,
   list: (search: string) => ['guests', { search }] as const,
   inHotel: ['guests', 'in-hotel'] as const,
   pendingCheckin: ['guests', 'pending-checkin'] as const,
@@ -54,12 +55,12 @@ export function useGuestsPendingCheckin(options?: QueryOptions) {
 }
 
 export function useCreateGuest(options?: { onSuccess?: (guest: Guest) => void }) {
-  const queryClient = useQueryClient()
+  const invalidateServerState = useInvalidateServerState()
 
   return useMutation({
     mutationFn: (payload: CreateGuestPayload) => createGuest(payload),
     onSuccess: (guest) => {
-      void queryClient.invalidateQueries({ queryKey: guestKeys.all })
+      invalidateServerState()
       options?.onSuccess?.(guest)
     },
   })

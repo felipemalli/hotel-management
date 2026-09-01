@@ -1,16 +1,14 @@
 /**
  * Queries e mutations de reservas (SPEC 5.2).
  *
- * Politica de invalidacao da SPEC 5.2, aplicada por igual as cinco mutations:
- * toda mutacao invalida `["guests"]` **e** `["reservations"]`. Nao e excesso —
- * check-in e checkout mudam de aba o hospede (pendente -> no hotel -> fora),
- * logo as tres listagens de hospedes mudam junto com a reserva.
+ * Politica de invalidacao da SPEC 5.2 aplicada por `useInvalidateServerState`:
+ * toda mutation invalida `["guests"]` **e** `["reservations"]`.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
-import { guestKeys } from '@/features/guests/hooks'
 import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'
+import { RESERVATIONS_ROOT, useInvalidateServerState } from '@/lib/queryKeys'
 
 import {
   cancelReservation,
@@ -29,7 +27,7 @@ import type {
 } from './types'
 
 export const reservationKeys = {
-  all: ['reservations'] as const,
+  all: RESERVATIONS_ROOT,
   list: (status?: ReservationStatus) => ['reservations', { status }] as const,
 }
 
@@ -41,58 +39,49 @@ export function useReservations(filters: ReservationFilters = {}) {
   })
 }
 
-/** Invalida os dois dominios de leitura afetados por qualquer mutacao. */
-function useInvalidateAll() {
-  const queryClient = useQueryClient()
-  return () => {
-    void queryClient.invalidateQueries({ queryKey: guestKeys.all })
-    void queryClient.invalidateQueries({ queryKey: reservationKeys.all })
-  }
-}
-
 export function useCreateReservation(options?: { onSuccess?: (r: Reservation) => void }) {
-  const invalidateAll = useInvalidateAll()
+  const invalidateServerState = useInvalidateServerState()
 
   return useMutation({
     mutationFn: (payload: CreateReservationPayload) => createReservation(payload),
     onSuccess: (reservation) => {
-      invalidateAll()
+      invalidateServerState()
       options?.onSuccess?.(reservation)
     },
   })
 }
 
 export function useCheckIn(options?: { onSuccess?: (r: Reservation) => void }) {
-  const invalidateAll = useInvalidateAll()
+  const invalidateServerState = useInvalidateServerState()
 
   return useMutation({
     mutationFn: (payload: CheckInPayload) => checkIn(payload),
     onSuccess: (reservation) => {
-      invalidateAll()
+      invalidateServerState()
       options?.onSuccess?.(reservation)
     },
   })
 }
 
 export function useCheckOut(options?: { onSuccess?: (s: CheckoutStatement) => void }) {
-  const invalidateAll = useInvalidateAll()
+  const invalidateServerState = useInvalidateServerState()
 
   return useMutation({
     mutationFn: (id: number) => checkOut(id),
     onSuccess: (statement) => {
-      invalidateAll()
+      invalidateServerState()
       options?.onSuccess?.(statement)
     },
   })
 }
 
 export function useCancelReservation(options?: { onSuccess?: (r: Reservation) => void }) {
-  const invalidateAll = useInvalidateAll()
+  const invalidateServerState = useInvalidateServerState()
 
   return useMutation({
     mutationFn: (id: number) => cancelReservation(id),
     onSuccess: (reservation) => {
-      invalidateAll()
+      invalidateServerState()
       options?.onSuccess?.(reservation)
     },
   })
