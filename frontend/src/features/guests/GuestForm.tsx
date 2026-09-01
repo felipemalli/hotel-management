@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react'
 
-import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { errorMessage, fieldErrors, isApiErrorCode } from '@/lib/errors'
@@ -16,7 +15,9 @@ import type { Guest } from './types'
  * digitos no telefone -- D9) e validado no servidor de proposito: duplicar a
  * regra no cliente criaria duas fontes da verdade que divergem no dia em que
  * uma mudar. O que o cliente faz e exibir o erro por campo do
- * `VALIDATION_ERROR` (SPEC 4.1) no input certo.
+ * `VALIDATION_ERROR` (SPEC 4.1) no input certo — e o `DUPLICATE_DOCUMENT` de
+ * D12 no campo Documento, que e o campo culpado. Falha sem campo (rede, 500)
+ * sobe para o toast global da SPEC 8.2/E, sem duplicar a mensagem na tela.
  */
 
 const REQUIRED_MESSAGE = 'Campo obrigatório.'
@@ -63,10 +64,6 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
   }
 
   const duplicate = isApiErrorCode(createGuest.error, 'DUPLICATE_DOCUMENT')
-  const generalError =
-    createGuest.error && !duplicate && Object.keys(serverErrors).length === 0
-      ? errorMessage(createGuest.error)
-      : null
 
   return (
     <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
@@ -93,8 +90,6 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
         hint="Com DDD."
         onChange={(event) => setPhone(event.target.value)}
       />
-
-      {generalError ? <Alert tone="error">{generalError}</Alert> : null}
 
       <div className="flex justify-end gap-2">
         {onCancel ? (

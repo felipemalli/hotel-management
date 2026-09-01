@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
-import { earlyCheckinServerTime, errorMessage } from '@/lib/errors'
+import { earlyCheckinServerTime } from '@/lib/errors'
 
 import { CheckoutStatementDialog } from './CheckoutStatementDialog'
 import { EarlyCheckinDialog } from './EarlyCheckinDialog'
@@ -20,6 +20,11 @@ import type { CheckoutStatement } from './types'
  * Recebe so `reservationId`, `guestName` e o estado — nao importa tipos da
  * feature de hospedes, o que mantem a dependencia entre features em uma
  * direcao (guests nao conhece reservations, reservations nao conhece guests).
+ *
+ * Falha inesperada (rede, `INVALID_STATUS`, 500) **nao** e tratada aqui: sobe
+ * para o handler global do `MutationCache` (SPEC 8.2/E) e aparece em toast.
+ * Este componente so intercepta o 409 de D4, porque esse nao e erro — e o
+ * alerta que a RN4 pede.
  */
 
 export type ReservationActionState = 'PENDING' | 'CHECKED_IN'
@@ -38,42 +43,31 @@ export function ReservationActions({
   const [serverTime, setServerTime] = useState<string | null>(null)
   const [statement, setStatement] = useState<CheckoutStatement | null>(null)
   const [confirmingCancel, setConfirmingCancel] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const checkIn = useCheckIn({ onSuccess: () => setServerTime(null) })
   const checkOut = useCheckOut({ onSuccess: setStatement })
   const cancel = useCancelReservation({ onSuccess: () => setConfirmingCancel(false) })
 
   function runCheckIn(allowEarly: boolean) {
-    setError(null)
     checkIn.mutate(
       { id: reservationId, allow_early: allowEarly },
       {
         onError: (cause) => {
           // O 409 de D4 nao e falha: e um ramo de protocolo. Vira alerta.
+          // Qualquer outro codigo cai no toast global e o alerta nao abre.
           const time = earlyCheckinServerTime(cause)
-          if (time !== null) {
-            setServerTime(time)
-            return
-          }
-          setError(errorMessage(cause))
+          if (time !== null) setServerTime(time)
         },
       },
     )
   }
 
   function runCheckOut() {
-    setError(null)
-    checkOut.mutate(reservationId, {
-      onError: (cause) => setError(errorMessage(cause)),
-    })
+    checkOut.mutate(reservationId)
   }
 
   function runCancel() {
-    setError(null)
-    cancel.mutate(reservationId, {
-      onError: (cause) => setError(errorMessage(cause)),
-    })
+    cancel.mutate(reservationId)
   }
 
   return (
@@ -99,12 +93,6 @@ export function ReservationActions({
           </Button>
         )}
       </div>
-
-      {error ? (
-        <p role="alert" className="text-xs font-medium text-red-700">
-          {error}
-        </p>
-      ) : null}
 
       <EarlyCheckinDialog
         open={serverTime !== null}

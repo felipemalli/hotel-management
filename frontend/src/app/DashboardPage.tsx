@@ -9,6 +9,7 @@ import { GuestForm } from '@/features/guests/GuestForm'
 import { GuestTable, type GuestRow } from '@/features/guests/GuestTable'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ReservationForm } from '@/features/reservations/ReservationForm'
+import { toastStore } from '@/lib/toast'
 
 /**
  * Dashboard unico (SPEC 5.1). As listagens da SPEC 4.3 sao abas da tabela, nao
@@ -34,6 +35,7 @@ export function DashboardPage() {
   function onSignOut() {
     signOut()
     queryClient.clear()
+    toastStore.clear()
   }
 
   function renderActions(row: GuestRow) {

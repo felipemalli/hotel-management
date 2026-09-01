@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Input } from '@/components/ui/Input'
 import { addDaysISO, todayISO } from '@/lib/dates'
-import { errorMessage, fieldErrors } from '@/lib/errors'
+import { fieldErrors } from '@/lib/errors'
 
 import { useCreateReservation } from './hooks'
 import type { Reservation } from './types'
@@ -19,6 +19,9 @@ import type { Reservation } from './types'
  * comparacoes de string ISO, e errar essas duas e o erro mais comum de balcao.
  * Divergencia entre as duas camadas nunca decide nada: o payload vai igual e a
  * resposta do servidor prevalece na tela.
+ *
+ * Erro por campo aparece no campo; falha sem campo sobe para o toast global
+ * (SPEC 8.2/E).
  */
 
 const REQUIRED_MESSAGE = 'Campo obrigatório.'
@@ -65,11 +68,6 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
     })
   }
 
-  const generalError =
-    createReservation.error && Object.keys(serverErrors).length === 0
-      ? errorMessage(createReservation.error)
-      : null
-
   return (
     <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
       <p className="text-sm text-slate-600">
@@ -105,7 +103,6 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
       />
 
       {errors.guest_id ? <Alert tone="error">{errors.guest_id}</Alert> : null}
-      {generalError ? <Alert tone="error">{generalError}</Alert> : null}
 
       <div className="flex justify-end gap-2">
         {onCancel ? (

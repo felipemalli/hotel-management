@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 
 /**
- * Faixa de mensagem. Enquanto o handler global de toast do Workstream E nao
- * existe, e por aqui que erro de mutation aparece para o atendente.
+ * Faixa de mensagem **ancorada no contexto** — dentro do formulario, ao lado do
+ * que ela explica. Falha de mutation sem campo culpado nao vem por aqui: vai
+ * para o toast global (`Toaster`, SPEC 8.2/E).
  */
 
 export type AlertTone = 'error' | 'warning' | 'success' | 'info'
