@@ -228,6 +228,7 @@ UPSTREAM_ENVELOPE = {
             ),
         ),
         ("resposta sem bloco de texto", FakeResponse(200, {"content": []})),
+        ("resposta sem `content`", FakeResponse(200, {"id": "msg_teste"})),
         ("corpo que nao e json", FakeResponse(200, None, valid_json=False)),
         ("erro de autenticacao no provedor", FakeResponse(401, {"error": "invalid x-api-key"})),
         ("indisponibilidade do provedor", FakeResponse(529, {"error": "overloaded"})),
