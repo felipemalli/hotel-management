@@ -8,6 +8,10 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
  * titulo ligado por `aria-labelledby`, Escape fecha, foco entra no painel ao
  * abrir e volta ao elemento anterior ao fechar. Sem portal: a arvore da app e
  * unica e o overlay e `fixed`, o que mantem o componente trivial de testar.
+ *
+ * O foco fica **preso** no painel enquanto o modal esta aberto. Sem isso,
+ * `aria-modal="true"` mente: o leitor de tela anuncia um dialogo modal e a
+ * tecla Tab sai dele para a tabela atras do overlay, onde o clique nem chega.
  */
 
 export interface DialogProps {
@@ -27,6 +31,14 @@ const SIZES = {
   md: 'max-w-lg',
   lg: 'max-w-2xl',
 } as const
+
+/** Ordem de foco do painel, ignorando o que esta desabilitado ou fora de fluxo. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+function focusableIn(panel: HTMLElement): HTMLElement[] {
+  return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
+}
 
 export function Dialog({
   open,
@@ -53,6 +65,32 @@ export function Dialog({
       if (event.key === 'Escape') {
         event.stopPropagation()
         onClose()
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const panel = panelRef.current
+      if (!panel) return
+
+      const stops = focusableIn(panel)
+      // Painel sem nada focavel: o proprio painel e o unico ponto de parada.
+      if (stops.length === 0) {
+        event.preventDefault()
+        panel.focus()
+        return
+      }
+
+      const first = stops[0]
+      const last = stops[stops.length - 1]
+      const active = document.activeElement
+
+      if (!event.shiftKey && (active === last || active === panel)) {
+        event.preventDefault()
+        first.focus()
+      } else if (event.shiftKey && (active === first || active === panel)) {
+        event.preventDefault()
+        last.focus()
       }
     }
 
@@ -67,11 +105,17 @@ export function Dialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+      {/*
+        Clique no overlay fecha um `dialog`, mas nao um `alertdialog`: este
+        ultimo existe para exigir uma decisao (F2), e clique fora e gesto
+        ambiguo demais para valer como "cancelar". Escape e o botao Cancelar
+        seguem disponiveis.
+      */}
       <div
         className="absolute inset-0 bg-slate-900/50"
         aria-hidden="true"
-        onClick={onClose}
+        onClick={role === 'dialog' ? onClose : undefined}
       />
       <div
         ref={panelRef}
@@ -81,7 +125,7 @@ export function Dialog({
         aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
         className={[
-          'relative w-full rounded-lg bg-white p-6 shadow-xl',
+          'relative my-auto w-full rounded-lg bg-white p-6 shadow-xl',
           'focus:outline-none',
           SIZES[size],
         ].join(' ')}

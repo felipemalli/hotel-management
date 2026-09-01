@@ -15,6 +15,17 @@ const TONES: Record<AlertTone, string> = {
   info: 'bg-slate-50 text-slate-700 ring-slate-200',
 }
 
+/**
+ * `alert` interrompe a leitura em curso; `status` espera a pausa. Falha e
+ * aviso merecem a interrupcao, confirmacao e informacao nao.
+ */
+const ROLES: Record<AlertTone, 'alert' | 'status'> = {
+  error: 'alert',
+  warning: 'alert',
+  success: 'status',
+  info: 'status',
+}
+
 export interface AlertProps {
   tone?: AlertTone
   children: ReactNode
@@ -24,7 +35,7 @@ export interface AlertProps {
 export function Alert({ tone = 'error', children, onDismiss }: AlertProps) {
   return (
     <div
-      role="alert"
+      role={ROLES[tone]}
       className={`flex items-start gap-3 rounded-md px-3 py-2 text-sm ring-1 ring-inset ${TONES[tone]}`}
     >
       <span className="grow">{children}</span>
@@ -33,7 +44,7 @@ export function Alert({ tone = 'error', children, onDismiss }: AlertProps) {
           type="button"
           onClick={onDismiss}
           aria-label="Fechar aviso"
-          className="shrink-0 font-bold opacity-60 hover:opacity-100"
+          className="shrink-0 rounded px-1 font-bold text-current hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
         >
           &times;
         </button>

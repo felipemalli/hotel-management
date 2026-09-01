@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/Input'
 import { EmptyState, ErrorState, TableSkeleton } from '@/components/ui/States'
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/Table'
 import { Tabs } from '@/components/ui/Tabs'
+import { tabId, tabPanelId } from '@/components/ui/tabIds'
 import type { Paginated } from '@/lib/apiClient'
 import { formatISODate, formatISODateTime } from '@/lib/dates'
 import { errorMessage } from '@/lib/errors'
@@ -50,6 +51,13 @@ const EMPTY_MESSAGE: Record<GuestTab, string> = {
   todos: 'Nenhum hóspede encontrado',
   'in-hotel': 'Nenhum hóspede no hotel',
   'pending-checkin': 'Nenhuma reserva aguardando check-in',
+}
+
+/** O skeleton imita a largura real da aba, para a tabela nao "pular" ao chegar. */
+const SKELETON_COLUMNS: Record<GuestTab, number> = {
+  todos: 5,
+  'in-hotel': 7,
+  'pending-checkin': 6,
 }
 
 function PiiCells({ guest }: { guest: Guest }) {
@@ -244,17 +252,20 @@ export function GuestTable({ renderActions }: GuestTableProps) {
         ) : null}
       </div>
 
-      {query.isPending ? (
-        <TableSkeleton columns={5} />
-      ) : query.isError ? (
-        <ErrorState message={errorMessage(query.error)} onRetry={() => void query.refetch()} />
-      ) : tab === 'todos' ? (
-        <TodosTable data={todos.data} renderActions={renderActions} />
-      ) : tab === 'in-hotel' ? (
-        <InHotelTable data={inHotel.data} renderActions={renderActions} />
-      ) : (
-        <PendingTable data={pending.data} renderActions={renderActions} />
-      )}
+      {/* Painel nomeado pela aba ativa: `aria-controls` das abas aponta para ca. */}
+      <div id={tabPanelId(tab)} role="tabpanel" aria-labelledby={tabId(tab)}>
+        {query.isPending ? (
+          <TableSkeleton columns={SKELETON_COLUMNS[tab]} />
+        ) : query.isError ? (
+          <ErrorState message={errorMessage(query.error)} onRetry={() => void query.refetch()} />
+        ) : tab === 'todos' ? (
+          <TodosTable data={todos.data} renderActions={renderActions} />
+        ) : tab === 'in-hotel' ? (
+          <InHotelTable data={inHotel.data} renderActions={renderActions} />
+        ) : (
+          <PendingTable data={pending.data} renderActions={renderActions} />
+        )}
+      </div>
     </section>
   )
 }
