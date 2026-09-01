@@ -6,23 +6,56 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { useAuth } from '@/features/auth/useAuth'
 import { GuestForm } from '@/features/guests/GuestForm'
-import { GuestTable } from '@/features/guests/GuestTable'
+import { GuestTable, type GuestRow } from '@/features/guests/GuestTable'
+import { ReservationActions } from '@/features/reservations/ReservationActions'
+import { ReservationForm } from '@/features/reservations/ReservationForm'
 
 /**
  * Dashboard unico (SPEC 5.1). As listagens da SPEC 4.3 sao abas da tabela, nao
  * paginas: o briefing pede localizar hospedes em tres recortes, e a troca de
  * aba e mais barata que a troca de rota para quem atende no balcao.
+ *
+ * As acoes de cada linha derivam da aba, porque e a aba que define o estado
+ * conhecido do hospede no contrato: "Todos" nao traz reserva (so cabe abrir
+ * uma nova), "No hotel" traz a reserva `CHECKED_IN` (cabe checkout) e
+ * "Check-in pendente" traz as `PENDING` (cabe check-in ou cancelamento).
  */
 export function DashboardPage() {
   const { signOut } = useAuth()
   const queryClient = useQueryClient()
   const [guestDialogOpen, setGuestDialogOpen] = useState(false)
+  const [reservationFor, setReservationFor] = useState<{
+    id: number
+    full_name: string
+  } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
   /** Sair descarta o cache: dado de hospede nao sobrevive a troca de sessao. */
   function onSignOut() {
     signOut()
     queryClient.clear()
+  }
+
+  function renderActions(row: GuestRow) {
+    if (row.tab === 'todos') {
+      return (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => setReservationFor({ id: row.guest.id, full_name: row.guest.full_name })}
+        >
+          Nova reserva
+        </Button>
+      )
+    }
+
+    return (
+      <ReservationActions
+        reservationId={row.reservation.id}
+        guestName={row.guest.full_name}
+        state={row.tab === 'in-hotel' ? 'CHECKED_IN' : 'PENDING'}
+      />
+    )
   }
 
   return (
@@ -49,7 +82,7 @@ export function DashboardPage() {
           </Alert>
         ) : null}
 
-        <GuestTable />
+        <GuestTable renderActions={renderActions} />
       </main>
 
       <Dialog
@@ -63,9 +96,30 @@ export function DashboardPage() {
           onSuccess={(guest) => {
             setGuestDialogOpen(false)
             setNotice(`Hóspede ${guest.full_name} cadastrado.`)
+            setReservationFor({ id: guest.id, full_name: guest.full_name })
           }}
         />
       </Dialog>
+
+      {reservationFor ? (
+        <Dialog
+          open
+          title="Nova reserva"
+          description="Mínimo de 1 noite; a entrada não pode ser no passado."
+          onClose={() => setReservationFor(null)}
+        >
+          <ReservationForm
+            guest={reservationFor}
+            onCancel={() => setReservationFor(null)}
+            onSuccess={(reservation) => {
+              setReservationFor(null)
+              setNotice(
+                `Reserva #${reservation.id} criada para ${reservationFor.full_name}.`,
+              )
+            }}
+          />
+        </Dialog>
+      ) : null}
     </div>
   )
 }
