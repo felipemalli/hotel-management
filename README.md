@@ -403,10 +403,20 @@ antes de chegar ao formulário, e qualquer desvio (timeout, HTTP diferente de
 200, JSON inválido, chave faltante, tipo errado) vira `502 AI_UPSTREAM_ERROR`
 em vez de campo estranho no cadastro.
 
-O app é removível por construção: `hotel/` não importa nada de `ai/`, e a
-feature toda cabe em `backend/ai/`, uma rota em `backend/config/urls.py`,
-`backend/tests/api/test_ai.py`, `frontend/src/features/ai/` e um elemento no
-`GuestForm`.
+O app é **removível por construção** — o núcleo do sistema não sabe que ele
+existe. `hotel/` não importa nada de `ai/`, o pacote não entra em
+`INSTALLED_APPS` (não tem models nem migrações) e nada no frontend importa
+`features/ai/` além do formulário de cadastro. A feature inteira cabe em:
+
+- `backend/ai/` e `backend/tests/api/test_ai.py`;
+- uma linha de rota em `backend/config/urls.py`;
+- `frontend/src/features/ai/` (com seu teste);
+- um elemento no `frontend/src/features/guests/GuestForm.tsx` e o `vi.mock`
+  correspondente em `GuestForm.test.tsx`;
+- a dependência `httpx` no `backend/pyproject.toml`.
+
+Apagar esses itens desliga o diferencial sem deixar um único órfão — e sem
+tocar em nada que o briefing pede.
 
 ---
 
