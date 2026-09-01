@@ -106,10 +106,11 @@ class Command(BaseCommand):
 
     def _ensure_attendant(self) -> None:
         user_model = get_user_model()
-        attendant, created = user_model.objects.get_or_create(
-            username=ATTENDANT_USERNAME,
-            defaults={"is_staff": True, "is_superuser": True},
-        )
+        # Usuario COMUM: a SPEC 1.1 diz que o atendente e um CustomUser comum,
+        # sem papeis multiplos. Criar superusuario com senha conhecida a cada
+        # subida do compose seria uma conta administrativa publica de fato.
+        # Para acessar o /admin/, rode `manage.py createsuperuser`.
+        attendant, created = user_model.objects.get_or_create(username=ATTENDANT_USERNAME)
         if created:
             attendant.set_password(ATTENDANT_PASSWORD)
             attendant.save(update_fields=["password"])

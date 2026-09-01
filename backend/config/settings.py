@@ -10,6 +10,8 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -28,8 +30,20 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in env(name, default).split(",") if item.strip()]
 
 
-SECRET_KEY = env("SECRET_KEY", "insecure-dev-key-change-me")
 DEBUG = env_bool("DEBUG", False)
+
+# Sem SECRET_KEY o SimpleJWT assinaria os tokens com um valor publico do
+# repositorio -- qualquer um forjaria um access token. Falha alto em vez de
+# degradar em silencio; em DEBUG a conveniencia vence, porque nada real corre.
+SECRET_KEY = env("SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured(
+            "SECRET_KEY é obrigatória com DEBUG=0. Gere uma com: "
+            'python -c "import secrets; print(secrets.token_urlsafe(50))"'
+        )
+    SECRET_KEY = "insecure-debug-only-key"
+
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "localhost,127.0.0.1,backend")
 
 # -- Aplicacoes ---------------------------------------------------------------
@@ -138,6 +152,19 @@ STORAGES = {
 FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY")
 HASH_PEPPER = env("HASH_PEPPER")
 
+# -- Cache -------------------------------------------------------------------
+# O throttling do DRF guarda o historico de chamadas no cache. Com varios
+# workers do gunicorn, `LocMemCache` e por PROCESSO: o historico se divide e o
+# limite nunca e atingido -- throttling decorativo. A SPEC 0.1 tira Redis do
+# escopo, entao o armazenamento compartilhado e o proprio Postgres. A tabela
+# nasce no `createcachetable` da cadeia de subida do compose.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
+    }
+}
+
 # -- DRF / OpenAPI ------------------------------------------------------------
 
 REST_FRAMEWORK = {
@@ -150,6 +177,14 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    # Limites por escopo. O login e anonimo (por IP) e e o alvo classico de
+    # forca bruta; /api/ai/ gasta credito de um provedor externo por chamada.
+    # `Throttled` cai no fallback do handler e sai como 429 THROTTLED no
+    # envelope da SPEC 4.1, sem codigo especial.
+    "DEFAULT_THROTTLE_RATES": {
+        "login": env("THROTTLE_LOGIN", "10/min"),
+        "ai": env("THROTTLE_AI", "20/min"),
+    },
     # Envelope de erro unico {"code","detail","extra"} (SPEC 4.1).
     "EXCEPTION_HANDLER": "hotel.exceptions.api_exception_handler",
 }
