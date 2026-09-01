@@ -6,6 +6,7 @@ Puro: usa apenas `settings.HASH_PEPPER`/`FIELD_ENCRYPTION_KEY`, sem banco.
 
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
+from django.core.exceptions import ImproperlyConfigured
 
 from hotel.crypto import (
     blind_index,
@@ -90,3 +91,16 @@ def test_fernet_requires_the_configured_key(settings):
     settings.FIELD_ENCRYPTION_KEY = Fernet.generate_key().decode()
     with pytest.raises(InvalidToken):
         fernet().decrypt(ciphertext)
+
+
+def test_blind_index_requires_the_pepper(settings):
+    """Sem pepper o blind index seria previsivel: falha alto, nao silenciosa."""
+    settings.HASH_PEPPER = ""
+    with pytest.raises(ImproperlyConfigured):
+        blind_index("12345678901")
+
+
+def test_fernet_requires_the_encryption_key(settings):
+    settings.FIELD_ENCRYPTION_KEY = ""
+    with pytest.raises(ImproperlyConfigured):
+        fernet()
