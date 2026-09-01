@@ -166,6 +166,7 @@ cd backend
 set -a && . ../.env && set +a   # o Django lê variáveis do ambiente, não do .env
 uv sync
 uv run python manage.py migrate
+uv run python manage.py collectstatic --noinput   # CSS do /admin/ e do Swagger com DEBUG=0
 uv run python manage.py seed_demo
 uv run python manage.py runserver 0.0.0.0:8000
 
@@ -180,14 +181,17 @@ proxy de `/api` para `http://localhost:8000` (é o default fora do Compose; dent
 dele, `VITE_API_PROXY_TARGET=http://backend:8000`) — por isso **não existe CORS
 neste projeto**: no browser, tudo é a mesma origem.
 
-Duas notas honestas sobre esse caminho:
+Três notas honestas sobre esse caminho:
 
 - `DB_HOST=localhost` é o default do `settings.py` justamente para ele; é o
   Compose que injeta `DB_HOST=db`.
-- `runserver` é servidor de desenvolvimento: sobe com `DEBUG` vindo do `.env`
-  (`0`), sem gunicorn e sem `collectstatic`. O `/admin/` e o `/api/docs/` ainda
-  renderizam com CSS porque os estáticos são servidos pelo WhiteNoise, mas o
-  runtime **entregue e testado** é o da seção 1.
+- o `collectstatic` está na lista pelo mesmo motivo que está na cadeia do
+  Compose: com `DEBUG=0`, quem serve estático é o WhiteNoise a partir do
+  `STATIC_ROOT`, e ele monta o índice dos arquivos **na subida**. Sem esse
+  passo (ou rodando-o com o servidor já no ar), `/admin/` e `/api/docs/`
+  respondem 200 mas sem CSS.
+- `runserver` é servidor de desenvolvimento, sem gunicorn: o runtime
+  **entregue e testado** é o da seção 1.
 
 ---
 
