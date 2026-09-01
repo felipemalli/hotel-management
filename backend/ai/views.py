@@ -12,9 +12,10 @@ com request, response e os erros `AI_DISABLED` / `AI_UPSTREAM_ERROR`.
 from __future__ import annotations
 
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 
 from ai.client import extract_guest_fields
 from ai.config import ai_enabled
@@ -61,6 +62,12 @@ AI_UPSTREAM_RESPONSE = OpenApiResponse(
         )
     ],
 )
+
+
+class AiRateThrottle(UserRateThrottle):
+    """Cada chamada gasta credito de um provedor externo: limite por usuario."""
+
+    scope = "ai"
 
 
 @extend_schema(
@@ -114,6 +121,7 @@ def ai_status(_request: Request) -> Response:
     ],
 )
 @api_view(["POST"])
+@throttle_classes([AiRateThrottle])
 def parse_guest(request: Request) -> Response:
     if not ai_enabled():
         raise AiDisabledError

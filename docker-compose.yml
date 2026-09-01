@@ -33,7 +33,7 @@ services:
       db:
         condition: service_healthy
     # Cadeia de subida no proprio compose: zero arquivos .sh no repositorio (SPEC 8.5/R7).
-    command: sh -c "uv run python manage.py migrate --noinput && uv run python manage.py collectstatic --noinput && uv run python manage.py seed_demo && uv run gunicorn config.wsgi -b 0.0.0.0:8000"
+    command: sh -c "uv run python manage.py migrate --noinput && uv run python manage.py createcachetable && uv run python manage.py collectstatic --noinput && uv run python manage.py seed_demo && uv run gunicorn config.wsgi -b 0.0.0.0:8000 -w ${GUNICORN_WORKERS:-3}"
     healthcheck:
       test:
         - CMD-SHELL

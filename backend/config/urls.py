@@ -11,8 +11,8 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import SimpleRouter
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from accounts.views import ThrottledTokenObtainPairView, ThrottledTokenRefreshView
 from config.health import health
 from hotel.views import GuestViewSet, ReservationViewSet
 
@@ -25,8 +25,8 @@ urlpatterns = [
     path("api/health/", health, name="health"),
     # SimpleJWT nasce com `permission_classes = ()`, logo a permissao global
     # IsAuthenticated (SPEC 2.3) nao tranca a propria porta de entrada.
-    path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/auth/token/", ThrottledTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/auth/token/refresh/", ThrottledTokenRefreshView.as_view(), name="token_refresh"),
     path("api/", include(router.urls)),
     # Feature opcional da SPEC 7. Esta linha e a unica amarra do app `ai/` ao
     # projeto: apaga-la (com o proprio pacote) e o corte limpo da SPEC 8.4/C1.

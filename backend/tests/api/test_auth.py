@@ -4,6 +4,7 @@ Autenticacao JWT (SPEC 2.3, 4.2). Nomes normativos da matriz SPEC 6.3 (RF8).
 
 import pytest
 
+from accounts.views import LoginRateThrottle
 from tests.factories import DEFAULT_PASSWORD
 
 pytestmark = pytest.mark.django_db
@@ -89,3 +90,36 @@ def test_open_paths_need_no_token(api_client):
     """As excecoes AllowAny da SPEC 2.3 seguem abertas apos ligar a permissao global."""
     for path in OPEN_PATHS:
         assert api_client.get(path).status_code == 200, path
+
+
+def test_login_is_rate_limited(api_client, attendant, monkeypatch):
+    """Forca bruta no login encontra 429, nao 401 infinito.
+
+    O endpoint e anonimo: sem limite de taxa nada barra tentativas de senha.
+    O `Throttled` do DRF cai no fallback do handler e sai no envelope da
+    SPEC 4.1 com `code: "THROTTLED"`.
+    """
+    # O DRF captura `THROTTLE_RATES` no import da classe, entao sobrescrever
+    # `settings.REST_FRAMEWORK` aqui nao teria efeito: o limite se ajusta na
+    # propria classe de throttle.
+    monkeypatch.setattr(LoginRateThrottle, "rate", "3/min", raising=False)
+
+    codes = [
+        api_client.post(
+            "/api/auth/token/",
+            {"username": attendant.username, "password": "senha-errada"},
+            format="json",
+        ).status_code
+        for _ in range(4)
+    ]
+
+    assert codes[:3] == [401, 401, 401]
+    assert codes[3] == 429
+
+    blocked = api_client.post(
+        "/api/auth/token/",
+        {"username": attendant.username, "password": DEFAULT_PASSWORD},
+        format="json",
+    )
+    assert blocked.status_code == 429
+    assert blocked.data["code"] == "THROTTLED"
