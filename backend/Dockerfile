@@ -20,7 +20,9 @@ RUN chown app:app /app
 USER app
 
 COPY --chown=app:app pyproject.toml uv.lock .python-version ./
-RUN uv sync --frozen --no-dev
+# Sem --no-dev de proposito: os DoD de B e C (SPEC 8.2) rodam
+# `docker compose exec backend uv run pytest` dentro deste container.
+RUN uv sync --frozen
 
 COPY --chown=app:app . .
 
