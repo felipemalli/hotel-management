@@ -227,3 +227,47 @@ def _reservation_in_state(trait: str) -> Reservation:
         reservation.save(update_fields=["status"])
         return reservation
     return ReservationFactory(**{trait: True})
+
+
+def test_check_in_rejects_guest_with_an_active_stay():
+    """Invariante entre linhas vira 409, nao IntegrityError.
+
+    `resv_one_active_per_guest` (SPEC 1.5) e uma constraint ENTRE linhas. Sem
+    checagem no service ela estourava como IntegrityError e o handler da SPEC
+    4.1 devolvia HTTP 500 -- numa condicao de negocio legitima: hospede com
+    duas reservas PENDING, check-in na segunda.
+    """
+    active = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
+    service.check_in(active, now=local(MARCH_7, 15))
+
+    second = ReservationFactory(
+        guest=active.guest,
+        checkin_date=date(2025, 3, 10),
+        checkout_date=date(2025, 3, 12),
+    )
+
+    with pytest.raises(service.InvalidStatusError) as exc:
+        service.check_in(second, now=local(date(2025, 3, 10), 15))
+
+    assert exc.value.code == "INVALID_STATUS"
+    assert exc.value.extra["active_reservation_id"] == active.pk
+    second.refresh_from_db()
+    assert second.status == ReservationStatus.PENDING
+    assert second.checked_in_at is None
+
+
+def test_check_in_allowed_again_after_checkout():
+    """A trava e a estadia ATIVA, nao o historico: apos o checkout, libera."""
+    first = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
+    service.check_in(first, now=local(MARCH_7, 15))
+    service.check_out(first, now=local(MARCH_9, 11))
+
+    second = ReservationFactory(
+        guest=first.guest,
+        checkin_date=date(2025, 3, 10),
+        checkout_date=date(2025, 3, 12),
+    )
+    service.check_in(second, now=local(date(2025, 3, 10), 15))
+
+    second.refresh_from_db()
+    assert second.status == ReservationStatus.CHECKED_IN

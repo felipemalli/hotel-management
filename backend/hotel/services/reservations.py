@@ -17,7 +17,7 @@ from datetime import datetime
 from django.db import transaction
 from django.utils import timezone
 
-from hotel.models import Reservation, ReservationStatus
+from hotel.models import Guest, Reservation, ReservationStatus
 from hotel.services import pricing
 from hotel.services.pricing import Bill
 
@@ -71,8 +71,14 @@ class EarlyCheckinError(ReservationError):
 def check_in(reservation: Reservation, *, now: datetime, allow_early: bool = False) -> Reservation:
     """Efetiva o check-in. Antes das 14h locais exige `allow_early` (D4)."""
     with transaction.atomic():
+        # Trava o HOSPEDE, nao apenas a reserva: a invariante "no maximo uma
+        # estadia ativa" (SPEC 1.5, `resv_one_active_per_guest`) vale ENTRE
+        # linhas, e travar so a reserva deixaria dois atendentes passarem pela
+        # checagem ao mesmo tempo, em reservas diferentes do mesmo hospede.
+        Guest.objects.select_for_update().get(pk=reservation.guest_id)
         locked = _lock(reservation)
         _assert_transition(locked, ReservationStatus.CHECKED_IN)
+        _assert_no_active_stay(locked)
 
         local_now = timezone.localtime(now)
         if pricing.early_checkin(local_now) and not allow_early:
@@ -147,6 +153,29 @@ def statement(reservation: Reservation) -> Bill:
 def _lock(reservation: Reservation) -> Reservation:
     """Rele a linha sob `select_for_update`: dois atendentes nao concluem a mesma acao."""
     return Reservation.objects.select_for_update().get(pk=reservation.pk)
+
+
+def _assert_no_active_stay(reservation: Reservation) -> None:
+    """Hospede com estadia em curso nao faz novo check-in.
+
+    Sem esta checagem a `UniqueConstraint` do banco estoura como
+    `IntegrityError`, que o handler da SPEC 4.1 nao classifica -- virava HTTP
+    500 com corpo HTML numa condicao legitima de negocio (hospede com duas
+    reservas PENDING). Invariante violada e `409 INVALID_STATUS`.
+    """
+    active = (
+        Reservation.objects.filter(
+            guest_id=reservation.guest_id, status=ReservationStatus.CHECKED_IN
+        )
+        .exclude(pk=reservation.pk)
+        .values_list("pk", flat=True)
+        .first()
+    )
+    if active is not None:
+        raise InvalidStatusError(
+            "Hóspede já possui uma estadia ativa; faça o checkout antes de um novo check-in.",
+            extra={"status": reservation.status, "active_reservation_id": active},
+        )
 
 
 def _assert_transition(reservation: Reservation, target: str) -> None:

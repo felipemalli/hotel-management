@@ -373,3 +373,30 @@ def test_reservation_not_found_returns_envelope(auth_client):
 
     assert response.status_code == 404
     assert response.data["code"] == "NOT_FOUND"
+
+
+def test_checkin_with_active_stay_returns_invalid_status_not_500(auth_client):
+    """Regressao: hospede com estadia ativa devolvia HTTP 500 com corpo HTML.
+
+    A constraint `resv_one_active_per_guest` (SPEC 1.5) e entre linhas; sem
+    checagem no service ela chegava ao handler como IntegrityError, que a SPEC
+    4.1 nao classifica. O caminho e alcancavel pela UI: duas reservas PENDING
+    do mesmo hospede, check-in nas duas.
+    """
+    first = t7_reservation()
+    second = ReservationFactory(
+        guest=first.guest,
+        checkin_date=date(2025, 3, 10),
+        checkout_date=date(2025, 3, 12),
+    )
+
+    with freeze_time(local(MARCH_7, 15, 0)):
+        assert auth_client.post(checkin_url(first), {}, format="json").status_code == 200
+    with freeze_time(local(date(2025, 3, 10), 15, 0)):
+        response = auth_client.post(checkin_url(second), {}, format="json")
+
+    assert response.status_code == 409
+    assert response.data["code"] == "INVALID_STATUS"
+    assert response.data["extra"]["active_reservation_id"] == first.pk
+    second.refresh_from_db()
+    assert second.status == ReservationStatus.PENDING
