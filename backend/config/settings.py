@@ -1,12 +1,13 @@
 """
-Configuracao base do projeto (Workstream A).
+Configuracao do projeto (SPEC 2.3-2.4).
 
-Endurecimento de seguranca, JWT e spectacular completo entram no Workstream C
-(SPEC 2.3-2.4). Aqui fica o minimo para o projeto subir, migrar, servir
-estaticos sob gunicorn e expor /api/health/ + /api/docs/.
+Infra de subida (banco, fuso, whitenoise, spectacular) vem do Workstream A;
+autenticacao JWT, permissao global, envelope de erro unico, headers de
+seguranca e CSP sao do Workstream C.
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -62,6 +63,12 @@ MIDDLEWARE = [
 MIDDLEWARE.insert(
     MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
     "whitenoise.middleware.WhiteNoiseMiddleware",
+)
+# Content-Security-Policy (SPEC 2.4). A isencao pontual de /api/docs/ e por
+# view, em config/urls.py -- a politica global segue estrita nas demais rotas.
+MIDDLEWARE.insert(
+    MIDDLEWARE.index("whitenoise.middleware.WhiteNoiseMiddleware") + 1,
+    "csp.middleware.CSPMiddleware",
 )
 
 ROOT_URLCONF = "config.urls"
@@ -135,8 +142,27 @@ HASH_PEPPER = env("HASH_PEPPER")
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    # Fechado por padrao (SPEC 2.3). As excecoes AllowAny sao explicitas nas
+    # proprias views: /api/health/, /api/auth/token/{,refresh}/, schema e docs.
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    # Envelope de erro unico {"code","detail","extra"} (SPEC 4.1).
+    "EXCEPTION_HANDLER": "hotel.exceptions.api_exception_handler",
+}
+
+# -- JWT (SPEC 2.3) -----------------------------------------------------------
+# 60 min = sessao de balcao; 12 h = um turno de trabalho. Sem rotacao: a
+# blacklist adicionaria tabela e complexidade sem exigencia no briefing.
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(hours=12),
+    "ROTATE_REFRESH_TOKENS": False,
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 SPECTACULAR_SETTINGS = {
@@ -144,10 +170,34 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API de cadastro, reservas, check-in/checkout e extrato.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # /api/schema/ e /api/docs/ ficam abertos (SPEC 2.3): contrato navegavel
+    # nao exige token, e nenhum dado de hospede trafega neles.
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
     # Assets locais: funciona offline e sob CSP estrita (SPEC 2.4, V3).
     "SWAGGER_UI_DIST": "SIDECAR",
     "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
     "REDOC_DIST": "SIDECAR",
+}
+
+# -- Headers de seguranca (SPEC 2.4) ------------------------------------------
+# HSTS so tem efeito atras de TLS; deixar armado evita esquecer na promocao a
+# producao. Cookies seguros seguem o DEBUG: em dev nao ha TLS para carrega-los.
+
+SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "31536000"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG
+
+# django-csp >= 4: configuracao em dicionario; o formato plano CSP_* foi
+# removido (SPEC 2.4, V1). Assets do Swagger vem do sidecar, logo 'self' basta.
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ["'self'"],
+        "img-src": ["'self'", "data:"],
+        "frame-ancestors": ["'none'"],
+    }
 }
 
 # -- IA opcional (SPEC 7) -----------------------------------------------------

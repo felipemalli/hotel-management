@@ -1,19 +1,40 @@
 """
-Rotas raiz (Workstream A).
+Rotas raiz (SPEC 4.2).
 
-As rotas de dominio (guests, reservations, auth) e a excecao de CSP em
-/api/docs/ entram no Workstream C (SPEC 2.4, 4.2).
+Base `/api/`. Tudo autenticado por JWT, exceto as quatro rotas abertas por
+decisao explicita da SPEC 2.3: `/api/auth/token/`, `/api/auth/token/refresh/`,
+`/api/health/` e o par `/api/schema/` + `/api/docs/`.
 """
 
+from csp.decorators import csp_exempt
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from rest_framework.routers import SimpleRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from config.health import health
+from hotel.views import GuestViewSet, ReservationViewSet
+
+router = SimpleRouter()
+router.register("guests", GuestViewSet, basename="guest")
+router.register("reservations", ReservationViewSet, basename="reservation")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health, name="health"),
+    # SimpleJWT nasce com `permission_classes = ()`, logo a permissao global
+    # IsAuthenticated (SPEC 2.3) nao tranca a propria porta de entrada.
+    path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/", include(router.urls)),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
+    # O bootstrap inline da pagina de docs nao passa por `default-src 'self'`:
+    # excecao pontual de CSP nesta view (SPEC 2.4, V2). No django-csp 4 o
+    # decorador exige parenteses -- a forma nua levanta RuntimeError.
+    path(
+        "api/docs/",
+        csp_exempt()(SpectacularSwaggerView.as_view(url_name="schema")),
+        name="docs",
+    ),
 ]
