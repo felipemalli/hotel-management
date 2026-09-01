@@ -9,6 +9,12 @@ import { GuestForm } from './GuestForm'
 import type { Guest } from './types'
 
 vi.mock('@/features/guests/api')
+// Diferencial opcional da SPEC 7: o formulario carrega o slot da IA, que
+// consulta `/api/ai/status/`. Dublado aqui para que nenhum teste toque a rede
+// (SPEC 7.2) — sem `enabled: true` o slot renderiza nada, e este arquivo segue
+// provando o RF1 exatamente como antes. Corte da SPEC 8.4/C1: apagar estas
+// duas linhas.
+vi.mock('@/features/ai/api')
 
 /**
  * SPEC 6.2 — `features/guests/GuestForm.test.tsx`.

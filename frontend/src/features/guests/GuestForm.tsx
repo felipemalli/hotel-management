@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { AiFillGuest } from '@/features/ai/AiFillGuest'
 import { errorMessage, fieldErrors, isApiErrorCode } from '@/lib/errors'
 
 import { useCreateGuest } from './hooks'
@@ -67,6 +68,21 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
 
   return (
     <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
+      {/*
+        Diferencial opcional da SPEC 7: `AiFillGuest` renderiza nada enquanto a
+        IA nao estiver habilitada, logo este e o formulario inteiro quando a
+        chave nao existe. Corte limpo da SPEC 8.4/C1: apagar estas tres linhas
+        (mais o import) e `src/features/ai/` — nada mais no frontend importa a
+        feature.
+      */}
+      <AiFillGuest
+        onFilled={(fields) => {
+          if (fields.full_name) setFullName(fields.full_name)
+          if (fields.document) setDocument(fields.document)
+          if (fields.phone) setPhone(fields.phone)
+          setLocalErrors({})
+        }}
+      />
       <Input
         label="Nome completo"
         name="full_name"
