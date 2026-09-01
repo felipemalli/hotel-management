@@ -55,11 +55,26 @@ export function Dialog({
   const panelRef = useRef<HTMLDivElement | null>(null)
   const previouslyFocused = useRef<Element | null>(null)
 
+  // Foco: UMA vez por abertura. Nao pode depender de `onClose`, que na pratica
+  // e uma arrow inline e troca de identidade a cada render do pai — o efeito
+  // reexecutava e jogava o cursor de volta ao painel no meio da digitacao, e
+  // `previouslyFocused` era sobrescrito com o proprio campo, de modo que ao
+  // fechar o foco voltava para um no ja removido em vez do botao de origem.
   useEffect(() => {
     if (!open) return
 
     previouslyFocused.current = document.activeElement
     panelRef.current?.focus()
+
+    return () => {
+      const previous = previouslyFocused.current
+      if (previous instanceof HTMLElement) previous.focus()
+    }
+  }, [open])
+
+  // Teclado: este SIM depende de `onClose`, e reassinar o listener e barato.
+  useEffect(() => {
+    if (!open) return
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -95,11 +110,7 @@ export function Dialog({
     }
 
     document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      const previous = previouslyFocused.current
-      if (previous instanceof HTMLElement) previous.focus()
-    }
+    return () => document.removeEventListener('keydown', onKeyDown)
   }, [open, onClose])
 
   if (!open) return null

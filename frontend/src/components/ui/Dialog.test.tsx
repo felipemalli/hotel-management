@@ -88,3 +88,39 @@ describe('Dialog', () => {
     expect(opener).toHaveFocus()
   })
 })
+
+/**
+ * O pai re-renderiza (um refetch de listagem, por exemplo) e passa um
+ * `onClose` novo, porque na pratica ele e uma arrow inline. Se o efeito de
+ * foco depender dessa identidade, ele roda de novo e joga o cursor de volta
+ * ao painel — no meio da digitacao do atendente.
+ *
+ * O re-render entra por `rerender`, nao por clique: clicar move o foco por
+ * conta propria e mascararia justamente o que se quer medir.
+ */
+function FormInDialog() {
+  return (
+    <Dialog open title="Novo hóspede" onClose={() => {}}>
+      <label htmlFor="nome">Nome</label>
+      <input id="nome" />
+    </Dialog>
+  )
+}
+
+describe('Dialog e o re-render do pai', () => {
+  it('nao rouba o foco do campo que esta sendo digitado', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(<FormInDialog />)
+
+    const input = screen.getByLabelText('Nome')
+    await user.click(input)
+    await user.keyboard('Ana')
+    expect(input).toHaveFocus()
+
+    // Cada render de `FormInDialog` cria um `onClose` de identidade nova.
+    rerender(<FormInDialog />)
+
+    expect(screen.getByLabelText('Nome')).toHaveFocus()
+    expect(screen.getByLabelText('Nome')).toHaveValue('Ana')
+  })
+})
