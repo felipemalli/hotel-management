@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: backend (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: hotel
+          POSTGRES_USER: hotel
+          POSTGRES_PASSWORD: hotel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hotel -d hotel"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DEBUG: "0"
+      SECRET_KEY: ci-only-secret-key
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: hotel
+      POSTGRES_USER: hotel
+      POSTGRES_PASSWORD: hotel
+      DB_HOST: localhost
+      DB_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: "Guard - dinheiro nunca usa float (SPEC 0.3)"
+        working-directory: ${{ github.workspace }}
+        run: '! grep -RnE "float\(" backend/hotel backend/accounts'
+
+      - name: Instalar dependencias travadas
+        run: uv sync --frozen
+
+      - name: Gerar chaves de PII efemeras para os testes
+        run: |
+          echo "FIELD_ENCRYPTION_KEY=$(uv run python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" >> "$GITHUB_ENV"
+          echo "HASH_PEPPER=$(python3 -c 'import secrets; print(secrets.token_hex(32))')" >> "$GITHUB_ENV"
+
+      - name: Suite backend com cobertura
+        run: uv run pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q
+
+  frontend:
+    name: frontend (vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias travadas
+        run: npm ci
+
+      - name: Typecheck, lint, testes e build
+        run: npm run typecheck && npm run lint && npm run test -- --run && npm run build
