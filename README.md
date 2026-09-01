@@ -166,6 +166,7 @@ cd backend
 set -a && . ../.env && set +a   # o Django lê variáveis do ambiente, não do .env
 uv sync
 uv run python manage.py migrate
+uv run python manage.py createcachetable          # tabela do cache: sem ela o login responde 500
 uv run python manage.py collectstatic --noinput   # CSS do /admin/ e do Swagger com DEBUG=0
 uv run python manage.py seed_demo
 uv run python manage.py runserver 0.0.0.0:8000
