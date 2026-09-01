@@ -1,9 +1,5 @@
 """
 Fixtures da borda HTTP (SPEC 6.1).
-
-A senha e (re)definida e SALVA aqui porque `UserFactory` roda com
-`skip_postgeneration_save = True`: o `set_password` do post-generation fica
-apenas em memoria, e sem este passo nenhum login autenticaria.
 """
 
 from __future__ import annotations
@@ -14,7 +10,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from rest_framework.test import APIClient
 
-from tests.factories import DEFAULT_PASSWORD, UserFactory
+from tests.factories import UserFactory
 
 SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 
@@ -31,10 +27,9 @@ def api_client() -> APIClient:
 
 @pytest.fixture
 def attendant(db):
-    user = UserFactory()
-    user.set_password(DEFAULT_PASSWORD)
-    user.save(update_fields=["password"])
-    return user
+    # `UserFactory` ja grava o hash no INSERT; um segundo `set_password` aqui
+    # so pagaria o hasher de novo.
+    return UserFactory()
 
 
 @pytest.fixture
