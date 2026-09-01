@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { earlyCheckinServerTime } from '@/lib/errors'
 
-import { CheckoutStatementDialog } from './CheckoutStatementDialog'
 import { EarlyCheckinDialog } from './EarlyCheckinDialog'
 import { useCancelReservation, useCheckIn, useCheckOut } from './hooks'
 import type { CheckoutStatement } from './types'
@@ -21,6 +20,11 @@ import type { CheckoutStatement } from './types'
  * feature de hospedes, o que mantem a dependencia entre features em uma
  * direcao (guests nao conhece reservations, reservations nao conhece guests).
  *
+ * O extrato do checkout NAO e estado deste componente. Ele sobe por
+ * `onCheckedOut` para quem renderiza a tabela: o checkout remove o hospede da
+ * aba "No hotel", a linha desmonta, e um dialogo que morasse aqui morreria
+ * junto — o atendente veria o total piscar e desaparecer, reprovando a RN6.
+ *
  * Falha inesperada (rede, `INVALID_STATUS`, 500) **nao** e tratada aqui: sobe
  * para o handler global do `MutationCache` (SPEC 8.2/E) e aparece em toast.
  * Este componente so intercepta o 409 de D4, porque esse nao e erro — e o
@@ -33,19 +37,21 @@ export interface ReservationActionsProps {
   reservationId: number
   guestName: string
   state: ReservationActionState
+  /** Recebe o extrato para exibi-lo FORA da linha da tabela (ver acima). */
+  onCheckedOut?: (statement: CheckoutStatement) => void
 }
 
 export function ReservationActions({
   reservationId,
   guestName,
   state,
+  onCheckedOut,
 }: ReservationActionsProps) {
   const [serverTime, setServerTime] = useState<string | null>(null)
-  const [statement, setStatement] = useState<CheckoutStatement | null>(null)
   const [confirmingCancel, setConfirmingCancel] = useState(false)
 
   const checkIn = useCheckIn({ onSuccess: () => setServerTime(null) })
-  const checkOut = useCheckOut({ onSuccess: setStatement })
+  const checkOut = useCheckOut({ onSuccess: onCheckedOut })
   const cancel = useCancelReservation({ onSuccess: () => setConfirmingCancel(false) })
 
   function runCheckIn(allowEarly: boolean) {
@@ -102,14 +108,6 @@ export function ReservationActions({
         onConfirm={() => runCheckIn(true)}
         onCancel={() => setServerTime(null)}
       />
-
-      {statement ? (
-        <CheckoutStatementDialog
-          open
-          statement={statement}
-          onClose={() => setStatement(null)}
-        />
-      ) : null}
 
       <Dialog
         open={confirmingCancel}

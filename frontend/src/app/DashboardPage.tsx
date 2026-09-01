@@ -7,8 +7,10 @@ import { Dialog } from '@/components/ui/Dialog'
 import { useAuth } from '@/features/auth/useAuth'
 import { GuestForm } from '@/features/guests/GuestForm'
 import { GuestTable, type GuestRow } from '@/features/guests/GuestTable'
+import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStatementDialog'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ReservationForm } from '@/features/reservations/ReservationForm'
+import type { CheckoutStatement } from '@/features/reservations/types'
 import { toastStore } from '@/lib/toast'
 
 /**
@@ -30,6 +32,10 @@ export function DashboardPage() {
     full_name: string
   } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // O extrato mora AQUI, nao na linha da tabela: o checkout tira o hospede da
+  // aba "No hotel" e a linha desmonta. Estado nesta pagina sobrevive ao
+  // refetch, e o atendente consegue ler o total (RN6).
+  const [statement, setStatement] = useState<CheckoutStatement | null>(null)
 
   /** Sair descarta o cache: dado de hospede nao sobrevive a troca de sessao. */
   function onSignOut() {
@@ -56,6 +62,7 @@ export function DashboardPage() {
         reservationId={row.reservation.id}
         guestName={row.guest.full_name}
         state={row.tab === 'in-hotel' ? 'CHECKED_IN' : 'PENDING'}
+        onCheckedOut={setStatement}
       />
     )
   }
@@ -121,6 +128,14 @@ export function DashboardPage() {
             }}
           />
         </Dialog>
+      ) : null}
+
+      {statement ? (
+        <CheckoutStatementDialog
+          open
+          statement={statement}
+          onClose={() => setStatement(null)}
+        />
       ) : null}
     </div>
   )
