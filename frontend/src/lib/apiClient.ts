@@ -35,9 +35,12 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-/** Instancia crua: o refresh nao pode passar pelos interceptors (recursao). */
+/**
+ * Instancia crua: o refresh nao pode passar pelos interceptors (recursao).
+ * Sem `baseURL` proprio de proposito — ele e lido de `apiClient` na hora da
+ * chamada, para que exista uma unica fonte da verdade do endereco da API.
+ */
 const refreshClient = axios.create({
-  baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -66,7 +69,11 @@ function refreshAccessToken(): Promise<string> {
   if (!refresh) return Promise.reject(new Error('Sessao sem refresh token.'))
 
   refreshInFlight = refreshClient
-    .post<{ access: string }>(AUTH_PATHS.refresh, { refresh })
+    .post<{ access: string }>(
+      AUTH_PATHS.refresh,
+      { refresh },
+      { baseURL: apiClient.defaults.baseURL },
+    )
     .then((response) => {
       session.setAccessToken(response.data.access)
       return response.data.access
