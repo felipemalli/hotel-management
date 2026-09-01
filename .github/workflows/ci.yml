@@ -38,7 +38,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v10
+      # Pin exato: o setup-uv publica tag movel de major so ate v7.
+      # v8/v9/v10 existem apenas como versao exata, e `@v10` nao resolve.
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
