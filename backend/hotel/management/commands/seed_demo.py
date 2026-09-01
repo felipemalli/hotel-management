@@ -135,12 +135,30 @@ class Command(BaseCommand):
     def _ensure_reservation(
         self, guest: Guest, *, checkin: date, checkout: date, has_vehicle: bool
     ) -> Reservation:
-        reservation, created = Reservation.objects.get_or_create(
+        """Uma reserva por hospede do seed, criada uma unica vez.
+
+        A chave da idempotencia e o HOSPEDE, nao a data. Chavear por
+        `(guest, checkin_date, checkout_date)` parecia idempotente e nao era:
+        as datas do cenario derivam de `localdate()`, entao uma reexecucao no
+        dia seguinte nao encontrava a reserva anterior, criava outra, e o
+        `check_in` do Bruno batia na invariante de uma estadia ativa por
+        hospede -- o comando abortava e a cadeia de subida do compose parava
+        antes do gunicorn. `docker compose up` no dia seguinte, sem `-v`,
+        deixava a API no chao.
+
+        Deixar o cenario da execucao anterior de pe tambem e mais fiel: a
+        reserva PENDING da Ana vence e continua listada, que e exatamente o que
+        a D14 descreve.
+        """
+        existing = guest.reservations.order_by("id").first()
+        if existing is not None:
+            return existing
+
+        reservation = Reservation.objects.create(
             guest=guest,
             checkin_date=checkin,
             checkout_date=checkout,
-            defaults={"has_vehicle": has_vehicle},
+            has_vehicle=has_vehicle,
         )
-        if created:
-            self.stdout.write(f"  reserva criada: {guest.full_name} {checkin} -> {checkout}")
+        self.stdout.write(f"  reserva criada: {guest.full_name} {checkin} -> {checkout}")
         return reservation

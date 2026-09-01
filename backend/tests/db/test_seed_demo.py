@@ -14,6 +14,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.utils import timezone
+from freezegun import freeze_time
 
 from hotel import selectors
 from hotel.models import Guest, Reservation, ReservationStatus
@@ -90,3 +91,30 @@ def test_seed_demotes_an_existing_privileged_attendant():
     assert attendant.is_superuser is False
     # A senha do seed continua valendo: rebaixar nao e trocar credencial.
     assert attendant.check_password("atendente123")
+
+
+def test_seed_is_idempotent_across_dates():
+    """Reexecucao em data POSTERIOR nao pode abortar o comando.
+
+    As datas do cenario derivam de `localdate()`. Chaveado por data, o seed
+    criava reserva nova a cada dia e o `check_in` do Bruno batia na invariante
+    de uma estadia ativa por hospede: o comando abortava, e como ele esta na
+    cadeia de subida do compose, o gunicorn nunca subia. Um `docker compose up`
+    no dia seguinte (sem `-v`) derrubava a API.
+    """
+    with freeze_time("2026-09-01 10:00:00-03:00"):
+        call_command("seed_demo", stdout=StringIO())
+
+    guests_after_first = Guest.objects.count()
+    reservations_after_first = Reservation.objects.count()
+
+    # O avaliador sobe o compose de novo, dois dias depois.
+    with freeze_time("2026-09-03 10:00:00-03:00"):
+        call_command("seed_demo", stdout=StringIO())
+
+    assert Guest.objects.count() == guests_after_first
+    assert Reservation.objects.count() == reservations_after_first
+    # As tres abas continuam povoadas, que e a razao de existir do seed.
+    assert Reservation.objects.filter(status=ReservationStatus.PENDING).exists()
+    assert Reservation.objects.filter(status=ReservationStatus.CHECKED_IN).exists()
+    assert Reservation.objects.filter(status=ReservationStatus.CHECKED_OUT).exists()
