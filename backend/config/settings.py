@@ -181,9 +181,11 @@ REST_FRAMEWORK = {
     # forca bruta; /api/ai/ gasta credito de um provedor externo por chamada.
     # `Throttled` cai no fallback do handler e sai como 429 THROTTLED no
     # envelope da SPEC 4.1, sem codigo especial.
+    # Apenas escopos do nucleo. O limite da feature opcional de IA e derivado
+    # em `ai/config.py`, para que apagar `backend/ai/` (SPEC 8.4/C1) nao deixe
+    # uma chave morta aqui.
     "DEFAULT_THROTTLE_RATES": {
         "login": env("THROTTLE_LOGIN", "10/min"),
-        "ai": env("THROTTLE_AI", "20/min"),
     },
     # Quantos proxies confiaveis existem ANTES da aplicacao. Com o default do
     # DRF (None) o `get_ident` usa `X-Forwarded-For` quando o header vem, e

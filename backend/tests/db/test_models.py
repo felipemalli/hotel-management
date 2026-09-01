@@ -198,19 +198,16 @@ def test_lookup_on_encrypted_field_is_refused():
     ).exists()
 
 
-def test_bulk_create_does_not_maintain_the_blind_index():
-    """Armadilha documentada: `bulk_create` nao chama `save()`.
+def test_bulk_create_is_refused_instead_of_writing_a_broken_row():
+    """`bulk_create` nao chama `save()`, e e o `save()` que mantem os hashes.
 
-    Sem `save()` os hashes nao sao calculados, e o hospede nasce invisivel para
-    a busca exata. Este teste existe para que a proxima pessoa que pensar em
-    `bulk_create` descubra o problema aqui, e nao em producao.
+    Antes o hospede nascia com `document_hash` vazio: invisivel para a busca
+    exata e para a unicidade de documento, sem erro nenhum. Agora o manager
+    recusa, pela mesma razao que `EncryptedCharField.get_lookup` recusa.
     """
-    Guest.objects.bulk_create(
-        [Guest(full_name="Elena Prado", document="555.666.777-88", phone="(11) 90000-1111")]
-    )
+    with pytest.raises(NotImplementedError, match="document_hash"):
+        Guest.objects.bulk_create(
+            [Guest(full_name="Elena Prado", document="555.666.777-88", phone="(11) 90000-1111")]
+        )
 
-    created = Guest.objects.get(full_name="Elena Prado")
-    assert created.document_hash == ""
-    assert not Guest.objects.filter(
-        document_hash=blind_index(normalize_document("55566677788"))
-    ).exists()
+    assert not Guest.objects.filter(full_name="Elena Prado").exists()

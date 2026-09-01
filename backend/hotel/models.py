@@ -25,6 +25,24 @@ class ReservationStatus(models.TextChoices):
     CANCELLED = "CANCELLED", "Cancelada"
 
 
+class GuestManager(models.Manager):
+    """Recusa as escritas que passam por cima do `save()` do modelo.
+
+    `bulk_create` e `QuerySet.update()` nao chamam `save()`, e e o `save()` que
+    mantem `document_hash`/`phone_hash` em sincronia com a PII cifrada (SPEC
+    2.1). Sem este guarda, o hospede era gravado com hash vazio: invisivel para
+    a busca exata e para a unicidade de documento, sem erro nenhum. Mesma
+    disciplina do `get_lookup` de `EncryptedCharField` -- falhar alto e melhor
+    que gravar dado silenciosamente quebrado.
+    """
+
+    def bulk_create(self, *args, **kwargs):
+        raise NotImplementedError(
+            "Guest.objects.bulk_create nao mantem document_hash/phone_hash "
+            "(SPEC 2.1). Crie um por um com save(), ou use os services."
+        )
+
+
 class Guest(models.Model):
     """Hospede. `full_name` em claro (busca parcial trigram); PII cifrada (D5)."""
 
@@ -35,6 +53,8 @@ class Guest(models.Model):
     phone_hash = models.CharField(max_length=64, db_index=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = GuestManager()
 
     class Meta:
         ordering = ["full_name", "id"]

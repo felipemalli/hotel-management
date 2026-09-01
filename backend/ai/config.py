@@ -37,3 +37,14 @@ def ai_enabled() -> bool:
 def model() -> str:
     configured = getattr(settings, "ANTHROPIC_MODEL", "") or os.environ.get("ANTHROPIC_MODEL", "")
     return str(configured).strip() or DEFAULT_MODEL
+
+
+def ai_throttle_rate() -> str:
+    """Limite de chamadas da feature, no formato do DRF ("20/min").
+
+    Mora aqui, e nao no `DEFAULT_THROTTLE_RATES` de `config/settings.py`, pela
+    mesma razao que `ai_enabled`: um escopo de throttle que so a IA usa seria
+    exatamente o tipo de orfao que o corte limpo da SPEC 8.4/C1 promete nao
+    deixar. Assim, apagar `backend/ai/` nao deixa chave morta em settings.
+    """
+    return os.environ.get("THROTTLE_AI", "20/min").strip() or "20/min"

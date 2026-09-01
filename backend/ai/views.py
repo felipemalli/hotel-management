@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
 from ai.client import extract_guest_fields
-from ai.config import ai_enabled
+from ai.config import ai_enabled, ai_throttle_rate
 from ai.exceptions import AiDisabledError, AiUpstreamError
 from ai.serializers import (
     AiStatusSerializer,
@@ -65,9 +65,15 @@ AI_UPSTREAM_RESPONSE = OpenApiResponse(
 
 
 class AiRateThrottle(UserRateThrottle):
-    """Cada chamada gasta credito de um provedor externo: limite por usuario."""
+    """Cada chamada gasta credito de um provedor externo: limite por usuario.
+
+    O `rate` vem da propria feature (`ai.config`), nao do dict global de
+    settings: o DRF usa `self.rate` quando ele existe e nem consulta
+    `DEFAULT_THROTTLE_RATES`.
+    """
 
     scope = "ai"
+    rate = ai_throttle_rate()
 
 
 @extend_schema(
