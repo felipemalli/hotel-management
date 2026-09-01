@@ -1,0 +1,43 @@
+[project]
+name = "hotel-backend"
+version = "0.1.0"
+description = "Gestao de Hospedes de Hotel - backend"
+requires-python = ">=3.12"
+dependencies = [
+    "django==5.2.*",
+    "djangorestframework",
+    "djangorestframework-simplejwt",
+    "drf-spectacular[sidecar]",
+    "psycopg[binary]",
+    "cryptography",
+    "django-csp>=4",
+    "whitenoise",
+    "httpx",
+    "gunicorn",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-django",
+    "pytest-cov",
+    "factory-boy",
+    "freezegun",
+    "ruff",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+
+[tool.ruff.lint.per-file-ignores]
+# Migracoes sao geradas pelo Django; nao se reformatam a mao.
+"*/migrations/*" = ["E501"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+addopts = "-ra"
