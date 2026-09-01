@@ -28,6 +28,9 @@ urlpatterns = [
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/", include(router.urls)),
+    # Feature opcional da SPEC 7. Esta linha e a unica amarra do app `ai/` ao
+    # projeto: apaga-la (com o proprio pacote) e o corte limpo da SPEC 8.4/C1.
+    path("api/ai/", include("ai.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     # O bootstrap inline da pagina de docs nao passa por `default-src 'self'`:
     # excecao pontual de CSP nesta view (SPEC 2.4, V2). No django-csp 4 o
