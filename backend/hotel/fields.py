@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from django.core.exceptions import FieldError
 from django.db import models
 
 from hotel.crypto import fernet
@@ -25,3 +26,17 @@ class EncryptedCharField(models.TextField):
         if value is None:
             return None
         return fernet().decrypt(value.encode()).decode()
+
+    def get_lookup(self, lookup_name: str):
+        """Recusa qualquer lookup em vez de devolver conjunto vazio em silencio.
+
+        `get_prep_value` cifraria o valor procurado, e como o Fernet nao e
+        deterministico o WHERE nunca casa: `filter(document="123")` devolvia
+        zero resultados sem erro nenhum -- o pior modo de falha possivel, porque
+        parece "nao encontrado". Quem busca e o blind index (`*_hash`).
+        """
+        raise FieldError(
+            f"`{self.name}` e cifrado com Fernet (nao deterministico): nenhum "
+            f"lookup casa. Busque por `{self.name}_hash` com "
+            "`blind_index(normalize_*(valor))`."
+        )

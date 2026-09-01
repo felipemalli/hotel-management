@@ -27,6 +27,10 @@ VISIBLE_TAIL = 4
 
 DOCUMENT_MIN_LENGTH = 4  # alfanumericos, apos normalizacao (D9)
 PHONE_MIN_LENGTH = 8  # digitos, apos normalizacao (D9)
+# Maximos generosos, contando mascara: nenhum documento ou telefone real
+# chega perto. Servem para recusar entrada absurda antes de cifrar.
+DOCUMENT_MAX_LENGTH = 40
+PHONE_MAX_LENGTH = 30
 
 
 def normalize_document(value: str) -> str:

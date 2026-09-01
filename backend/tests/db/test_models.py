@@ -5,6 +5,7 @@ Modelos, cifra em repouso e constraints (SPEC 1.5, 2.1, 6.1). Precisa de PG.
 from datetime import timedelta
 
 import pytest
+from django.core.exceptions import FieldError
 from django.db import IntegrityError, connection, transaction
 
 from hotel.crypto import blind_index, normalize_document, normalize_phone
@@ -177,3 +178,39 @@ def test_local_datetime_helper_is_aware():
     moment = local_datetime(guest.created_at.date(), guest.created_at.time())
 
     assert moment.utcoffset() is not None
+
+
+def test_lookup_on_encrypted_field_is_refused():
+    """Falhar alto e melhor que devolver vazio em silencio.
+
+    `get_prep_value` cifra o valor procurado e o Fernet nao e deterministico,
+    entao `filter(document=...)` casava zero linhas SEM erro -- indistinguivel
+    de "nao existe". A busca legitima e pelo blind index.
+    """
+    GuestFactory(document="123.456.789-01")
+
+    with pytest.raises(FieldError, match="blind_index"):
+        Guest.objects.filter(document="123.456.789-01").exists()
+
+    # O caminho correto continua funcionando.
+    assert Guest.objects.filter(
+        document_hash=blind_index(normalize_document("12345678901"))
+    ).exists()
+
+
+def test_bulk_create_does_not_maintain_the_blind_index():
+    """Armadilha documentada: `bulk_create` nao chama `save()`.
+
+    Sem `save()` os hashes nao sao calculados, e o hospede nasce invisivel para
+    a busca exata. Este teste existe para que a proxima pessoa que pensar em
+    `bulk_create` descubra o problema aqui, e nao em producao.
+    """
+    Guest.objects.bulk_create(
+        [Guest(full_name="Elena Prado", document="555.666.777-88", phone="(11) 90000-1111")]
+    )
+
+    created = Guest.objects.get(full_name="Elena Prado")
+    assert created.document_hash == ""
+    assert not Guest.objects.filter(
+        document_hash=blind_index(normalize_document("55566677788"))
+    ).exists()

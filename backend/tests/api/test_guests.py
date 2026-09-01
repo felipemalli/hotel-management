@@ -212,3 +212,30 @@ def test_guest_status_reflects_reservation_states(auth_client):
 
     assert auth_client.get("/api/guests/in-hotel/").data["count"] == 0
     assert auth_client.get("/api/guests/pending-checkin/").data["count"] == 0
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("document", "1" * 41),
+        ("phone", "9" * 31),
+    ],
+)
+def test_create_guest_rejects_oversized_pii(auth_client, field, value):
+    """`EncryptedCharField` e TextField: sem `max_length` o payload era ilimitado.
+
+    O minimo ja era validado (SPEC 4.3); o maximo faltava, e um documento de
+    megabytes seria cifrado e gravado sem reclamacao.
+    """
+    payload = {
+        "full_name": "Fabio Lopes",
+        "document": "999.888.777-66",
+        "phone": "(11) 91234-5678",
+        field: value,
+    }
+
+    response = auth_client.post("/api/guests/", payload, format="json")
+
+    assert response.status_code == 400
+    assert response.data["code"] == "VALIDATION_ERROR"
+    assert field in response.data["extra"]

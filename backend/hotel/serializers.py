@@ -21,7 +21,9 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from hotel.crypto import (
+    DOCUMENT_MAX_LENGTH,
     DOCUMENT_MIN_LENGTH,
+    PHONE_MAX_LENGTH,
     PHONE_MIN_LENGTH,
     blind_index,
     mask_pii,
@@ -95,8 +97,12 @@ class GuestCreateSerializer(serializers.ModelSerializer):
         fields = ["full_name", "document", "phone"]
         extra_kwargs = {
             "full_name": {"allow_blank": False, "trim_whitespace": True},
-            "document": {"allow_blank": False},
-            "phone": {"allow_blank": False},
+            # `EncryptedCharField` e um TextField (o ciphertext nao cabe em
+            # CharField), entao o ModelSerializer herda `max_length=None` e
+            # aceitaria um documento de megabytes. O minimo ja era validado;
+            # o maximo faltava.
+            "document": {"allow_blank": False, "max_length": DOCUMENT_MAX_LENGTH},
+            "phone": {"allow_blank": False, "max_length": PHONE_MAX_LENGTH},
         }
 
     def validate_document(self, value: str) -> str:
