@@ -271,3 +271,45 @@ def test_check_in_allowed_again_after_checkout():
 
     second.refresh_from_db()
     assert second.status == ReservationStatus.CHECKED_IN
+
+
+def test_check_out_converts_utc_to_local_before_counting_nights():
+    """A conversao para hora local decide QUAIS diarias entram na conta.
+
+    Sao Paulo e UTC-3, entao um check-in as 21:00 locais e 00:00 UTC do dia
+    SEGUINTE. Este teste passa os timestamps em UTC de proposito, porque e o
+    que a producao faz: a view injeta `timezone.now()` (UTC) e o banco devolve
+    `checked_in_at` em UTC.
+
+    Sexta 21:00 local -> domingo 11:00 local, em datas locais, sao as diarias
+    de sexta (120,00) e sabado (180,00) = 300,00. Lidas em UTC seriam sabado a
+    domingo, ou seja so sabado = 180,00. Sem o `timezone.localtime()` do
+    servico, a diferenca de R$ 120,00 passava sem nenhum teste falhar.
+    """
+    checkin_utc = datetime(2025, 3, 8, 0, 0, tzinfo=UTC)  # sex 07/03 21:00 local
+    checkout_utc = datetime(2025, 3, 9, 14, 0, tzinfo=UTC)  # dom 09/03 11:00 local
+
+    reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=False)
+    service.check_in(reservation, now=checkin_utc)
+    bill = service.check_out(reservation, now=checkout_utc)
+
+    assert [line.date for line in bill.lines] == [MARCH_7, date(2025, 3, 8)]
+    assert bill.subtotal_daily == Decimal("300.00")
+    assert bill.late_fee == Decimal("0.00")
+    assert bill.total == Decimal("300.00")
+
+
+def test_check_in_rule_reads_local_time_from_a_utc_timestamp():
+    """23:00 locais liberam o check-in, embora sejam 02:00 UTC do dia seguinte.
+
+    Complementa o teste de fronteira local: aqui a entrada e UTC, como na
+    producao. Sem a conversao, `early_checkin` veria 02:00 e exigiria override
+    num horario em que a regra das 14h ja esta satisfeita.
+    """
+    now_utc = datetime(2025, 3, 8, 2, 0, tzinfo=UTC)  # sex 07/03 23:00 local
+    reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
+
+    service.check_in(reservation, now=now_utc, allow_early=False)
+
+    reservation.refresh_from_db()
+    assert reservation.status == ReservationStatus.CHECKED_IN

@@ -360,8 +360,12 @@ máscara** e unicidade de documento, sem expor o dado. A **busca parcial** exist
 onde é segura e onde o briefing a exige de fato: no nome, via índice trigram
 (decisões D5 e D9 da seção 4).
 
-Nas listagens, PII sai **sempre mascarada** (`•••.•••.•89-01`); o valor completo
-só no detalhe do hóspede, quando o atendente explicitamente o pede.
+Nas listagens, PII sai **sempre mascarada** (`•••.•••.•89-01`). O valor completo
+existe no endpoint de detalhe (`GET /api/guests/{id}/`), navegável pelo Swagger,
+mas **a interface desta entrega não o consome**: os fluxos F1–F3 da especificação
+não pedem tela de detalhe, e o briefing pede localizar o hóspede, não conferir o
+documento na tela. Fica registrado como decisão, não como esquecimento — expor
+PII plena na UI é a mudança que se faz com um requisito na mão, não por conta.
 
 ### 5.4 Diferencial opcional: preenchimento por IA
 
