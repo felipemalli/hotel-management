@@ -1,4 +1,7 @@
-/ai-plans
+.env
+EXECUCAO.md
+PROGRESSO.md
 CLAUDE.md
 PROMPT_ORQUESTRADOR.md
 SPEC.md
+/ai-plans
