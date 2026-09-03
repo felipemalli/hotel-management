@@ -8,13 +8,6 @@ import { App } from './App'
 
 vi.mock('@/features/guests/api')
 
-/**
- * Fumaca de rota (SPEC 5.1: `/login` e `/`).
- *
- * Monta a app inteira — providers, router e o portao de sessao — e prova que a
- * arvore de cada estado esta ligada. O comportamento de cada peca tem teste
- * proprio na suite da SPEC 6.2; aqui o que se verifica e a montagem.
- */
 describe('App', () => {
   beforeEach(() => {
     vi.mocked(fetchGuests).mockResolvedValue({
@@ -33,7 +26,6 @@ describe('App', () => {
     expect(screen.getByLabelText('Senha')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Entrar' })).toBeInTheDocument()
 
-    // A regiao do handler global de erros (SPEC 8.2/E) vive nos providers.
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 

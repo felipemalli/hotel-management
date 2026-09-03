@@ -7,7 +7,5 @@ import { afterEach, beforeEach } from 'vitest'
 
 import { resetGlobalStores } from './renderWithProviders'
 
-// `session` e `toastStore` sao stores de modulo: sem isto, um caso herda a
-// sessao e os avisos do anterior.
 beforeEach(resetGlobalStores)
 afterEach(cleanup)

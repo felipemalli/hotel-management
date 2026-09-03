@@ -13,16 +13,6 @@ import { ReservationForm } from '@/features/reservations/ReservationForm'
 import type { CheckoutStatement } from '@/features/reservations/types'
 import { toastStore } from '@/lib/toast'
 
-/**
- * Dashboard unico (SPEC 5.1). As listagens da SPEC 4.3 sao abas da tabela, nao
- * paginas: o briefing pede localizar hospedes em tres recortes, e a troca de
- * aba e mais barata que a troca de rota para quem atende no balcao.
- *
- * As acoes de cada linha derivam da aba, porque e a aba que define o estado
- * conhecido do hospede no contrato: "Todos" nao traz reserva (so cabe abrir
- * uma nova), "No hotel" traz a reserva `CHECKED_IN` (cabe checkout) e
- * "Check-in pendente" traz as `PENDING` (cabe check-in ou cancelamento).
- */
 export function DashboardPage() {
   const { signOut } = useAuth()
   const queryClient = useQueryClient()
@@ -32,12 +22,10 @@ export function DashboardPage() {
     full_name: string
   } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  // O extrato mora AQUI, nao na linha da tabela: o checkout tira o hospede da
-  // aba "No hotel" e a linha desmonta. Estado nesta pagina sobrevive ao
-  // refetch, e o atendente consegue ler o total (RN6).
+  // O extrato mora nesta página, e não na linha da tabela: o checkout tira o
+  // hóspede da aba "No hotel", a linha desmonta e levaria o dialog com ela.
   const [statement, setStatement] = useState<CheckoutStatement | null>(null)
 
-  /** Sair descarta o cache: dado de hospede nao sobrevive a troca de sessao. */
   function onSignOut() {
     signOut()
     queryClient.clear()
