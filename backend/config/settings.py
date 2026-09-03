@@ -146,18 +146,38 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 
-# -- Estáticos ----------------------------------------------------------------
+# -- Cache --------------------------------------------------------------------
 # O throttling do DRF guarda o historico de chamadas no cache. Com varios
 # workers do gunicorn, `LocMemCache` e por PROCESSO: o historico se divide e o
-# limite nunca e atingido -- throttling decorativo. A SPEC 0.1 tira Redis do
-# escopo, entao o armazenamento compartilhado e o proprio Postgres. A tabela
-# nasce no `createcachetable` da cadeia de subida do compose.
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
-        "LOCATION": "django_cache",
+# limite nunca e atingido -- throttling decorativo. Logo o armazenamento tem de
+# ser compartilhado entre os workers, e ha duas formas de compartilhar.
+#
+# Com REDIS_URL no ambiente usa-se o backend NATIVO do Django 4.0+; a unica
+# dependencia e o pacote `redis` (sem django-redis). O ganho e estreito e
+# merece ser dito em voz alta: o UNICO consumidor do cache neste projeto e o
+# throttle do DRF, nenhum requisito falha sem Redis, e o que se troca e um
+# INSERT no Postgres por request de throttle por um TTL nativo em memoria.
+#
+# Sem REDIS_URL cai no `DatabaseCache` sobre o proprio Postgres, cuja tabela
+# nasce no `createcachetable` da cadeia de subida. O fallback nao e enfeite: e
+# o que mantem `docker compose` sem Redis e o caminho hibrido do README
+# funcionando sem nenhuma variavel extra.
+REDIS_URL = env("REDIS_URL")
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+            "LOCATION": "django_cache",
+        }
+    }
 
 # -- DRF / OpenAPI ------------------------------------------------------------
 
