@@ -15,7 +15,6 @@ request, response e exemplo de erro -- `/api/docs/` e contrato navegavel.
 
 from __future__ import annotations
 
-from django.db import IntegrityError
 from django.utils import timezone
 from drf_spectacular.utils import (
     OpenApiExample,
@@ -30,7 +29,6 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from hotel import selectors
-from hotel.exceptions import DuplicateDocumentError
 from hotel.models import Guest, Reservation, ReservationStatus
 from hotel.serializers import (
     CheckInRequestSerializer,
@@ -45,6 +43,7 @@ from hotel.serializers import (
     StatementSerializer,
     build_statement,
 )
+from hotel.services import guests as guests_service
 from hotel.services import reservations as reservations_service
 
 GUESTS_TAG = "guests"
@@ -151,12 +150,7 @@ class GuestViewSet(
     def create(self, request: Request, *args, **kwargs) -> Response:
         serializer = GuestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        try:
-            guest = serializer.save()
-        except IntegrityError as exc:
-            # Corrida entre dois cadastros do mesmo documento: a constraint
-            # unica de `document_hash` e a autoridade final (D12).
-            raise DuplicateDocumentError from exc
+        guest = guests_service.create_guest(**serializer.validated_data)
         # Resposta mascarada, como toda listagem (SPEC 4.3).
         return Response(GuestSerializer(guest).data, status=status.HTTP_201_CREATED)
 
@@ -276,7 +270,10 @@ class ReservationViewSet(
     def create(self, request: Request, *args, **kwargs) -> Response:
         serializer = ReservationCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        reservation = serializer.save()
+        reservation = reservations_service.create_reservation(
+            **serializer.validated_data,
+            today=timezone.localdate(),  # relogio injetado (SPEC 0.3)
+        )
         return Response(
             ReservationSerializer(reservation).data,
             status=status.HTTP_201_CREATED,

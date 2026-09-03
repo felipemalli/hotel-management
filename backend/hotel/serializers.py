@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -25,12 +24,10 @@ from hotel.crypto import (
     DOCUMENT_MIN_LENGTH,
     PHONE_MAX_LENGTH,
     PHONE_MIN_LENGTH,
-    blind_index,
     mask_pii,
     normalize_document,
     normalize_phone,
 )
-from hotel.exceptions import DuplicateDocumentError
 from hotel.models import Guest, Reservation
 from hotel.selectors import ACTIVE_RESERVATIONS_ATTR, PENDING_RESERVATIONS_ATTR
 from hotel.services.pricing import Bill
@@ -90,7 +87,12 @@ class GuestDetailSerializer(serializers.ModelSerializer):
 
 
 class GuestCreateSerializer(serializers.ModelSerializer):
-    """Cadastro (SPEC 4.3). Os 3 campos minimos do briefing sao obrigatorios."""
+    """Forma do cadastro (SPEC 4.3). Os 3 campos minimos do briefing sao obrigatorios.
+
+    Formato de documento e telefone (D9) e forma, e fica aqui. Unicidade do
+    documento (D12) depende do estado do banco e e regra de negocio: mora em
+    `services.guests.create_guest` (SPEC 3.4).
+    """
 
     class Meta:
         model = Guest
@@ -121,21 +123,6 @@ class GuestCreateSerializer(serializers.ModelSerializer):
                 f"Telefone exige ao menos {PHONE_MIN_LENGTH} dígitos."
             )
         return value.strip()
-
-    def validate(self, attrs: dict) -> dict:
-        """Documento repetido e conflito de recurso (409), nao payload invalido (400).
-
-        `DuplicateDocumentError` nao e `ValidationError`, logo atravessa o
-        `is_valid()` e chega ao handler como 409 DUPLICATE_DOCUMENT (D12).
-        """
-        assert_document_available(attrs["document"])
-        return attrs
-
-
-def assert_document_available(document: str) -> None:
-    """Guarda de leitura para D12; a corrida fica com a constraint unica."""
-    if Guest.objects.filter(document_hash=blind_index(normalize_document(document))).exists():
-        raise DuplicateDocumentError
 
 
 # -- Reservas -----------------------------------------------------------------
@@ -210,7 +197,15 @@ class ReservationSerializer(serializers.ModelSerializer):
 
 
 class ReservationCreateSerializer(serializers.ModelSerializer):
-    """Criacao (SPEC 4.4). Validacoes de D11 e D13 vivem aqui."""
+    """Forma do payload de criacao (SPEC 4.4).
+
+    Aqui so mora forma: tipos, campos e a existencia do hospede referenciado.
+    As regras de negocio D11 (data no passado) e D13 (minimo 1 noite) vivem em
+    `services.reservations.create_reservation` (SPEC 3.4) -- D11 depende de
+    "hoje", e serializer que le o relogio torna a regra intestavel sem HTTP
+    (SPEC 0.3). O cliente nao percebe a diferenca: as duas continuam saindo
+    como `400 VALIDATION_ERROR` com o erro no campo.
+    """
 
     guest_id = serializers.PrimaryKeyRelatedField(
         queryset=Guest.objects.all(),
@@ -221,22 +216,6 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
         fields = ["guest_id", "checkin_date", "checkout_date", "has_vehicle"]
-
-    def validate_checkin_date(self, value):
-        # D11: reserva e compromisso futuro. O passado entra no sistema pelos
-        # fatos (check-in/checkout reais), nunca pelo agendamento.
-        today = timezone.localdate()
-        if value < today:
-            raise serializers.ValidationError("Data de check-in não pode ser no passado.")
-        return value
-
-    def validate(self, attrs: dict) -> dict:
-        # D13: agendamento exige no minimo 1 noite (espelha a constraint SPEC 1.5).
-        if attrs["checkout_date"] <= attrs["checkin_date"]:
-            raise serializers.ValidationError(
-                {"checkout_date": ["Data de checkout deve ser posterior à de check-in."]}
-            )
-        return attrs
 
 
 class CheckInRequestSerializer(serializers.Serializer):

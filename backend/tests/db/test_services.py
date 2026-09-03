@@ -8,10 +8,12 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import pytest
+from django.db import transaction
 
-from hotel.models import Reservation, ReservationStatus
+from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.services import guests as guests_service
 from hotel.services import reservations as service
-from tests.factories import ReservationFactory
+from tests.factories import GuestFactory, ReservationFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -30,6 +32,146 @@ def local(day: date, hour: int, minute: int = 0, second: int = 0) -> datetime:
 def t7_reservation() -> Reservation:
     """Reserva agendada do caso T7 (sex 07/03 -> dom 09/03, com vaga)."""
     return ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
+
+
+# -- criacao (SPEC 3.4) -------------------------------------------------------
+#
+# O ganho da simetria esta aqui: D11 depende de "hoje", e enquanto a regra
+# morava no serializer (lendo `timezone.localdate()`) so dava para testa-la
+# subindo HTTP com freezegun. Com `today` injetado, a data e um argumento.
+
+
+def test_create_reservation_starts_pending_without_money():
+    guest = GuestFactory()
+
+    reservation = service.create_reservation(
+        guest=guest,
+        checkin_date=MARCH_7,
+        checkout_date=MARCH_9,
+        has_vehicle=True,
+        today=MARCH_7,
+    )
+
+    assert reservation.pk is not None
+    assert reservation.status == ReservationStatus.PENDING
+    assert reservation.checked_in_at is None
+    assert reservation.total_amount is None
+
+
+def test_create_reservation_accepts_today_as_checkin():
+    """D11 recusa o passado, nao o proprio dia: `>= hoje`."""
+    reservation = service.create_reservation(
+        guest=GuestFactory(),
+        checkin_date=MARCH_7,
+        checkout_date=MARCH_9,
+        today=MARCH_7,
+    )
+
+    assert reservation.status == ReservationStatus.PENDING
+
+
+def test_create_reservation_in_the_past_is_rejected():
+    """D11, sem HTTP e sem freezegun -- `today` e parametro (SPEC 0.3/3.4)."""
+    with pytest.raises(service.DomainValidationError) as excinfo:
+        service.create_reservation(
+            guest=GuestFactory(),
+            checkin_date=MARCH_7,
+            checkout_date=MARCH_9,
+            today=MARCH_9,  # "hoje" e depois do check-in agendado
+        )
+
+    # O envelope de validacao continua sendo por campo (SPEC 4.1).
+    assert excinfo.value.code == "VALIDATION_ERROR"
+    assert excinfo.value.status_code == 400
+    assert "checkin_date" in excinfo.value.extra
+    assert not Reservation.objects.exists()
+
+
+def test_create_reservation_requires_one_night():
+    """D13: agendamento de zero noites nao existe (day-use so como fato)."""
+    with pytest.raises(service.DomainValidationError) as excinfo:
+        service.create_reservation(
+            guest=GuestFactory(),
+            checkin_date=MARCH_7,
+            checkout_date=MARCH_7,
+            today=MARCH_7,
+        )
+
+    assert "checkout_date" in excinfo.value.extra
+    assert not Reservation.objects.exists()
+
+
+def test_create_guest_persists_and_derives_blind_indexes():
+    guest = guests_service.create_guest(
+        full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777"
+    )
+
+    stored = Guest.objects.get(pk=guest.pk)
+    assert stored.full_name == "Ana Souza"
+    # SPEC 2.1: o hash e derivado no `save()`, qualquer que seja o caminho.
+    assert stored.document_hash
+    assert stored.phone_hash
+
+
+def test_create_guest_rejects_duplicate_document_in_any_format():
+    """D12 + D9: mesma identidade civil, mascara diferente, mesmo blind index."""
+    guests_service.create_guest(
+        full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777"
+    )
+
+    with pytest.raises(guests_service.DuplicateDocumentError) as excinfo:
+        guests_service.create_guest(
+            full_name="Outra Pessoa", document="12345678901", phone="(21) 97777-6666"
+        )
+
+    assert excinfo.value.code == "DUPLICATE_DOCUMENT"
+    assert excinfo.value.status_code == 409
+    assert Guest.objects.count() == 1
+
+
+def test_create_guest_translates_the_constraint_when_the_read_guard_loses_the_race(
+    monkeypatch,
+):
+    """A constraint unica e a autoridade final de D12, e sai como 409.
+
+    Neutralizar a guarda de leitura reproduz exatamente a corrida: dois
+    cadastros do mesmo documento passam pelo `exists()` juntos e so o banco
+    decide. O `IntegrityError` tem de virar `DuplicateDocumentError`, nunca
+    escapar cru (que no handler da SPEC 4.1 seria um 500 com corpo HTML).
+    """
+    existing = GuestFactory()
+    monkeypatch.setattr(guests_service, "_assert_document_available", lambda document: None)
+
+    with pytest.raises(guests_service.DuplicateDocumentError):
+        guests_service.create_guest(
+            full_name="Homonimo", document=existing.document, phone="(21) 90000-0000"
+        )
+
+    assert Guest.objects.count() == 1
+
+
+def test_create_guest_leaves_an_outer_transaction_usable_after_the_race(monkeypatch):
+    """A traducao usa savepoint, entao a `atomic` do chamador sobrevive.
+
+    Sem o savepoint interno, a violacao da constraint marcaria a transacao
+    inteira como quebrada e o INSERT seguinte morreria com
+    `TransactionManagementError` -- o que aconteceria num importador que trata
+    o duplicado e segue para a proxima linha do arquivo.
+    """
+    existing = GuestFactory()
+    monkeypatch.setattr(guests_service, "_assert_document_available", lambda document: None)
+
+    with transaction.atomic():
+        with pytest.raises(guests_service.DuplicateDocumentError):
+            guests_service.create_guest(
+                full_name="Homonimo", document=existing.document, phone="(21) 90000-0000"
+            )
+        # A transacao segue utilizavel: o cadastro seguinte entra.
+        survivor = guests_service.create_guest(
+            full_name="Proximo da Fila", document="98765432100", phone="(21) 91111-2222"
+        )
+
+    assert Guest.objects.filter(pk=survivor.pk).exists()
 
 
 # -- check-in ----------------------------------------------------------------

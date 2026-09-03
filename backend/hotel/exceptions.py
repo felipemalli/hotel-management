@@ -24,15 +24,14 @@ from __future__ import annotations
 from typing import Any
 
 from django.http import Http404
-from rest_framework import exceptions, status
+from rest_framework import exceptions
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import exception_handler as drf_exception_handler
 
-from hotel.services.reservations import ReservationError
+from hotel.services.errors import VALIDATION_DETAIL, DomainError
 
 GENERIC_DETAIL = "Não foi possível processar a requisição."
-VALIDATION_DETAIL = "Dados inválidos."
 
 
 class ApiError(exceptions.APIException):
@@ -46,26 +45,18 @@ class ApiError(exceptions.APIException):
     extra: dict[str, Any] = {}
 
 
-class DuplicateDocumentError(ApiError):
-    """Segundo cadastro do mesmo documento -- 409 DUPLICATE_DOCUMENT (D12)."""
-
-    status_code = status.HTTP_409_CONFLICT
-    error_code = "DUPLICATE_DOCUMENT"
-    default_detail = "Documento já cadastrado para outro hóspede."
-
-
 def envelope(code: str, detail: str, extra: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"code": code, "detail": detail, "extra": extra or {}}
 
 
 def api_exception_handler(exc: Exception, context: dict) -> Response | None:
     """`REST_FRAMEWORK["EXCEPTION_HANDLER"]` -- ponto unico do envelope."""
-    if isinstance(exc, ReservationError):
-        # Erro de dominio: o service ja nasce com code/detail/extra do envelope
-        # (SPEC 3.2), a view nao precisa saber traduzir nada.
+    if isinstance(exc, DomainError):
+        # Erro de dominio: o service ja nasce com code/detail/extra/status do
+        # envelope (SPEC 3.2/3.4), a view nao precisa saber traduzir nada.
         return Response(
             envelope(exc.code, exc.detail, exc.extra),
-            status=status.HTTP_409_CONFLICT,
+            status=exc.status_code,
         )
 
     response = drf_exception_handler(exc, context)

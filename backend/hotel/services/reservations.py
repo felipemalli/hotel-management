@@ -12,13 +12,14 @@ O relogio e injetado: `now` e sempre parametro explicito -- a view passa
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from django.db import transaction
 from django.utils import timezone
 
 from hotel.models import Guest, Reservation, ReservationStatus
 from hotel.services import pricing
+from hotel.services.errors import DomainError, DomainValidationError
 from hotel.services.pricing import Bill
 
 # Transicoes validas (SPEC 1.5). Qualquer outra e rejeitada.
@@ -42,16 +43,11 @@ SYNCED_FIELDS = (
 )
 
 
-class ReservationError(Exception):
-    """Erro de dominio com o codigo do envelope da SPEC 4.1."""
+class ReservationError(DomainError):
+    """Erro de dominio da reserva -- 409 com o codigo do envelope (SPEC 4.1)."""
 
     code = "INVALID_STATUS"
     default_detail = "Operação inválida para esta reserva."
-
-    def __init__(self, detail: str | None = None, extra: dict | None = None) -> None:
-        self.detail = detail or self.default_detail
-        self.extra = extra or {}
-        super().__init__(self.detail)
 
 
 class InvalidStatusError(ReservationError):
@@ -66,6 +62,38 @@ class EarlyCheckinError(ReservationError):
 
     code = "EARLY_CHECKIN"
     default_detail = "Check-in permitido a partir das 14:00."
+
+
+def create_reservation(
+    *,
+    guest: Guest,
+    checkin_date: date,
+    checkout_date: date,
+    has_vehicle: bool = False,
+    today: date,
+) -> Reservation:
+    """Agenda uma reserva (RF2). Nasce `PENDING`, sem dinheiro (SPEC 4.4).
+
+    `today` e parametro, nao `timezone.localdate()` lido aqui dentro: D11 e uma
+    regra de data local e o invariante SPEC 0.3 vale para a criacao como vale
+    para o check-in -- quem materializa "hoje" e a view.
+    """
+    if checkin_date < today:
+        # D11: reserva e compromisso futuro. O passado entra no sistema pelos
+        # fatos (check-in/checkout reais), nunca pelo agendamento.
+        raise DomainValidationError("checkin_date", "Data de check-in não pode ser no passado.")
+    if checkout_date <= checkin_date:
+        # D13: agendamento exige no minimo 1 noite (espelha a constraint SPEC 1.5).
+        raise DomainValidationError(
+            "checkout_date", "Data de checkout deve ser posterior à de check-in."
+        )
+
+    return Reservation.objects.create(
+        guest=guest,
+        checkin_date=checkin_date,
+        checkout_date=checkout_date,
+        has_vehicle=has_vehicle,
+    )
 
 
 def check_in(reservation: Reservation, *, now: datetime, allow_early: bool = False) -> Reservation:
