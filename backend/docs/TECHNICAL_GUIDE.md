@@ -1,6 +1,4 @@
-# Decisões técnicas principais
-
-Documento para desenvolvedores entenderem decisões técnicas do projeto.
+# Decisões técnicas principais - backend
 
 ## USE_TZ
 
@@ -14,13 +12,13 @@ Documento para desenvolvedores entenderem decisões técnicas do projeto.
 
 **`USE_TZ = False`**: O Django usa o horário local do servidor sem conversões automáticas ao salvar no banco de dados.
 
-## Exceptions no backend
+## Exceptions
 
 ### Envelope único
 
-O DRF default não tem um `code` estável. Às vezes é dict de campos, às vezes `{ "detail": "..." }`, às vezes `{ "non_field_errors": [...] }`.
+É necessário haver um objeto de erro padronizado. O retorno de um erro pode ser muito instável com o DRF. Às vezes é dict de campos, às vezes `{ "detail": "..." }`, às vezes `{ "non_field_errors": [...] }`.
 
-Exemplo de serializer (a view dispara `serializer.is_valid(raise_exception=True)` e o `raise` ocorre no serializer):
+Por exemplo, o `VALIDATION_ERROR` padrão que é lançado pelo serializer (view faz `serializer.is_valid(raise_exception=True)`):
 
 ```json
 {
@@ -29,7 +27,7 @@ Exemplo de serializer (a view dispara `serializer.is_valid(raise_exception=True)
 }
 ```
 
-O `exceptions.py` envelopa **qualquer** erro previsto na mesma forma:
+No `exceptions.py` é onde envelopamos **qualquer** erro na mesma forma:
 
 ```json
 {
@@ -64,15 +62,13 @@ Outro `code`:
 }
 ```
 
-O catálogo de `code` está no RESUMO §7.
-
-Bug não previsto (`TypeError`, etc.) **não** entra no envelope: o handler devolve `None` e o Django responde 500.
-
 ### Os três caminhos até o envelope
 
 1. **Exceção do DRF.** O handler pega o `default_code` do DRF e coloca em maiúsculas (`throttled` → `THROTTLED`). Só trata à mão o que isso deixaria fora do contrato: `ValidationError` (viraria `INVALID`) e `AuthenticationFailed` (viraria `AUTHENTICATION_FAILED`). `Http404` e o `PermissionDenied` do Django são convertidos na entrada; sem isso, saem como `ERROR`.
 2. **`DomainError`** (`services/errors.py`) — regra de negócio, tem ramo próprio antes do handler do DRF.
 3. **`ApiError`** (`exceptions.py`) — `APIException` com um `code` nosso.
+
+Bug não previsto (`TypeError`, etc.) **não** entra no envelope: o handler devolve `None` e o Django responde 500.
 
 ### De onde vem o `VALIDATION_ERROR`
 
