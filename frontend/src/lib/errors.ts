@@ -43,8 +43,14 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError
 }
 
-export function isApiErrorCode(error: unknown, code: ApiErrorCode): boolean {
+export function isApiErrorCode(error: unknown, code: ApiErrorCode | ClientErrorCode): boolean {
   return isApiError(error) && error.code === code
+}
+
+// Falha do servidor, e não do pedido: 5xx e a rede fora do ar (status 0). É o
+// que vale um registro no logger; 4xx é resposta legítima a um pedido inválido.
+export function isServerFault(error: unknown): boolean {
+  return isApiError(error) && (error.status === 0 || error.status >= 500)
 }
 
 // `EARLY_CHECKIN` traz `extra.server_time` no formato "HH:MM" — é o texto do

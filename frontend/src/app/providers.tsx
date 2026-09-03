@@ -1,14 +1,16 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Toaster } from '@/components/ui'
 import { createQueryClient } from '@/lib/queryClient'
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient)
+
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <ErrorBoundary scope="app">{children}</ErrorBoundary>
       <Toaster />
     </QueryClientProvider>
   )

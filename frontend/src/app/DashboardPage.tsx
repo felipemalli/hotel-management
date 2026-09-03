@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
-import { Alert, Button, Dialog } from '@/components/ui'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { Alert, Button, Dialog, ErrorState } from '@/components/ui'
 import { GuestForm } from '@/features/guests/GuestForm'
 import { type GuestRow, GuestTable } from '@/features/guests/GuestTable'
 import type { GuestRef } from '@/features/guests/types'
@@ -8,6 +9,7 @@ import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStateme
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ReservationForm } from '@/features/reservations/ReservationForm'
 import type { CheckoutStatement } from '@/features/reservations/types'
+import { errorMessage } from '@/lib/errors'
 
 import { AppLayout } from './AppLayout'
 
@@ -54,7 +56,16 @@ export function DashboardPage() {
         </Alert>
       ) : null}
 
-      <GuestTable renderActions={renderActions} />
+      {/* Uma quebra na tabela não derruba o header, o "Novo hóspede" nem os
+          dialogs: o fallback é o mesmo `ErrorState` do erro de leitura. */}
+      <ErrorBoundary
+        scope="guest-table"
+        fallback={({ error, resetErrorBoundary }) => (
+          <ErrorState message={errorMessage(error)} onRetry={resetErrorBoundary} />
+        )}
+      >
+        <GuestTable renderActions={renderActions} />
+      </ErrorBoundary>
 
       <Dialog
         open={guestDialogOpen}
