@@ -5,7 +5,9 @@ Modelos, cifra em repouso e constraints (SPEC 1.5, 2.1, 6.1). Precisa de PG.
 from datetime import timedelta
 
 import pytest
+from cryptography.fernet import Fernet
 from django.core.exceptions import FieldError
+from django.core.management import call_command
 from django.db import IntegrityError, connection, transaction
 
 from hotel.crypto import blind_index, normalize_document, normalize_phone
@@ -211,3 +213,59 @@ def test_bulk_create_is_refused_instead_of_writing_a_broken_row():
         )
 
     assert not Guest.objects.filter(full_name="Elena Prado").exists()
+
+
+# -- rotacao de chave e de pepper (SPEC 2.1) ---------------------------------
+
+
+def test_multifernet_reads_ciphertext_written_with_a_previous_key(settings):
+    """Girar a chave nao pode cegar a base: a antiga continua decifrando."""
+    old_key, new_key = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+
+    settings.FIELD_ENCRYPTION_KEY = old_key
+    guest = GuestFactory(document="123.456.789-01", phone="(21) 98888-7777")
+
+    # Chave nova na frente, antiga ainda aceita: a leitura sobrevive a virada.
+    settings.FIELD_ENCRYPTION_KEY = f"{new_key},{old_key}"
+    assert Guest.objects.get(pk=guest.pk).document == "123.456.789-01"
+
+
+def test_rotate_pii_moves_rows_to_the_current_key(settings):
+    """Depois do comando, a chave antiga pode ser aposentada."""
+    old_key, new_key = Fernet.generate_key().decode(), Fernet.generate_key().decode()
+
+    settings.FIELD_ENCRYPTION_KEY = old_key
+    guest = GuestFactory(document="123.456.789-01", phone="(21) 98888-7777")
+
+    settings.FIELD_ENCRYPTION_KEY = f"{new_key},{old_key}"
+    call_command("rotate_pii")
+
+    # So a chave nova: se a linha nao tivesse sido re-cifrada, isto estouraria
+    # `InvalidToken` -- que e exatamente o 500 que a rotacao ingenua causaria.
+    settings.FIELD_ENCRYPTION_KEY = new_key
+    assert Guest.objects.get(pk=guest.pk).document == "123.456.789-01"
+
+
+def test_rotate_pii_rederives_the_blind_indexes_after_a_pepper_change(settings):
+    """Trocar o HASH_PEPPER invalida a busca exata; o comando a reconstroi.
+
+    Este e o modo de falha silencioso da SPEC 2.1: sem re-derivar, a busca por
+    documento passa a devolver zero resultados com `200 OK` e a unicidade
+    passa a proteger o valor errado.
+    """
+    guest = GuestFactory(document="123.456.789-01", phone="(21) 98888-7777")
+
+    settings.HASH_PEPPER = "pepper-novo-da-rotacao"
+    # Com o pepper novo e o hash antigo, o hospede esta inencontravel.
+    assert not Guest.objects.filter(
+        document_hash=blind_index(normalize_document("123.456.789-01"))
+    ).exists()
+
+    call_command("rotate_pii")
+
+    assert (
+        Guest.objects.get(
+            document_hash=blind_index(normalize_document("123.456.789-01"))
+        ).pk
+        == guest.pk
+    )

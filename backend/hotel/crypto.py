@@ -18,7 +18,7 @@ import re
 from functools import lru_cache
 from hashlib import sha256
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, MultiFernet
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
@@ -71,14 +71,23 @@ def mask_pii(value: str) -> str:
     return "".join(masked)
 
 
-def fernet() -> Fernet:
-    """Instancia Fernet da chave corrente (cacheada por valor de chave)."""
-    key = getattr(settings, "FIELD_ENCRYPTION_KEY", "") or ""
-    if not key:
+def fernet() -> MultiFernet:
+    """Cifrador da chave corrente, tolerante a chaves antigas (SPEC 2.1).
+
+    `FIELD_ENCRYPTION_KEY` aceita uma lista separada por virgula: a PRIMEIRA
+    chave cifra, as demais apenas decifram. Sem isso, girar a chave depois de
+    um incidente tornaria todo `Guest` ilegivel de uma vez -- `InvalidToken`
+    em cada leitura, que o handler da SPEC 4.1 nao classifica e viraria 500 em
+    todo endpoint de hospede. Com a lista, a rotacao e: publicar `nova,antiga`,
+    rodar `manage.py rotate_pii`, remover a antiga.
+    """
+    raw = getattr(settings, "FIELD_ENCRYPTION_KEY", "") or ""
+    keys = tuple(part.strip() for part in raw.split(",") if part.strip())
+    if not keys:
         raise ImproperlyConfigured(
             "FIELD_ENCRYPTION_KEY ausente: PII nao pode ser cifrada em repouso (SPEC 2.1)."
         )
-    return _fernet_for(key)
+    return _fernet_for(keys)
 
 
 def _pepper() -> bytes:
@@ -91,5 +100,6 @@ def _pepper() -> bytes:
 
 
 @lru_cache(maxsize=4)
-def _fernet_for(key: str) -> Fernet:
-    return Fernet(key.encode())
+def _fernet_for(keys: tuple[str, ...]) -> MultiFernet:
+    # MultiFernet cifra com a primeira e tenta decifrar na ordem dada.
+    return MultiFernet([Fernet(key.encode()) for key in keys])
