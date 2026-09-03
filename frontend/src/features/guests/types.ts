@@ -1,9 +1,8 @@
 /**
  * Tipos do contrato de hospedes (SPEC 4.3).
  *
- * `document` e `phone` chegam **mascarados** nas listagens e completos no
- * detalhe (SPEC 2.2). O mascaramento e do backend; aqui so se exibe a string
- * recebida — o frontend nunca reconstroi nem desmascara PII.
+ * `document` e `phone` chegam **normalizados** (D9): documento alfanumerico
+ * maiusculo, telefone so digitos. A mascara de exibicao e de `lib/pii.ts`.
  */
 
 export interface Guest {

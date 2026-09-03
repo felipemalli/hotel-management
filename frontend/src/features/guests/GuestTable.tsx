@@ -8,6 +8,7 @@ import { tabId, tabPanelId } from '@/components/ui/tabIds'
 import type { Paginated } from '@/lib/apiClient'
 import { formatISODate, formatISODateTime } from '@/lib/dates'
 import { errorMessage } from '@/lib/errors'
+import { formatDocument, formatPhone } from '@/lib/pii'
 import { useDebouncedValue } from '@/lib/useDebouncedValue'
 
 import { useGuests, useGuestsInHotel, useGuestsPendingCheckin } from './hooks'
@@ -64,8 +65,8 @@ function PiiCells({ guest }: { guest: Guest }) {
   return (
     <>
       <TD className="font-medium text-slate-900">{guest.full_name}</TD>
-      <TD className="font-mono text-xs">{guest.document}</TD>
-      <TD className="font-mono text-xs">{guest.phone}</TD>
+      <TD className="font-mono text-xs">{formatDocument(guest.document)}</TD>
+      <TD className="font-mono text-xs">{formatPhone(guest.phone)}</TD>
     </>
   )
 }
@@ -245,7 +246,7 @@ export function GuestTable({ renderActions }: GuestTableProps) {
               type="search"
               placeholder="Nome, documento ou telefone"
               value={search}
-              hint="Nome busca por fragmento; documento e telefone, por valor completo."
+              hint="Nome, documento ou telefone — busca por fragmento."
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>

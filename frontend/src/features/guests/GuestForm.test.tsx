@@ -26,12 +26,12 @@ vi.mock('@/features/ai/api')
  * fontes da verdade.
  */
 
-/** Resposta 201 da SPEC 4.3 — PII ja mascarada pelo backend (SPEC 2.2). */
+/** Resposta 201 da SPEC 4.3 — valor gravado, ja normalizado (SPEC 2.1). */
 const CREATED_GUEST: Guest = {
   id: 1,
   full_name: 'Ana Souza',
-  document: '•••.•••.•89-01',
-  phone: '(••) •••••-7777',
+  document: '12345678901',
+  phone: '21988887777',
   created_at: '2026-09-01T10:00:00-03:00',
 }
 

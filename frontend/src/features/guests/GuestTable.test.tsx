@@ -20,8 +20,8 @@ vi.mock('@/features/guests/api')
  * SPEC 6.2 — `features/guests/GuestTable.test.tsx`.
  * Provas de RF3, RF4 e RF5 na matriz SPEC 6.3.
  *
- * PII mascarada nos fixtures, como o contrato SPEC 2.2 devolve nas listagens:
- * a tabela exibe a string recebida, nunca reconstroi o valor.
+ * Valor gravado (normalizado) nos fixtures, como o contrato SPEC 4.3 devolve:
+ * a tabela formata para exibicao via `lib/pii.ts`.
  */
 
 function page<T>(results: T[]): Paginated<T> {
@@ -31,24 +31,24 @@ function page<T>(results: T[]): Paginated<T> {
 const ANA: Guest = {
   id: 1,
   full_name: 'Ana Souza',
-  document: '•••.•••.•89-01',
-  phone: '(••) •••••-7777',
+  document: '12345678901',
+  phone: '21988887777',
   created_at: '2026-09-01T08:00:00-03:00',
 }
 
 const DAVI: Guest = {
   id: 4,
   full_name: 'Davi Rocha',
-  document: '•••.•••.•87-00',
-  phone: '(••) •••••-4444',
+  document: '44444444400',
+  phone: '21988884444',
   created_at: '2026-09-01T08:03:00-03:00',
 }
 
 const BRUNO_IN_HOTEL: GuestInHotel = {
   id: 2,
   full_name: 'Bruno Lima',
-  document: '•••.•••.•21-00',
-  phone: '(••) •••••-6666',
+  document: '22222222100',
+  phone: '21988886666',
   created_at: '2026-09-01T08:01:00-03:00',
   active_reservation: {
     id: 2,
@@ -119,7 +119,7 @@ describe('GuestTable', () => {
       await advance(0)
       expect(screen.getByText('Ana Souza')).toBeInTheDocument()
       expect(screen.queryByText('Davi Rocha')).not.toBeInTheDocument()
-      expect(screen.getByText('•••.•••.•89-01')).toBeInTheDocument()
+      expect(screen.getByText('123.456.789-01')).toBeInTheDocument()
     } finally {
       vi.useRealTimers()
     }

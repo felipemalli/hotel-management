@@ -43,8 +43,8 @@ function carlaInHotel(): GuestInHotel {
   return {
     id: 3,
     full_name: GUEST_NAME,
-    document: '••••3456',
-    phone: '(••) •••••-5555',
+    document: 'AB123456',
+    phone: '21988885555',
     created_at: '2026-08-28T08:00:00-03:00',
     active_reservation: {
       id: RESERVATION_ID,

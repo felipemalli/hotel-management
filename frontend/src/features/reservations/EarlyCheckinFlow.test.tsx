@@ -144,8 +144,8 @@ describe('EarlyCheckinFlow', () => {
     const anaPending: GuestPendingCheckin = {
       id: 1,
       full_name: GUEST_NAME,
-      document: '•••.•••.•89-01',
-      phone: '(••) •••••-7777',
+      document: '12345678901',
+      phone: '21988887777',
       created_at: '2026-09-01T08:00:00-03:00',
       pending_reservations: [
         {
@@ -161,8 +161,8 @@ describe('EarlyCheckinFlow', () => {
     const anaInHotel: GuestInHotel = {
       id: 1,
       full_name: GUEST_NAME,
-      document: '•••.•••.•89-01',
-      phone: '(••) •••••-7777',
+      document: '12345678901',
+      phone: '21988887777',
       created_at: '2026-09-01T08:00:00-03:00',
       active_reservation: {
         id: RESERVATION_ID,
