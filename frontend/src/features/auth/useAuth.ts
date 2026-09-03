@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 
 import { session } from '@/lib/session'
 
-import { login, type Credentials } from './api'
+import { type Credentials, login } from './api'
 
 /**
  * Sessao do atendente (SPEC 5.1).

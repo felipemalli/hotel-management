@@ -1,7 +1,7 @@
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
+import { type QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
-import { act } from 'react'
 import type { ReactElement, ReactNode } from 'react'
+import { act } from 'react'
 
 import { createQueryClient } from '@/lib/queryClient'
 import { session } from '@/lib/session'

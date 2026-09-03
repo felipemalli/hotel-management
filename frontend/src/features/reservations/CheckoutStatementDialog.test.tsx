@@ -1,11 +1,11 @@
 import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { formatBRL } from '@/lib/money'
 import { elementAt } from '@/test/fixtures'
 
-import { CheckoutStatementDialog } from './CheckoutStatementDialog'
 import { BILL_FIXTURES, BILL_TOTALS, T1_STATEMENT, T7_STATEMENT } from './__fixtures__/bills'
+import { CheckoutStatementDialog } from './CheckoutStatementDialog'
 
 /**
  * SPEC 6.2 — `features/reservations/CheckoutStatementDialog.test.tsx`.
@@ -17,7 +17,7 @@ import { BILL_FIXTURES, BILL_TOTALS, T1_STATEMENT, T7_STATEMENT } from './__fixt
  */
 
 function renderStatement(statement = T7_STATEMENT) {
-  return render(<CheckoutStatementDialog open statement={statement} onClose={() => {}} />)
+  return render(<CheckoutStatementDialog open statement={statement} onClose={vi.fn()} />)
 }
 
 /** As diarias do extrato: o `tbody` da tabela "Diárias cobradas". */
@@ -83,6 +83,7 @@ describe('CheckoutStatementDialog', () => {
 
     // R$ 240,00 aparece duas vezes em T1 (subtotal de diarias e total): a
     // assercao e no par label/valor da linha de total, nao no documento todo.
+    // eslint-disable-next-line testing-library/no-node-access -- o par label/valor nao tem nome acessivel proprio: a assercao precisa do container da linha.
     expect(screen.getByText('Total a pagar').parentElement).toHaveTextContent(
       formatBRL(BILL_TOTALS.T1),
     )
@@ -93,12 +94,14 @@ describe('CheckoutStatementDialog', () => {
       const view = renderStatement(statement)
 
       expect(dailyRows()).toHaveLength(statement.lines.length)
+      // eslint-disable-next-line testing-library/no-node-access -- o par label/valor nao tem nome acessivel proprio: a assercao precisa do container da linha.
       const total = screen.getByText('Total a pagar').parentElement
       expect(total).toHaveTextContent(formatBRL(BILL_TOTALS[id as keyof typeof BILL_TOTALS]))
 
       const lateFeeLine = screen.queryByText(/^Multa de checkout tardio/)
       if (statement.late_fee.applied) {
         expect(lateFeeLine).not.toBeNull()
+        // eslint-disable-next-line testing-library/no-node-access -- o par label/valor nao tem nome acessivel proprio: a assercao precisa do container da linha.
         expect(lateFeeLine?.parentElement).toHaveTextContent(formatBRL(statement.late_fee.amount))
       } else {
         expect(lateFeeLine).toBeNull()
@@ -109,7 +112,7 @@ describe('CheckoutStatementDialog', () => {
   })
 
   it('nao renderiza nada com `open` falso', () => {
-    render(<CheckoutStatementDialog open={false} statement={T7_STATEMENT} onClose={() => {}} />)
+    render(<CheckoutStatementDialog open={false} statement={T7_STATEMENT} onClose={vi.fn()} />)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

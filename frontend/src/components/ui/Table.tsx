@@ -1,4 +1,4 @@
-import type { ReactNode, ThHTMLAttributes, TdHTMLAttributes } from 'react'
+import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
 
 /**
  * Primitivos de tabela (SPEC 5.1). Wrappers finos de proposito: a semantica

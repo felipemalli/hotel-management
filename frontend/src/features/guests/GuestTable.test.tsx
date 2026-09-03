@@ -200,7 +200,7 @@ describe('GuestTable', () => {
   })
 
   it('anuncia o carregamento antes da primeira resposta', async () => {
-    let resolve: (value: Paginated<Guest>) => void = () => {}
+    let resolve: (value: Paginated<Guest>) => void = vi.fn()
     vi.mocked(fetchGuests).mockReturnValue(
       new Promise<Paginated<Guest>>((r) => {
         resolve = r

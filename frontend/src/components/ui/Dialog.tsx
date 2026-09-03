@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { type ReactNode, useEffect, useId, useRef } from 'react'
 
 /**
  * Modal minimo (SPEC 5.1) usado pelos fluxos F2 (alerta de check-in) e F3

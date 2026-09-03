@@ -49,20 +49,14 @@ function emit(): void {
 }
 
 export const session = {
-  getAccessToken(): string | null {
-    return access
-  },
+  getAccessToken: (): string | null => access,
 
-  getRefreshToken(): string | null {
-    return refresh
-  },
+  getRefreshToken: (): string | null => refresh,
 
   /** Snapshot estavel para `useSyncExternalStore`: string ou null, nunca objeto novo. */
-  getSnapshot(): string | null {
-    return access
-  },
+  getSnapshot: (): string | null => access,
 
-  set(tokens: TokenPair): void {
+  set: (tokens: TokenPair): void => {
     access = tokens.access
     refresh = tokens.refresh
     write(ACCESS_KEY, access)
@@ -71,13 +65,13 @@ export const session = {
   },
 
   /** Renovacao: o refresh sobrevive, so o access troca (SPEC 2.3, sem rotacao). */
-  setAccessToken(token: string): void {
+  setAccessToken: (token: string): void => {
     access = token
     write(ACCESS_KEY, token)
     emit()
   },
 
-  clear(): void {
+  clear: (): void => {
     access = null
     refresh = null
     write(ACCESS_KEY, null)
@@ -85,7 +79,7 @@ export const session = {
     emit()
   },
 
-  subscribe(listener: Listener): () => void {
+  subscribe: (listener: Listener): (() => void) => {
     listeners.add(listener)
     return () => {
       listeners.delete(listener)

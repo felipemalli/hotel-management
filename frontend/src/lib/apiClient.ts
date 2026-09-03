@@ -11,7 +11,7 @@
  * - Todo erro sai normalizado como `ApiError` a partir do envelope SPEC 4.1.
  */
 
-import axios, { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
+import axios, { type AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
 
 import { ApiError, type ErrorEnvelope } from './errors'
 import { session } from './session'
@@ -98,6 +98,9 @@ apiClient.interceptors.response.use(
       !isAuthPath(config.url) &&
       session.getRefreshToken() !== null
 
+    // Guarda morta: `canRetry` ja exige `config`, mas o narrowing nao atravessa a variavel.
+    // Sai quando o interceptor de refresh ganhar teste proprio.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- guarda morta
     if (canRetry && config) {
       try {
         const access = await refreshAccessToken()
@@ -137,6 +140,9 @@ export function toApiError(error: unknown): ApiError {
     if (isEnvelope(data)) {
       return new ApiError({
         code: data.code,
+        // `isEnvelope` promete `detail: string` sem conferir o campo, entao o fallback e real
+        // enquanto a validacao do envelope nao for fechada.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- predicado frouxo
         detail: data.detail ?? 'Erro inesperado.',
         status,
         extra: data.extra,

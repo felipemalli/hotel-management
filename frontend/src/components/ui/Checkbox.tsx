@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes } from 'react'
+import { type InputHTMLAttributes, useId } from 'react'
 
 export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label: string

@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes } from 'react'
+import { type InputHTMLAttributes, useId } from 'react'
 
 /**
  * Campo de texto com label e mensagem de erro acopladas.

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { type FormEvent, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 
 import { Alert } from '@/components/ui/Alert'

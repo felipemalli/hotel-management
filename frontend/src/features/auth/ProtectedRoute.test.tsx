@@ -38,12 +38,12 @@ describe('ProtectedRoute', () => {
 
   it('test_redirects_anonymous_to_login', () => {
     // Sem sessao: a rota protegida nao renderiza, o login toma a tela.
-    const anonymous = renderProtectedApp()
+    const view = renderProtectedApp()
 
     expect(screen.getByRole('heading', { name: 'Acesso do atendente' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Painel da recepção' })).not.toBeInTheDocument()
 
-    anonymous.unmount()
+    view.unmount()
 
     // Com token no store de sessao: os filhos renderizam e o login sai de cena.
     signInForTest()

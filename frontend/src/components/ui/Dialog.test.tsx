@@ -10,7 +10,7 @@ import { Dialog } from './Dialog'
  * `aria-modal="true"` dos fluxos F2 e F3 — foco entra, circula, e volta.
  */
 
-function DialogFixture({ onClose = () => {} }: { onClose?: () => void }) {
+function DialogFixture({ onClose = vi.fn() }: { onClose?: () => void }) {
   return (
     <>
       <button type="button">Fora do modal</button>
@@ -101,7 +101,7 @@ describe('Dialog', () => {
  */
 function FormInDialog() {
   return (
-    <Dialog open title="Novo hóspede" onClose={() => {}}>
+    <Dialog open title="Novo hóspede" onClose={vi.fn()}>
       <label htmlFor="nome">Nome</label>
       <input id="nome" />
     </Dialog>

@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url'
 
-import { defineConfig } from 'vitest/config'
-import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vitest/config'
 
 // Proxy /api -> backend elimina CORS: no browser tudo e mesma origem (SPEC 2.4).
 // Dentro do compose o alvo e http://backend:8000; nativamente, localhost:8000.

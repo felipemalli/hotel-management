@@ -35,25 +35,23 @@ function emit(): void {
 }
 
 export const toastStore = {
-  getSnapshot(): readonly Toast[] {
-    return toasts
-  },
+  getSnapshot: (): readonly Toast[] => toasts,
 
-  subscribe(listener: Listener): () => void {
+  subscribe: (listener: Listener): (() => void) => {
     listeners.add(listener)
     return () => {
       listeners.delete(listener)
     }
   },
 
-  push(tone: ToastTone, message: string): number {
+  push: (tone: ToastTone, message: string): number => {
     const id = nextId++
     toasts = [...toasts, { id, tone, message }]
     emit()
     return id
   },
 
-  dismiss(id: number): void {
+  dismiss: (id: number): void => {
     const remaining = toasts.filter((toast) => toast.id !== id)
     if (remaining.length === toasts.length) return
     toasts = remaining
@@ -61,7 +59,7 @@ export const toastStore = {
   },
 
   /** Usado ao trocar de sessao e entre testes: nada de aviso orfao na tela. */
-  clear(): void {
+  clear: (): void => {
     if (toasts.length === 0) return
     toasts = []
     emit()

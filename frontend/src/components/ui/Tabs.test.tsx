@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest'
 
 import { GUEST_TABS, type GuestTab } from '@/features/guests/GuestTable'
 
-import { Tabs } from './Tabs'
 import { tabPanelId } from './tabIds'
+import { Tabs } from './Tabs'
 
 /**
  * Acabamento de teclado das abas (Workstream E) sobre as tres listagens da

@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { type KeyboardEvent, type ReactNode, useRef } from 'react'
 
 import { tabId, tabPanelId } from './tabIds'
 
@@ -62,6 +62,8 @@ export function Tabs<T extends string>({ items, value, onChange, label }: TabsPr
   }
 
   return (
+    // Roving tabindex: quem recebe foco e o tab selecionado, e o tablist so delega as setas.
+    // eslint-disable-next-line jsx-a11y/interactive-supports-focus -- foco mora nos filhos
     <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="flex flex-wrap gap-1">
       {items.map((item) => {
         const selected = item.id === value

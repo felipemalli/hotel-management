@@ -28,6 +28,9 @@ export interface ErrorEnvelope {
 }
 
 export class ApiError extends Error {
+  // O `| string` colapsa a uniao: sera trocado por um mapeamento de codigo desconhecido
+  // para `UNKNOWN_ERROR`, guardando o original em `extra`.
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- uniao aberta
   readonly code: ApiErrorCode | ClientErrorCode | string
   readonly status: number
   readonly extra: Record<string, unknown>

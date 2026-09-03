@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 
-import { toastStore, type Toast, type ToastTone } from '@/lib/toast'
+import { type Toast, toastStore, type ToastTone } from '@/lib/toast'
 
 /**
  * Superficie do handler global de erros (SPEC 8.2/E).
