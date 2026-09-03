@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 // O componente vive em `src/app/` (SPEC 5.1: router/providers/ProtectedRoute);
 // o arquivo de teste fica sob `features/auth/` porque e da SPEC 6.2 que ele

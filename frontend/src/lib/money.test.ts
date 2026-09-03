@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest'
+
 import { BILL_TOTALS } from '@/features/reservations/__fixtures__/bills'
 
 import { formatBRL } from './money'

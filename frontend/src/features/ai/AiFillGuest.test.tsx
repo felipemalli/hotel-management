@@ -1,5 +1,6 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchAiStatus, parseGuestText } from '@/features/ai/api'
 import { createGuest } from '@/features/guests/api'
