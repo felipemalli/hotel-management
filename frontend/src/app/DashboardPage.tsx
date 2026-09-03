@@ -1,19 +1,16 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { Alert, Button, Dialog } from '@/components/ui'
-import { useAuth } from '@/features/auth/useAuth'
 import { GuestForm } from '@/features/guests/GuestForm'
 import { type GuestRow, GuestTable } from '@/features/guests/GuestTable'
 import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStatementDialog'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ReservationForm } from '@/features/reservations/ReservationForm'
 import type { CheckoutStatement } from '@/features/reservations/types'
-import { toastStore } from '@/lib/toast'
+
+import { AppLayout } from './AppLayout'
 
 export function DashboardPage() {
-  const { signOut } = useAuth()
-  const queryClient = useQueryClient()
   const [guestDialogOpen, setGuestDialogOpen] = useState(false)
   const [reservationFor, setReservationFor] = useState<{
     id: number
@@ -23,12 +20,6 @@ export function DashboardPage() {
   // O extrato mora nesta página, e não na linha da tabela: o checkout tira o
   // hóspede da aba "No hotel", a linha desmonta e levaria o dialog com ela.
   const [statement, setStatement] = useState<CheckoutStatement | null>(null)
-
-  function onSignOut() {
-    signOut()
-    queryClient.clear()
-    toastStore.clear()
-  }
 
   function renderActions(row: GuestRow) {
     if (row.tab === 'todos') {
@@ -54,31 +45,18 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-          <div>
-            <h1 className="text-lg font-semibold text-slate-900">Gestão de Hóspedes</h1>
-            <p className="text-xs text-slate-500">Recepção · atendente</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => setGuestDialogOpen(true)}>Novo hóspede</Button>
-            <Button variant="ghost" size="sm" onClick={onSignOut}>
-              Sair
-            </Button>
-          </div>
-        </div>
-      </header>
+    <AppLayout>
+      <div className="flex justify-end">
+        <Button onClick={() => setGuestDialogOpen(true)}>Novo hóspede</Button>
+      </div>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8">
-        {notice ? (
-          <Alert tone="success" onDismiss={() => setNotice(null)}>
-            {notice}
-          </Alert>
-        ) : null}
+      {notice ? (
+        <Alert tone="success" onDismiss={() => setNotice(null)}>
+          {notice}
+        </Alert>
+      ) : null}
 
-        <GuestTable renderActions={renderActions} />
-      </main>
+      <GuestTable renderActions={renderActions} />
 
       <Dialog
         open={guestDialogOpen}
@@ -117,6 +95,6 @@ export function DashboardPage() {
       {statement ? (
         <CheckoutStatementDialog open statement={statement} onClose={() => setStatement(null)} />
       ) : null}
-    </div>
+    </AppLayout>
   )
 }

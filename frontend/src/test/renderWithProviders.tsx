@@ -21,9 +21,13 @@ export function renderWithProviders(ui: ReactElement, options: RenderWithProvide
   return { queryClient, ...render(ui, { wrapper: Wrapper }) }
 }
 
-export function signInForTest(access = 'access-token-de-teste'): void {
+export function signInForTest(username = 'recepcao'): void {
   act(() => {
-    session.set({ access, refresh: 'refresh-token-de-teste' })
+    session.set({
+      access: 'access-token-de-teste',
+      refresh: 'refresh-token-de-teste',
+      username,
+    })
   })
 }
 

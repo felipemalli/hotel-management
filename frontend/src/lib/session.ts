@@ -3,10 +3,15 @@
 // A alternativa (cookie HttpOnly + CSRF) exigiria endpoint que a API não expõe.
 const ACCESS_KEY = 'hotel.access'
 const REFRESH_KEY = 'hotel.refresh'
+const USERNAME_KEY = 'hotel.username'
 
 export interface TokenPair {
   access: string
   refresh: string
+}
+
+export interface SessionData extends TokenPair {
+  username: string
 }
 
 type Listener = () => void
@@ -34,6 +39,7 @@ function write(key: string, value: string | null): void {
 
 let access: string | null = read(ACCESS_KEY)
 let refresh: string | null = read(REFRESH_KEY)
+let username: string | null = read(USERNAME_KEY)
 
 function emit(): void {
   for (const listener of listeners) listener()
@@ -46,11 +52,17 @@ export const session = {
 
   getSnapshot: (): string | null => access,
 
-  set: (tokens: TokenPair): void => {
-    access = tokens.access
-    refresh = tokens.refresh
+  // O nome do atendente vem do que ele digitou no login: a API nao expoe um
+  // endpoint de perfil, e o token e opaco para o cliente.
+  getUsername: (): string | null => username,
+
+  set: (data: SessionData): void => {
+    access = data.access
+    refresh = data.refresh
+    username = data.username
     write(ACCESS_KEY, access)
     write(REFRESH_KEY, refresh)
+    write(USERNAME_KEY, username)
     emit()
   },
 
@@ -63,8 +75,10 @@ export const session = {
   clear: (): void => {
     access = null
     refresh = null
+    username = null
     write(ACCESS_KEY, null)
     write(REFRESH_KEY, null)
+    write(USERNAME_KEY, null)
     emit()
   },
 
