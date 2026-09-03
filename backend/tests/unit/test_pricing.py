@@ -253,3 +253,54 @@ def test_bill_is_immutable():
     bill = pricing.calculate_bill(checkin=dt(3, 15), checkout=dt(5, 11), has_vehicle=False)
     with pytest.raises(AttributeError):
         bill.total = Decimal("0.00")
+
+
+def test_rate_table_is_a_parameter_not_a_global():
+    """SPEC 3.1: a tarifa entra por argumento, e o passado permanece reconstituivel.
+
+    O caso T1 (seg 03 15:00 -> qua 05 11:00, sem vaga) vale 240,00 com as
+    tarifas do briefing. Com uma tabela futura de 140,00 a diaria, a MESMA
+    estadia vale 280,00 -- e o motor devolve um ou outro conforme a tabela que
+    recebe, em vez de reescrever o historico quando um valor global mudar.
+    """
+    future_rates = pricing.RateTable(
+        weekday_rate=D("140.00"),
+        weekend_rate=D("200.00"),
+        weekday_park=D("18.00"),
+        weekend_park=D("25.00"),
+        late_fee_factor=D("0.5"),
+    )
+
+    with_default = pricing.calculate_bill(checkin=dt(3, 15), checkout=dt(5, 11), has_vehicle=False)
+    with_future = pricing.calculate_bill(
+        checkin=dt(3, 15), checkout=dt(5, 11), has_vehicle=False, rates=future_rates
+    )
+
+    assert with_default.total == D("240.00")  # tabela SPEC 3.3, caso T1
+    assert with_future.total == D("280.00")
+
+
+def test_rate_table_reaches_parking_and_late_fee():
+    """A tabela custom vale para vaga e multa, nao so para a diaria.
+
+    Sex 07 15:00 -> dom 09 12:01 com vaga e o caso T7 (425,00 no default).
+    Com a tabela futura: diarias 140 + 200 = 340, vagas 18 + 25 = 43, multa
+    50% x 200 (domingo, dia da saida -- D3) = 100. Total 483,00.
+    """
+    future_rates = pricing.RateTable(
+        weekday_rate=D("140.00"),
+        weekend_rate=D("200.00"),
+        weekday_park=D("18.00"),
+        weekend_park=D("25.00"),
+        late_fee_factor=D("0.5"),
+    )
+
+    bill = pricing.calculate_bill(
+        checkin=dt(7, 15), checkout=dt(9, 12, 1), has_vehicle=True, rates=future_rates
+    )
+
+    assert bill.subtotal_daily == D("340.00")
+    assert bill.subtotal_parking == D("43.00")
+    assert bill.late_fee_base == D("200.00")
+    assert bill.late_fee == D("100.00")
+    assert bill.total == D("483.00")

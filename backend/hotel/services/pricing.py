@@ -16,12 +16,6 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-WEEKDAY_RATE = Decimal("120.00")
-WEEKEND_RATE = Decimal("180.00")
-WEEKDAY_PARK = Decimal("15.00")
-WEEKEND_PARK = Decimal("20.00")
-LATE_FEE_FACTOR = Decimal("0.5")
-
 CHECKIN_OPENS = time(14, 0, 0)  # check-in permitido se hora local >= isto (D4)
 CHECKOUT_LIMIT = time(12, 0, 0)  # multa se hora local > isto; 12:00:00 e isento (D3)
 
@@ -37,6 +31,36 @@ WEEKDAY_LABELS = (
     "sexta-feira",
     "sábado",
     "domingo",
+)
+
+
+@dataclass(frozen=True)
+class RateTable:
+    """Tarifas vigentes. Parametro, nao constante de modulo (SPEC 3.1).
+
+    A SPEC 1.3 afirma que o extrato e recomputavel deterministicamente dos
+    timestamps -- e isso so e verdade enquanto as tarifas nao mudarem. Com as
+    tarifas em constantes globais, o dia em que a diaria subir faz
+    `statement()` de uma reserva antiga discordar do `total_amount` congelado,
+    silenciosamente e sem nenhum teste pegar (a tabela SPEC 3.3 e fixture da
+    propria constante: mudaria junto). Como parametro, a tarifa de uma estadia
+    passada pode ser reconstituida; e o modulo continua puro, porque ganhou um
+    argumento, nao uma dependencia.
+    """
+
+    weekday_rate: Decimal
+    weekend_rate: Decimal
+    weekday_park: Decimal
+    weekend_park: Decimal
+    late_fee_factor: Decimal
+
+
+DEFAULT_RATES = RateTable(
+    weekday_rate=Decimal("120.00"),
+    weekend_rate=Decimal("180.00"),
+    weekday_park=Decimal("15.00"),
+    weekend_park=Decimal("20.00"),
+    late_fee_factor=Decimal("0.5"),
 )
 
 
@@ -72,15 +96,15 @@ def is_weekend(day: date) -> bool:
     return day.weekday() in WEEKEND_WEEKDAYS
 
 
-def daily_rate(day: date) -> Decimal:
+def daily_rate(day: date, rates: RateTable = DEFAULT_RATES) -> Decimal:
     """Tarifa da propria data da diaria (D2), nao da data em que a noite termina."""
-    return WEEKEND_RATE if is_weekend(day) else WEEKDAY_RATE
+    return rates.weekend_rate if is_weekend(day) else rates.weekday_rate
 
 
-def parking_fee(day: date, *, has_vehicle: bool) -> Decimal:
+def parking_fee(day: date, *, has_vehicle: bool, rates: RateTable = DEFAULT_RATES) -> Decimal:
     if not has_vehicle:
         return ZERO
-    return WEEKEND_PARK if is_weekend(day) else WEEKDAY_PARK
+    return rates.weekend_park if is_weekend(day) else rates.weekday_park
 
 
 def weekday_label(day: date) -> str:
@@ -109,14 +133,24 @@ def late_checkout(now: datetime) -> bool:
     return now.time() > CHECKOUT_LIMIT
 
 
-def calculate_bill(*, checkin: datetime, checkout: datetime, has_vehicle: bool) -> Bill:
-    """Extrato dos fatos reais (D6). `checkin`/`checkout` sao hora LOCAL."""
+def calculate_bill(
+    *,
+    checkin: datetime,
+    checkout: datetime,
+    has_vehicle: bool,
+    rates: RateTable = DEFAULT_RATES,
+) -> Bill:
+    """Extrato dos fatos reais (D6). `checkin`/`checkout` sao hora LOCAL.
+
+    `rates` tem default: a tabela SPEC 3.3 (T1-T9) vale com `DEFAULT_RATES` e
+    nenhum chamador precisa passar nada enquanto a tarifa for a do briefing.
+    """
     lines = [
         BillLine(
             date=day,
             weekday_label=weekday_label(day),
-            daily_rate=daily_rate(day),
-            parking_fee=parking_fee(day, has_vehicle=has_vehicle),
+            daily_rate=daily_rate(day, rates),
+            parking_fee=parking_fee(day, has_vehicle=has_vehicle, rates=rates),
         )
         for day in stay_dates(checkin.date(), checkout.date())
     ]
@@ -127,8 +161,8 @@ def calculate_bill(*, checkin: datetime, checkout: datetime, has_vehicle: bool) 
     applied = late_checkout(checkout)
     # A multa usa a tarifa do dia da SAIDA (D3): o procedimento de checkout e
     # o que o briefing penaliza, e ele acontece na data de saida.
-    base = daily_rate(checkout.date()) if applied else None
-    fee = quantize_money(LATE_FEE_FACTOR * base) if applied else ZERO
+    base = daily_rate(checkout.date(), rates) if applied else None
+    fee = quantize_money(rates.late_fee_factor * base) if applied else ZERO
 
     return Bill(
         lines=lines,
