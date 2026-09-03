@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createReservation } from '@/features/reservations/api'
 import { addDaysISO, todayISO } from '@/lib/dates'
+import { ApiError } from '@/lib/errors'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { ReservationForm } from './ReservationForm'
@@ -114,5 +115,46 @@ describe('ReservationForm', () => {
 
     expect(createReservation).not.toHaveBeenCalled()
     expect(screen.getByText('A reserva não pode começar no passado.')).toBeInTheDocument()
+  })
+
+  it('devolve o VALIDATION_ERROR do servidor ao campo de data culpado', async () => {
+    const user = userEvent.setup()
+    vi.mocked(createReservation).mockRejectedValue(
+      new ApiError({
+        code: 'VALIDATION_ERROR',
+        detail: 'Dados inválidos.',
+        status: 400,
+        extra: { checkout_date: ['Não há vaga para todo o período.'] },
+      }),
+    )
+
+    renderWithProviders(<ReservationForm guest={GUEST} />)
+    await user.click(screen.getByRole('button', { name: 'Criar reserva' }))
+
+    expect(await screen.findByText('Não há vaga para todo o período.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Saída')).toHaveAttribute('aria-invalid', 'true')
+
+    setDate('Saída', addDaysISO(todayISO(), 3))
+
+    await waitFor(() =>
+      expect(screen.queryByText('Não há vaga para todo o período.')).not.toBeInTheDocument(),
+    )
+  })
+
+  it('mostra no alerta do topo o erro que não pertence a nenhum campo da tela', async () => {
+    const user = userEvent.setup()
+    vi.mocked(createReservation).mockRejectedValue(
+      new ApiError({
+        code: 'VALIDATION_ERROR',
+        detail: 'Dados inválidos.',
+        status: 400,
+        extra: { guest_id: ['Hóspede já possui reserva ativa.'] },
+      }),
+    )
+
+    renderWithProviders(<ReservationForm guest={GUEST} />)
+    await user.click(screen.getByRole('button', { name: 'Criar reserva' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Hóspede já possui reserva ativa.')
   })
 })

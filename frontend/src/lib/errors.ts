@@ -80,21 +80,6 @@ export function earlyCheckinServerTime(error: unknown): string | null {
   return typeof time === 'string' ? time : null
 }
 
-// Erro por campo do DRF chega como lista (`{campo: [msgs]}`). Achatado na
-// primeira mensagem para plugar direto no input.
-export function fieldErrors(error: unknown): Record<string, string> {
-  if (!isApiErrorCode(error, 'VALIDATION_ERROR')) return {}
-  const result: Record<string, string> = {}
-  for (const [field, messages] of Object.entries(error.extra)) {
-    if (Array.isArray(messages) && typeof messages[0] === 'string') {
-      result[field] = messages[0]
-    } else if (typeof messages === 'string') {
-      result[field] = messages
-    }
-  }
-  return result
-}
-
 // Transporte e autenticação falam a língua do balcão; código de domínio usa o
 // `detail` do servidor, que já vem em português e é mais específico.
 const MESSAGES: Partial<Record<ErrorCode, string>> = {

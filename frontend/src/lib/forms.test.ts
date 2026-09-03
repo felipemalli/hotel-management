@@ -63,6 +63,23 @@ describe('applyServerErrors', () => {
     })
   })
 
+  it('ignora lista vazia e aceita a mensagem que vem como string', () => {
+    const setError = vi.fn()
+    const error = new ApiError({
+      code: 'VALIDATION_ERROR',
+      detail: 'Dados inválidos.',
+      status: 400,
+      extra: { document: 'Documento inválido.', phone: [] },
+    })
+
+    expect(applyServerErrors(error, setError, FIELDS)).toBe(true)
+    expect(setError).toHaveBeenCalledTimes(1)
+    expect(setError).toHaveBeenCalledWith('document', {
+      type: 'server',
+      message: 'Documento inválido.',
+    })
+  })
+
   it('roteia non_field_errors para o erro de raiz', () => {
     const setError = vi.fn()
     const error = new ApiError({

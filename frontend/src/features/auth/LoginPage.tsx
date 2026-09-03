@@ -1,40 +1,53 @@
-import { type FormEvent, useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
 import { Navigate } from 'react-router-dom'
 
 import { Alert, Button, Input } from '@/components/ui'
-import { errorMessage, fieldErrors } from '@/lib/errors'
+import { errorMessage } from '@/lib/errors'
+import { applyServerErrors } from '@/lib/forms'
+import { isLocallyPresented } from '@/lib/queryClient'
 
+import type { Credentials } from './api'
+import { useLogin } from './hooks'
+import { credentialsSchema } from './schemas'
 import { useAuth } from './useAuth'
 
+const FIELDS = ['username', 'password'] as const
+
 export function LoginPage() {
-  const { isAuthenticated, signIn } = useAuth()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [fields, setFields] = useState<Record<string, string>>({})
-  const [submitting, setSubmitting] = useState(false)
+  const { isAuthenticated } = useAuth()
+  const signIn = useLogin()
+
+  const {
+    formState: { errors },
+    handleSubmit,
+    register,
+    setError,
+  } = useForm<Credentials>({
+    resolver: zodResolver(credentialsSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+    defaultValues: { username: '', password: '' },
+  })
+
+  const submit = handleSubmit((credentials) => {
+    signIn.mutate(credentials, {
+      onError: (error) => {
+        if (applyServerErrors(error, setError, FIELDS)) return
+        // Um código que a política global manda ao toast não se repete aqui: o
+        // formulário só apresenta o que é da sua alçada, como a credencial errada.
+        if (!isLocallyPresented(error)) return
+        setError('root.server', {
+          type: 'server',
+          message: errorMessage(error, { NOT_AUTHENTICATED: 'Usuário ou senha inválidos.' }),
+        })
+      },
+    })
+  })
 
   if (isAuthenticated) return <Navigate to="/" replace />
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setError(null)
-    setFields({})
-    setSubmitting(true)
-    try {
-      await signIn({ username, password })
-    } catch (cause) {
-      setFields(fieldErrors(cause))
-      setError(
-        errorMessage(cause, {
-          NOT_AUTHENTICATED: 'Usuário ou senha inválidos.',
-          VALIDATION_ERROR: 'Informe usuário e senha.',
-        }),
-      )
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  const rootError = errors.root?.server?.message
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
@@ -42,27 +55,23 @@ export function LoginPage() {
         <h1 className="text-xl font-semibold text-slate-900">Gestão de Hóspedes</h1>
         <p className="mt-1 text-sm text-slate-600">Acesso do atendente.</p>
 
-        <form className="mt-6 flex flex-col gap-4" onSubmit={onSubmit} noValidate>
+        <form className="mt-6 flex flex-col gap-4" onSubmit={submit} noValidate>
+          {rootError ? <Alert tone="error">{rootError}</Alert> : null}
           <Input
             label="Usuário"
-            name="username"
             autoComplete="username"
-            value={username}
-            error={fields.username}
-            onChange={(event) => setUsername(event.target.value)}
+            error={errors.username?.message}
+            {...register('username')}
           />
           <Input
             label="Senha"
-            name="password"
             type="password"
             autoComplete="current-password"
-            value={password}
-            error={fields.password}
-            onChange={(event) => setPassword(event.target.value)}
+            error={errors.password?.message}
+            {...register('password')}
           />
-          {error ? <Alert tone="error">{error}</Alert> : null}
-          <Button type="submit" disabled={submitting}>
-            {submitting ? 'Entrando…' : 'Entrar'}
+          <Button type="submit" disabled={signIn.isPending}>
+            {signIn.isPending ? 'Entrando…' : 'Entrar'}
           </Button>
         </form>
       </div>

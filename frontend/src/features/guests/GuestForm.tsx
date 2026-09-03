@@ -1,13 +1,16 @@
-import { type FormEvent, useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
 
-import { Button, Input } from '@/components/ui'
+import { Alert, Button, Input } from '@/components/ui'
 import { AiFillGuest } from '@/features/ai/AiFillGuest'
-import { errorMessage, fieldErrors, isApiErrorCode } from '@/lib/errors'
+import { errorMessage, isApiErrorCode } from '@/lib/errors'
+import { applyServerErrors } from '@/lib/forms'
 
 import { useCreateGuest } from './hooks'
-import type { Guest } from './types'
+import { guestFormSchema } from './schemas'
+import type { CreateGuestPayload, Guest } from './types'
 
-const REQUIRED_MESSAGE = 'Campo obrigatório.'
+const FIELDS = ['full_name', 'document', 'phone'] as const
 
 export interface GuestFormProps {
   onSuccess?: (guest: Guest) => void
@@ -15,75 +18,66 @@ export interface GuestFormProps {
 }
 
 export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
-  const [fullName, setFullName] = useState('')
-  const [document, setDocument] = useState('')
-  const [phone, setPhone] = useState('')
-  const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
+  const {
+    clearErrors,
+    formState: { errors },
+    handleSubmit,
+    register,
+    reset,
+    setError,
+    setValue,
+  } = useForm<CreateGuestPayload>({
+    resolver: zodResolver(guestFormSchema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+    defaultValues: { full_name: '', document: '', phone: '' },
+  })
 
   const createGuest = useCreateGuest({
     onSuccess: (guest) => {
-      setFullName('')
-      setDocument('')
-      setPhone('')
+      reset()
       onSuccess?.(guest)
     },
   })
 
-  const serverErrors = fieldErrors(createGuest.error)
-  const errors = { ...serverErrors, ...localErrors }
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const missing: Record<string, string> = {}
-    if (!fullName.trim()) missing.full_name = REQUIRED_MESSAGE
-    if (!document.trim()) missing.document = REQUIRED_MESSAGE
-    if (!phone.trim()) missing.phone = REQUIRED_MESSAGE
-
-    setLocalErrors(missing)
-    if (Object.keys(missing).length > 0) return
-
-    createGuest.mutate({
-      full_name: fullName.trim(),
-      document: document.trim(),
-      phone: phone.trim(),
+  const submit = handleSubmit((payload) => {
+    createGuest.mutate(payload, {
+      onError: (error) => {
+        if (isApiErrorCode(error, 'DUPLICATE_DOCUMENT')) {
+          setError('document', { type: 'server', message: errorMessage(error) })
+          return
+        }
+        applyServerErrors(error, setError, FIELDS)
+      },
     })
-  }
+  })
 
-  const duplicate = isApiErrorCode(createGuest.error, 'DUPLICATE_DOCUMENT')
+  const rootError = errors.root?.server?.message
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
+    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+      {rootError ? <Alert tone="error">{rootError}</Alert> : null}
+
       <AiFillGuest
         onFilled={(fields) => {
-          if (fields.full_name) setFullName(fields.full_name)
-          if (fields.document) setDocument(fields.document)
-          if (fields.phone) setPhone(fields.phone)
-          setLocalErrors({})
+          if (fields.full_name) setValue('full_name', fields.full_name)
+          if (fields.document) setValue('document', fields.document)
+          if (fields.phone) setValue('phone', fields.phone)
+          clearErrors()
         }}
       />
-      <Input
-        label="Nome completo"
-        name="full_name"
-        value={fullName}
-        error={errors.full_name}
-        onChange={(event) => setFullName(event.target.value)}
-      />
+      <Input label="Nome completo" error={errors.full_name?.message} {...register('full_name')} />
       <Input
         label="Documento"
-        name="document"
-        value={document}
-        error={errors.document ?? (duplicate ? errorMessage(createGuest.error) : undefined)}
         hint="CPF, RG ou passaporte — com ou sem pontuação."
-        onChange={(event) => setDocument(event.target.value)}
+        error={errors.document?.message}
+        {...register('document')}
       />
       <Input
         label="Telefone"
-        name="phone"
-        value={phone}
-        error={errors.phone}
         hint="Com DDD."
-        onChange={(event) => setPhone(event.target.value)}
+        error={errors.phone?.message}
+        {...register('phone')}
       />
 
       <div className="flex justify-end gap-2">

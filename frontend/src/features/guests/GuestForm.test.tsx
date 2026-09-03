@@ -1,5 +1,5 @@
 import { screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import userEvent, { type UserEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createGuest } from '@/features/guests/api'
@@ -13,6 +13,12 @@ vi.mock('@/features/guests/api')
 // O formulário carrega o slot de IA, que consulta o status da feature. Dublado
 // para que nenhum teste toque a rede: sem `enabled: true` o slot não renderiza.
 vi.mock('@/features/ai/api')
+
+async function fillValidGuest(user: UserEvent) {
+  await user.type(screen.getByLabelText('Nome completo'), 'Ana Souza')
+  await user.type(screen.getByLabelText('Documento'), '123.456.789-01')
+  await user.type(screen.getByLabelText('Telefone'), '(21) 98888-7777')
+}
 
 describe('GuestForm', () => {
   beforeEach(() => {
@@ -68,6 +74,8 @@ describe('GuestForm', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Documento já cadastrado.')
   })
 
+  // A mensagem e o valor precisam passar pela regra do cliente: com um telefone
+  // curto o schema barraria o submit e a resposta do servidor nunca chegaria.
   it('devolve o VALIDATION_ERROR do servidor ao campo culpado', async () => {
     const user = userEvent.setup()
     vi.mocked(createGuest).mockRejectedValue(
@@ -75,17 +83,72 @@ describe('GuestForm', () => {
         code: 'VALIDATION_ERROR',
         detail: 'Dados inválidos.',
         status: 400,
-        extra: { phone: ['Telefone deve ter ao menos 8 dígitos.'] },
+        extra: { phone: ['Telefone inválido para a região.'] },
       }),
     )
     renderWithProviders(<GuestForm />)
 
-    await user.type(screen.getByLabelText('Nome completo'), 'Ana Souza')
-    await user.type(screen.getByLabelText('Documento'), '123.456.789-01')
-    await user.type(screen.getByLabelText('Telefone'), '21')
+    await fillValidGuest(user)
     await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
 
-    expect(await screen.findByText('Telefone deve ter ao menos 8 dígitos.')).toBeInTheDocument()
+    expect(await screen.findByText('Telefone inválido para a região.')).toBeInTheDocument()
     expect(screen.getByLabelText('Telefone')).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('barra o telefone curto pela regra do cliente, antes de chamar a API', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<GuestForm />)
+
+    await user.type(screen.getByLabelText('Nome completo'), 'Ana Souza')
+    await user.type(screen.getByLabelText('Documento'), '123.456.789-01')
+    await user.type(screen.getByLabelText('Telefone'), '21 9')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
+
+    expect(createGuest).not.toHaveBeenCalled()
+    expect(await screen.findByText('Telefone exige ao menos 8 dígitos.')).toBeInTheDocument()
+  })
+
+  it('mostra no alerta do topo o erro que não pertence a nenhum campo', async () => {
+    const user = userEvent.setup()
+    vi.mocked(createGuest).mockRejectedValue(
+      new ApiError({
+        code: 'VALIDATION_ERROR',
+        detail: 'Dados inválidos.',
+        status: 400,
+        extra: { non_field_errors: ['Cadastro bloqueado para este documento.'] },
+      }),
+    )
+    renderWithProviders(<GuestForm />)
+
+    await fillValidGuest(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Cadastro bloqueado para este documento.',
+    )
+  })
+
+  it('limpa o erro do servidor assim que o atendente corrige o campo', async () => {
+    const user = userEvent.setup()
+    vi.mocked(createGuest).mockRejectedValue(
+      new ApiError({
+        code: 'VALIDATION_ERROR',
+        detail: 'Dados inválidos.',
+        status: 400,
+        extra: { phone: ['Telefone inválido para a região.'] },
+      }),
+    )
+    renderWithProviders(<GuestForm />)
+
+    await fillValidGuest(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
+    expect(await screen.findByText('Telefone inválido para a região.')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Telefone'), '6')
+
+    await waitFor(() =>
+      expect(screen.queryByText('Telefone inválido para a região.')).not.toBeInTheDocument(),
+    )
+    expect(screen.getByLabelText('Telefone')).not.toHaveAttribute('aria-invalid')
   })
 })

@@ -4,7 +4,6 @@ import {
   ApiError,
   earlyCheckinServerTime,
   errorMessage,
-  fieldErrors,
   isApiError,
   isApiErrorCode,
   isErrorCode,
@@ -60,25 +59,6 @@ describe('acessores de extra', () => {
     expect(earlyCheckinServerTime(early)).toBe('13:45')
     expect(earlyCheckinServerTime(apiError('EARLY_CHECKIN', 409))).toBeNull()
     expect(earlyCheckinServerTime(apiError('INVALID_STATUS', 409))).toBeNull()
-  })
-
-  it('achata o erro por campo do DRF na primeira mensagem', () => {
-    const validation = new ApiError({
-      code: 'VALIDATION_ERROR',
-      detail: 'Dados inválidos.',
-      status: 400,
-      extra: {
-        phone: ['Telefone inválido para a região.', 'segunda mensagem ignorada'],
-        document: 'Documento inválido.',
-        non_field_errors: [],
-      },
-    })
-
-    expect(fieldErrors(validation)).toEqual({
-      phone: 'Telefone inválido para a região.',
-      document: 'Documento inválido.',
-    })
-    expect(fieldErrors(apiError('NOT_FOUND', 404))).toEqual({})
   })
 })
 

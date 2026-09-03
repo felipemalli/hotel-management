@@ -1,14 +1,19 @@
-import { type FormEvent, useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
 
 import { Alert, Button, Checkbox, Input } from '@/components/ui'
 import type { GuestRef } from '@/features/guests/types'
 import { addDaysISO, todayISO } from '@/lib/dates'
-import { fieldErrors } from '@/lib/errors'
+import { applyServerErrors } from '@/lib/forms'
 
 import { useCreateReservation } from './hooks'
-import type { Reservation } from './types'
+import { reservationFormSchema } from './schemas'
+import type { CreateReservationPayload, Reservation } from './types'
 
-const REQUIRED_MESSAGE = 'Campo obrigatório.'
+// `guest_id` não tem campo na tela: um erro do servidor sobre ele vai para o
+// alerta do topo em vez de sumir num campo que o atendente não vê.
+const FIELDS = ['checkin_date', 'checkout_date', 'has_vehicle'] as const
 
 export interface ReservationFormProps {
   guest: GuestRef
@@ -17,43 +22,46 @@ export interface ReservationFormProps {
 }
 
 export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormProps) {
-  const today = todayISO()
-  const [checkinDate, setCheckinDate] = useState(today)
-  const [checkoutDate, setCheckoutDate] = useState(() => addDaysISO(today, 1))
-  const [hasVehicle, setHasVehicle] = useState(false)
-  const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
+  // Hoje é lido uma vez na montagem: recomputar a cada render faria um
+  // formulário aberto durante a virada do dia recusar a própria data padrão.
+  const [today] = useState(todayISO)
+  const schema = useMemo(() => reservationFormSchema(today), [today])
+
+  const {
+    formState: { errors },
+    handleSubmit,
+    register,
+    setError,
+    watch,
+  } = useForm<CreateReservationPayload>({
+    resolver: zodResolver(schema),
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      guest_id: guest.id,
+      checkin_date: today,
+      checkout_date: addDaysISO(today, 1),
+      has_vehicle: false,
+    },
+  })
 
   const createReservation = useCreateReservation({ onSuccess })
 
-  const serverErrors = fieldErrors(createReservation.error)
-  const errors = { ...serverErrors, ...localErrors }
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const invalid: Record<string, string> = {}
-    if (!checkinDate) invalid.checkin_date = REQUIRED_MESSAGE
-    if (!checkoutDate) invalid.checkout_date = REQUIRED_MESSAGE
-    if (checkinDate && checkinDate < today) {
-      invalid.checkin_date = 'A reserva não pode começar no passado.'
-    }
-    if (checkinDate && checkoutDate && checkoutDate <= checkinDate) {
-      invalid.checkout_date = 'A saída deve ser depois da entrada (mínimo de 1 noite).'
-    }
-
-    setLocalErrors(invalid)
-    if (Object.keys(invalid).length > 0) return
-
-    createReservation.mutate({
-      guest_id: guest.id,
-      checkin_date: checkinDate,
-      checkout_date: checkoutDate,
-      has_vehicle: hasVehicle,
+  const submit = handleSubmit((payload) => {
+    createReservation.mutate(payload, {
+      onError: (error) => {
+        applyServerErrors(error, setError, FIELDS)
+      },
     })
-  }
+  })
+
+  const checkinDate = watch('checkin_date')
+  const rootError = errors.root?.server?.message
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
+    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+      {rootError ? <Alert tone="error">{rootError}</Alert> : null}
+
       <p className="text-sm text-slate-600">
         Hóspede: <strong className="text-slate-900">{guest.full_name}</strong>
       </p>
@@ -61,32 +69,25 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
       <div className="grid gap-4 sm:grid-cols-2">
         <Input
           label="Entrada"
-          name="checkin_date"
           type="date"
           min={today}
-          value={checkinDate}
-          error={errors.checkin_date}
-          onChange={(event) => setCheckinDate(event.target.value)}
+          error={errors.checkin_date?.message}
+          {...register('checkin_date')}
         />
         <Input
           label="Saída"
-          name="checkout_date"
           type="date"
           min={addDaysISO(checkinDate || today, 1)}
-          value={checkoutDate}
-          error={errors.checkout_date}
-          onChange={(event) => setCheckoutDate(event.target.value)}
+          error={errors.checkout_date?.message}
+          {...register('checkout_date')}
         />
       </div>
 
       <Checkbox
         label="Utilizará vaga de estacionamento"
-        name="has_vehicle"
-        checked={hasVehicle}
-        onChange={(event) => setHasVehicle(event.target.checked)}
+        error={errors.has_vehicle?.message}
+        {...register('has_vehicle')}
       />
-
-      {errors.guest_id ? <Alert tone="error">{errors.guest_id}</Alert> : null}
 
       <div className="flex justify-end gap-2">
         {onCancel ? (
