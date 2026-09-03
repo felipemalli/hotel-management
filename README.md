@@ -331,6 +331,23 @@ Duas consequências que convém saber antes de trocar qualquer uma:
 - trocar a `HASH_PEPPER` invalida toda a busca exata já cadastrada (os *blind
   indexes* deixam de casar com o valor digitado).
 
+**Trocar não é o mesmo que girar.** Para rotacionar sem perder nada, a
+`FIELD_ENCRYPTION_KEY` aceita uma lista separada por vírgula — a primeira
+cifra, as demais apenas decifram:
+
+```bash
+# 1. a chave nova entra na frente, a antiga continua decifrando o que já existe
+FIELD_ENCRYPTION_KEY="<nova>,<antiga>"
+# 2. re-cifra cada ficha com a chave corrente e re-deriva os blind indexes
+docker compose exec backend uv run python manage.py rotate_pii
+# 3. a chave antiga pode ser aposentada
+FIELD_ENCRYPTION_KEY="<nova>"
+```
+
+O mesmo comando restaura a busca exata depois de uma troca de `HASH_PEPPER`,
+porque ele recalcula os dois *blind indexes* junto. É idempotente e aceita
+`--dry-run`.
+
 ### 5.2 Matriz de variáveis de ambiente
 
 O Django lê **variáveis de ambiente** (não há carregador de `.env` embutido).
@@ -444,6 +461,8 @@ min, refresh de 12 h). Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 | `GET /api/guests/in-hotel/` | ✔ | Hóspedes com reserva `CHECKED_IN` |
 | `GET /api/guests/pending-checkin/` | ✔ | Hóspedes com reservas `PENDING` |
 | `GET/POST /api/reservations/` | ✔ | Lista (`?status=&guest=`) / criação |
+| `GET /api/reservations/{id}/` | ✔ | Detalhe da reserva |
+| `GET /api/reservations/{id}/statement/` | ✔ | 2ª via do extrato (após o checkout) |
 | `POST /api/reservations/{id}/check-in/` | ✔ | Efetiva o check-in (com override `allow_early`) |
 | `POST /api/reservations/{id}/checkout/` | ✔ | Efetiva o checkout → extrato |
 | `POST /api/reservations/{id}/cancel/` | ✔ | `PENDING → CANCELLED` |
@@ -480,8 +499,13 @@ hotel-management/
 │   ├── config/                 # settings, urls, health
 │   ├── accounts/               # CustomUser (o atendente nasce do seed)
 │   ├── hotel/                  # domínio: models, fields/crypto, selectors, services
-│   │   ├── services/pricing.py # motor financeiro PURO: sem ORM, sem I/O, sem relógio próprio
-│   │   └── management/commands/seed_demo.py
+│   │   ├── selectors.py        # leitura: consultas nomeadas, sem efeito colateral
+│   │   ├── services/
+│   │   │   ├── pricing.py      # motor financeiro PURO: sem ORM, sem I/O, sem relógio próprio
+│   │   │   ├── guests.py       # escrita de hóspede (unicidade de documento)
+│   │   │   ├── reservations.py # escrita de reserva: criação e transições de status
+│   │   │   └── errors.py       # erros de domínio já no formato do envelope da API
+│   │   └── management/commands/{seed_demo,rotate_pii}.py
 │   ├── ai/                     # diferencial opcional (5.4), zero acoplamento
 │   └── tests/{unit,db,api}/
 └── frontend/src/
@@ -490,6 +514,17 @@ hotel-management/
     ├── components/ui/          # primitivos Tailwind mínimos
     └── features/{auth,guests,reservations,ai}/
 ```
+
+**O estilo tem nome.** Isto é um monólito Django modular com **camada de
+serviço** (o padrão que a comunidade Django chama de *service layer*, do
+Django Styleguide) e um **núcleo funcional puro** no lugar exato onde a
+correção precisa ser auditável — o que a literatura chama de *functional core,
+imperative shell*. Não é hexagonal e não é DDD, por decisão: o domínio importa
+Django de propósito, porque a única fronteira que paga aqui é a do motor
+financeiro, e ela é mantida por ausência de imports em `services/pricing.py` —
+o único módulo do repositório que sobreviveria intacto a uma troca de
+framework. O raciocínio completo, com o custo de cada alternativa e o gatilho
+que a tornaria certa, está em [`docs/ARQUITETURA-BACKEND.md`](docs/ARQUITETURA-BACKEND.md).
 
 Quatro invariantes atravessam o código inteiro e explicam a maior parte das
 escolhas de estrutura:
@@ -500,13 +535,44 @@ escolhas de estrutura:
    explícito: a view injeta `timezone.now()`, o teste injeta o que quiser. Fuso
    `America/Sao_Paulo`, banco em UTC, e **toda** comparação de regra (14h, 12h)
    acontece em hora local.
-3. **Camadas.** Models enxutos → `selectors.py` (leitura) → `services.py`
-   (mutação e dinheiro) → serializers (I/O) → views finas. View nunca calcula
-   dinheiro; model nunca conhece request.
+3. **Camadas, sem exceção.** Models enxutos → `selectors.py` (leitura) →
+   `services/` (**toda** mutação e todo dinheiro) → serializers (I/O) → views
+   finas. A regra vale para a criação como vale para o check-in: view nunca
+   calcula dinheiro, model nunca conhece request, e **serializer nunca lê o
+   relógio nem aplica regra de negócio**. É por isso que "reserva não pode ser
+   no passado" é testável passando uma data como argumento, sem subir HTTP e
+   sem congelar o tempo.
 4. **O cálculo mora no backend.** Nenhum teste de frontend re-prova aritmética:
    os fixtures são cópia literal da tabela de casos numéricos, então o que o
    frontend prova é consumo fiel do contrato, apresentação da consequência da
    regra e condução do protocolo (409 → alerta → reenvio com `allow_early`).
+
+### Como isto cresce (e o que foi recusado)
+
+Escalar em carga, aqui, é operação e não arquitetura: um PostgreSQL de nó único
+serve o volume de um hotel com folga, e os selectors de leitura já resolvem as
+abas em 2 queries, sem N+1. Escalar em código e em time é o que a estrutura
+acima endereça — e o que ela deliberadamente **não** antecipa:
+
+| Se acontecer isto… | …a resposta é |
+|---|---|
+| Primeira mudança de tarifa | Persistir a versão da tabela na reserva (`calculate_bill` já recebe `RateTable`; falta só a coluna) |
+| Pergunta de auditoria que o banco não responde ("quem fez este checkout?") | Livro-caixa append-only + ator nas transições |
+| Segundo hotel no negócio | Constraint composta de `document_hash` **antes** da coluna de tenant |
+| Segundo cliente da API (mobile, integrador) | Versionar a rota antes de ele existir, nunca depois |
+| Efeito externo que não pode ser perdido (e-mail, channel manager) | Outbox transacional — não um broker no caminho crítico |
+| Consumidor do domínio fora do processo Django | Aí sim, considerar inversão de dependência |
+
+Hexagonal, DDD tático e CQRS foram avaliados e recusados **para este tamanho**,
+com o custo e o gatilho de cada um registrados no documento de arquitetura. O
+resumo da recusa: `pricing.py` já é o hexágono, e o que sobra em
+`services/reservations.py` é orquestração de transação — justamente a coisa que
+ports & adapters abstrai pior. Comprar essas camadas agora seria vender curva de
+aprendizado como robustez.
+
+Uma hipótese fica registrada por honestidade: o extrato é recomputado dos fatos,
+não guardado. Isso é determinístico **enquanto a tabela de tarifas não mudar** —
+por isso a tarifa virou parâmetro, e por isso a linha da tabela acima existe.
 
 Segurança, em uma linha cada: JWT com permissão global fechada
 (`IsAuthenticated`) e exceções explícitas; PII cifrada em repouso e mascarada nas
