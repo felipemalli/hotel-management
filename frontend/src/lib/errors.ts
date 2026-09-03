@@ -1,10 +1,3 @@
-/**
- * Envelope de erro unico da API (SPEC 4.1).
- *
- * Todo erro que atravessa o `apiClient` chega aqui e sai como `ApiError`, para
- * que a UI ramifique por `code` — nunca por mensagem de texto.
- */
-
 export const API_ERROR_CODES = [
   'VALIDATION_ERROR',
   'NOT_AUTHENTICATED',
@@ -18,7 +11,6 @@ export const API_ERROR_CODES = [
 
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number]
 
-/** Codigos sinteticos do cliente: a rede caiu antes de existir envelope. */
 export type ClientErrorCode = 'NETWORK_ERROR' | 'UNKNOWN_ERROR'
 
 export interface ErrorEnvelope {
@@ -28,8 +20,6 @@ export interface ErrorEnvelope {
 }
 
 export class ApiError extends Error {
-  // O `| string` colapsa a uniao: sera trocado por um mapeamento de codigo desconhecido
-  // para `UNKNOWN_ERROR`, guardando o original em `extra`.
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- uniao aberta
   readonly code: ApiErrorCode | ClientErrorCode | string
   readonly status: number
@@ -57,20 +47,16 @@ export function isApiErrorCode(error: unknown, code: ApiErrorCode): boolean {
   return isApiError(error) && error.code === code
 }
 
-/**
- * `EARLY_CHECKIN` sempre traz `extra.server_time` ("HH:MM") — e o texto do
- * alerta da RN4. Guard estreito para que o fluxo F2 nao adivinhe formato.
- */
+// `EARLY_CHECKIN` traz `extra.server_time` no formato "HH:MM" — é o texto do
+// alerta, e o acessor existe para que o fluxo não adivinhe o formato.
 export function earlyCheckinServerTime(error: unknown): string | null {
   if (!isApiErrorCode(error, 'EARLY_CHECKIN')) return null
   const time = (error as ApiError).extra.server_time
   return typeof time === 'string' ? time : null
 }
 
-/**
- * `VALIDATION_ERROR` traz `extra` = erros por campo do DRF (`{campo: [msgs]}`).
- * Achatado em `{campo: primeira mensagem}` para plugar direto nos inputs.
- */
+// Erro por campo do DRF chega como lista (`{campo: [msgs]}`). Achatado na
+// primeira mensagem para plugar direto no input.
 export function fieldErrors(error: unknown): Record<string, string> {
   if (!isApiErrorCode(error, 'VALIDATION_ERROR')) return {}
   const result: Record<string, string> = {}
@@ -84,7 +70,6 @@ export function fieldErrors(error: unknown): Record<string, string> {
   return result
 }
 
-/** Mensagem para humano no balcao: `detail` da API, com fallback por codigo. */
 export function errorMessage(error: unknown): string {
   if (isApiError(error) && error.message) return error.message
   if (error instanceof Error && error.message) return error.message

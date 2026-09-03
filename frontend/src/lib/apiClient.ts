@@ -1,16 +1,3 @@
-/**
- * Cliente HTTP unico (SPEC 5.1).
- *
- * - `baseURL: '/api'` — mesma origem no browser via proxy do Vite, por isso
- *   nao existe CORS neste projeto (SPEC 2.4).
- * - Interceptor de request injeta `Authorization: Bearer <access>` (SPEC 2.3).
- * - Interceptor de response faz **refresh-once** em 401: uma unica chamada a
- *   `/auth/token/refresh/` compartilhada por todas as requisicoes que falharem
- *   na mesma janela, e um unico replay por requisicao. Falhou o refresh ->
- *   sessao limpa e a arvore cai para /login.
- * - Todo erro sai normalizado como `ApiError` a partir do envelope SPEC 4.1.
- */
-
 import axios, { type AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
 
 import { ApiError, type ErrorEnvelope } from './errors'
@@ -35,11 +22,8 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-/**
- * Instancia crua: o refresh nao pode passar pelos interceptors (recursao).
- * Sem `baseURL` proprio de proposito — ele e lido de `apiClient` na hora da
- * chamada, para que exista uma unica fonte da verdade do endereco da API.
- */
+// Instância sem interceptors: o refresh passando pelo interceptor de 401
+// recursaria. A `baseURL` é lida de `apiClient` na chamada, fonte única.
 const refreshClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
@@ -59,7 +43,7 @@ function isAuthPath(url: string | undefined): boolean {
   return url.includes(AUTH_PATHS.token) || url.includes(AUTH_PATHS.refresh)
 }
 
-/** Uma renovacao por vez: as demais requisicoes aguardam a mesma promise. */
+// Uma renovação por vez: as demais requisições aguardam a mesma promise.
 let refreshInFlight: Promise<string> | null = null
 
 function refreshAccessToken(): Promise<string> {
@@ -98,9 +82,7 @@ apiClient.interceptors.response.use(
       !isAuthPath(config.url) &&
       session.getRefreshToken() !== null
 
-    // Guarda morta: `canRetry` ja exige `config`, mas o narrowing nao atravessa a variavel.
-    // Sai quando o interceptor de refresh ganhar teste proprio.
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- guarda morta
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- `canRetry` já exige `config`, mas o narrowing não atravessa a variável
     if (canRetry && config) {
       try {
         const access = await refreshAccessToken()
@@ -128,7 +110,7 @@ function isEnvelope(data: unknown): data is ErrorEnvelope {
   )
 }
 
-/** Erro de rede/timeout nao tem envelope: viramos codigo sintetico, status 0. */
+// Erro de rede ou timeout não tem envelope: vira código sintético, status 0.
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error
 
@@ -140,9 +122,7 @@ export function toApiError(error: unknown): ApiError {
     if (isEnvelope(data)) {
       return new ApiError({
         code: data.code,
-        // `isEnvelope` promete `detail: string` sem conferir o campo, entao o fallback e real
-        // enquanto a validacao do envelope nao for fechada.
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- predicado frouxo
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- `isEnvelope` não confere `detail`, então o fallback é real
         detail: data.detail ?? 'Erro inesperado.',
         status,
         extra: data.extra,

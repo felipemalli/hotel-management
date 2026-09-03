@@ -2,12 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import { formatDocument, formatPhone } from './pii'
 
-/**
- * SPEC 6.2 — `lib/pii.test.ts`: mascara de CPF/telefone na exibicao.
- *
- * A API entrega o valor normalizado; o frontend so veste. Passaporte e
- * tamanhos fora do padrao brasileiro saem crus.
- */
 describe('formatDocument', () => {
   it('aplica mascara de CPF em 11 digitos', () => {
     expect(formatDocument('12345678901')).toBe('123.456.789-01')

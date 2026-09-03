@@ -1,16 +1,6 @@
-/**
- * Guarda dos tokens JWT (SPEC 5.1).
- *
- * Trade-off assumido e documentado: os tokens vivem em `localStorage`, logo um
- * XSS os le. A mitigacao e a CSP estrita da SPEC 2.4 (`default-src 'self'`,
- * sem inline script na app) — nao ha terceiro carregando codigo nesta pagina.
- * A alternativa (cookie HttpOnly + CSRF) exigiria endpoint de sessao que a
- * SPEC 4.2 nao expoe: o contrato devolve `{access, refresh}` no corpo.
- *
- * Store observavel de proposito: o interceptor de 401 (apiClient) pode
- * derrubar a sessao de fora do React, e a arvore precisa reagir a isso.
- */
-
+// Trade-off assumido: os tokens vivem em `localStorage`, logo um XSS os lê. O
+// access dura 60 min, o refresh 12 h e a página não carrega script de terceiro.
+// A alternativa (cookie HttpOnly + CSRF) exigiria endpoint que a API não expõe.
 const ACCESS_KEY = 'hotel.access'
 const REFRESH_KEY = 'hotel.refresh'
 
@@ -23,7 +13,8 @@ type Listener = () => void
 
 const listeners = new Set<Listener>()
 
-/** localStorage pode lancar (modo privado, cookies bloqueados). Nunca derruba a app. */
+// `localStorage` lança em modo privado ou com cookies bloqueados: a sessão
+// então vive só em memória, e a app nunca cai por causa disso.
 function read(key: string): string | null {
   try {
     return window.localStorage.getItem(key)
@@ -37,7 +28,7 @@ function write(key: string, value: string | null): void {
     if (value === null) window.localStorage.removeItem(key)
     else window.localStorage.setItem(key, value)
   } catch {
-    /* sessao apenas em memoria neste ambiente */
+    // sessão apenas em memória neste ambiente
   }
 }
 
@@ -53,7 +44,6 @@ export const session = {
 
   getRefreshToken: (): string | null => refresh,
 
-  /** Snapshot estavel para `useSyncExternalStore`: string ou null, nunca objeto novo. */
   getSnapshot: (): string | null => access,
 
   set: (tokens: TokenPair): void => {
@@ -64,7 +54,6 @@ export const session = {
     emit()
   },
 
-  /** Renovacao: o refresh sobrevive, so o access troca (SPEC 2.3, sem rotacao). */
   setAccessToken: (token: string): void => {
     access = token
     write(ACCESS_KEY, token)
