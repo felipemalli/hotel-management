@@ -53,3 +53,11 @@ export const toastStore = {
 export function notifyError(message: string): void {
   toastStore.push('error', message)
 }
+
+export function notifySuccess(message: string): void {
+  toastStore.push('success', message)
+}
+
+export function notifyInfo(message: string): void {
+  toastStore.push('info', message)
+}

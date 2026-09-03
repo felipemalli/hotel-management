@@ -45,6 +45,19 @@ function emit(): void {
   for (const listener of listeners) listener()
 }
 
+const OWN_KEYS: readonly string[] = [ACCESS_KEY, REFRESH_KEY, USERNAME_KEY]
+
+// `storage` só chega nas outras abas — escrever aqui não dispara nada, logo não
+// há laço. É o que faz "Sair" em uma aba derrubar as demais; `key` nulo é o
+// `clear()` do navegador inteiro.
+window.addEventListener('storage', (event) => {
+  if (event.key !== null && !OWN_KEYS.includes(event.key)) return
+  access = read(ACCESS_KEY)
+  refresh = read(REFRESH_KEY)
+  username = read(USERNAME_KEY)
+  emit()
+})
+
 export const session = {
   getAccessToken: (): string | null => access,
 

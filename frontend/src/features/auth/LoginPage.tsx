@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 
 import { Alert, Button, Input } from '@/components/ui'
-import { errorMessage, fieldErrors, isApiErrorCode } from '@/lib/errors'
+import { errorMessage, fieldErrors } from '@/lib/errors'
 
 import { useAuth } from './useAuth'
 
@@ -26,11 +26,10 @@ export function LoginPage() {
     } catch (cause) {
       setFields(fieldErrors(cause))
       setError(
-        isApiErrorCode(cause, 'NOT_AUTHENTICATED')
-          ? 'Usuário ou senha inválidos.'
-          : isApiErrorCode(cause, 'VALIDATION_ERROR')
-            ? 'Informe usuário e senha.'
-            : errorMessage(cause),
+        errorMessage(cause, {
+          NOT_AUTHENTICATED: 'Usuário ou senha inválidos.',
+          VALIDATION_ERROR: 'Informe usuário e senha.',
+        }),
       )
     } finally {
       setSubmitting(false)

@@ -1,7 +1,9 @@
-import axios, { type AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
+import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
 
-import { ApiError, type ErrorEnvelope } from './errors'
+import { errorLogger } from './errorLogger'
+import { ApiError, type ErrorEnvelope, isErrorCode } from './errors'
 import { session } from './session'
+import { notifyInfo } from './toast'
 
 export interface Paginated<T> {
   count: number
@@ -38,19 +40,29 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
+// Comparação por prefixo do caminho: `includes` casaria com qualquer URL que
+// contivesse o texto (`/api/logs?next=/auth/token/`) e isentaria do Bearer uma
+// rota que precisa dele.
+function pathOf(url: string): string {
+  const [beforeQuery = ''] = url.split('?')
+  const withoutOrigin = beforeQuery.replace(/^https?:\/\/[^/]+/, '')
+  const base = apiClient.defaults.baseURL ?? ''
+  const relative =
+    base !== '' && withoutOrigin.startsWith(base) ? withoutOrigin.slice(base.length) : withoutOrigin
+  return relative.startsWith('/') ? relative : `/${relative}`
+}
+
 function isAuthPath(url: string | undefined): boolean {
   if (!url) return false
-  return url.includes(AUTH_PATHS.token) || url.includes(AUTH_PATHS.refresh)
+  const path = pathOf(url)
+  return path.startsWith(AUTH_PATHS.token) || path.startsWith(AUTH_PATHS.refresh)
 }
 
 // Uma renovação por vez: as demais requisições aguardam a mesma promise.
 let refreshInFlight: Promise<string> | null = null
 
-function refreshAccessToken(): Promise<string> {
+function refreshAccessToken(refresh: string): Promise<string> {
   if (refreshInFlight) return refreshInFlight
-
-  const refresh = session.getRefreshToken()
-  if (!refresh) return Promise.reject(new Error('Sessao sem refresh token.'))
 
   refreshInFlight = refreshClient
     .post<{ access: string }>(
@@ -69,45 +81,51 @@ function refreshAccessToken(): Promise<string> {
   return refreshInFlight
 }
 
+// Nenhuma tela pediu esta requisição, então o aviso sai daqui. A guarda evita
+// N avisos quando N requisições concorrentes descobrem a expiração juntas.
+function expireSession(cause: unknown): void {
+  errorLogger.capture(cause, { scope: 'auth-refresh' })
+  if (session.getAccessToken() === null) return
+  session.clear()
+  notifyInfo('Sua sessão expirou. Entre novamente.')
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: unknown) => {
     if (!axios.isAxiosError(error)) throw toApiError(error)
 
-    const config = error.config as RetriableConfig | undefined
-    const canRetry =
-      error.response?.status === 401 &&
-      config !== undefined &&
-      !config._retried &&
-      !isAuthPath(config.url) &&
-      session.getRefreshToken() !== null
-
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- `canRetry` já exige `config`, mas o narrowing não atravessa a variável
-    if (canRetry && config) {
-      try {
-        const access = await refreshAccessToken()
-        config._retried = true
-        const headers = AxiosHeaders.from(config.headers)
-        headers.set('Authorization', `Bearer ${access}`)
-        config.headers = headers
-        return await apiClient.request(config)
-      } catch {
-        session.clear()
-        throw toApiError(error)
-      }
+    const config: RetriableConfig | undefined = error.config
+    if (error.response?.status !== 401 || !config || isAuthPath(config.url)) {
+      throw toApiError(error)
     }
 
-    if (error.response?.status === 401 && !isAuthPath(config?.url)) session.clear()
-    throw toApiError(error)
+    const refresh = session.getRefreshToken()
+    if (config._retried || refresh === null) {
+      expireSession(error)
+      throw toApiError(error)
+    }
+
+    // Marcado antes do await: um replay por requisição, mesmo que várias
+    // esperem a mesma renovação.
+    config._retried = true
+    try {
+      await refreshAccessToken(refresh)
+    } catch (refreshCause) {
+      expireSession(refreshCause)
+      throw toApiError(error)
+    }
+
+    // Sem header à mão: o interceptor de requisição injeta o token novo, e uma
+    // falha do replay é falha do replay — não motivo para encerrar a sessão.
+    return apiClient.request(config)
   },
 )
 
 function isEnvelope(data: unknown): data is ErrorEnvelope {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    typeof (data as { code?: unknown }).code === 'string'
-  )
+  if (typeof data !== 'object' || data === null) return false
+  const envelope = data as { code?: unknown; detail?: unknown }
+  return typeof envelope.code === 'string' && typeof envelope.detail === 'string'
 }
 
 // Erro de rede ou timeout não tem envelope: vira código sintético, status 0.
@@ -115,17 +133,20 @@ export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error
 
   if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError
-    const status = axiosError.response?.status ?? 0
-    const data = axiosError.response?.data
+    const status = error.response?.status ?? 0
+    const data: unknown = error.response?.data
 
     if (isEnvelope(data)) {
+      if (isErrorCode(data.code)) {
+        return new ApiError({ code: data.code, detail: data.detail, status, extra: data.extra })
+      }
+      // Código que a união não conhece: a UI trata como inesperado e o
+      // original fica no `extra` para o log e para o próximo contrato.
       return new ApiError({
-        code: data.code,
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- `isEnvelope` não confere `detail`, então o fallback é real
-        detail: data.detail ?? 'Erro inesperado.',
+        code: 'UNKNOWN_ERROR',
+        detail: data.detail,
         status,
-        extra: data.extra,
+        extra: { ...data.extra, raw_code: data.code },
       })
     }
 

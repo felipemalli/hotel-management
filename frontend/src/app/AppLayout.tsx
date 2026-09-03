@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
 import { Button } from '@/components/ui'
@@ -7,11 +6,9 @@ import { toastStore } from '@/lib/toast'
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { username, signOut } = useAuth()
-  const queryClient = useQueryClient()
 
   function onSignOut() {
     signOut()
-    queryClient.clear()
     toastStore.clear()
   }
 

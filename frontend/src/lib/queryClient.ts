@@ -1,7 +1,7 @@
 import { MutationCache, QueryClient } from '@tanstack/react-query'
 
 import { errorLogger } from './errorLogger'
-import { errorMessage, isApiError, isApiErrorCode, isServerFault } from './errors'
+import { type ErrorCode, errorMessage, isApiError, isApiErrorCode, isServerFault } from './errors'
 import { notifyError } from './toast'
 
 export const DEFAULT_STALE_TIME_MS = 30_000
@@ -12,7 +12,14 @@ export const DEFAULT_STALE_TIME_MS = 30_000
 // query 5xx, 1ª carga     -> boundary (não há nada na tela para preservar)
 // query 5xx, com dado     -> mantém o dado; o refetch falho não apaga a tabela
 // query 4xx ou rede fora  -> `ErrorState` inline com retry
-const LOCALLY_PRESENTED_CODES = new Set(['VALIDATION_ERROR', 'DUPLICATE_DOCUMENT', 'EARLY_CHECKIN'])
+// `NOT_AUTHENTICATED` entra na lista porque a expiração já é anunciada pelo
+// interceptor, e a credencial errada é assunto do formulário de login.
+const LOCALLY_PRESENTED_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
+  'VALIDATION_ERROR',
+  'DUPLICATE_DOCUMENT',
+  'EARLY_CHECKIN',
+  'NOT_AUTHENTICATED',
+])
 
 export function isLocallyPresented(error: unknown): boolean {
   return isApiError(error) && LOCALLY_PRESENTED_CODES.has(error.code)
