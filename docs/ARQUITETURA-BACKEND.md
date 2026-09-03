@@ -4,6 +4,15 @@
 **Objetivo:** dar base para decidir, não prescrever reescrita.
 **Data da análise:** 2026-09-01. Commit base: `2a9caea`.
 
+> **Atualização 2026-09.** A cifra Fernet de `document`/`phone` foi revertida.
+> Campo cifrado + `LIKE` são objetivos incompatíveis; o briefing pede localizar
+> por fragmento, e criptografia de campo é excesso que o negócio não usa (D5).
+> As colunas guardam o valor já normalizado (D9); a busca é `icontains` nos
+> três campos; unicidade de documento é `unique=True` na própria coluna. T6
+> (rotação de chave) deixa de existir. Os `arquivo:linha` abaixo que citam
+> `fields.py` / `crypto.py` descrevem o estado de 2026-09-01, não o código
+> atual. Os dossiês em `ai-plans/arquitetura/` ficam como retrato da revisão.
+
 ---
 
 ## 0. Método e o que foi de fato verificado
@@ -30,7 +39,7 @@ O que rodei:
 | Schema real da tabela | `\d+ hotel_guest` | `document`/`phone` = `text`; 6 índices; FK `PROTECT` |
 | Processos do gunicorn | leitura de `/proc/*/cmdline` | **master + 1 worker** (default; não há `-w`) |
 | Duplo check-in do mesmo hóspede | `POST /api/reservations/8/check-in/` | **HTTP 500, corpo HTML** — ver T3 |
-| Mascaramento e busca | `GET /api/guests/`, `/guests/1/`, `?search=` | conforme SPEC §2.2/§4.3 |
+| Mascaramento e busca | `GET /api/guests/`, `/guests/1/`, `?search=` | histórico: mascaramento existia; hoje valor gravado + fragmento |
 | Rota de detalhe de reserva | `GET /api/reservations/1/` | **404 HTML** — não existe `retrieve` |
 
 > **Nota sobre uma sujeira que existiu.** A sonda do duplo check-in (T3) rodou
@@ -59,10 +68,10 @@ integralmente, porque tratam do que ainda não foi feito.
 | Apêndice 3 — seed criava superusuário | **corrigido** | `d650d47` — atendente é `CustomUser` comum, como manda a §1.1 |
 | Apêndice 4/5 — sem throttling em login e IA | **corrigido** | `629fff0` — 10/min por IP no login, 20/min por usuário na IA, saindo como `429 THROTTLED` no envelope da §4.1 |
 | Apêndice 6 — `document`/`phone` sem máximo | **corrigido** | `1ceca82` — `max_length` na entrada |
-| Apêndice 8 — lookup em campo cifrado devolvia vazio | **corrigido** | `1ceca82` — `get_lookup` recusa e aponta o blind index |
+| Apêndice 8 — lookup em campo cifrado devolvia vazio | **superado** | cifra removida em 2026-09; `document`/`phone` são `CharField` buscáveis |
 | Apêndice 9 — `desafio.md` fora do `.gitignore` | **corrigido** | `037072d` |
 | Apêndice 10 — 122 erros numa execução da suíte | **causa confirmada** | não é flakiness do código: dois `pytest` concorrentes no mesmo banco. A mensagem exata é `database "test_hotel" is being accessed by other users` no `DROP DATABASE` |
-| Apêndice 7 — `bulk_create` corrompe o blind index | **documentado** | `1ceca82` — teste de caracterização, como o próprio apêndice sugeriu |
+| Apêndice 7 — `bulk_create` corrompe o blind index | **superado** | manager recusa `bulk_create`; a razão atual é normalização, não hash |
 | **T1, T2, T4, T5, T6, T7, T8, T9, T10, T11** | **abertos, por decisão** | são as tensões de longo prazo; a Parte 4 dá o gatilho de cada uma |
 
 Uma consequência não óbvia da rodada, que vale como lição de arquitetura: as
@@ -85,12 +94,11 @@ Não é "fat models". Não é hexagonal. É um **monólito Django modular com
 camadas explícitas e um núcleo funcional puro no lugar exato onde importa**.
 Concretamente:
 
-- **Models anêmicos por decisão** (`hotel/models.py`, 123 linhas): campos,
-  `Meta` (índices e constraints), `__str__`. O único comportamento que
-  sobrevive no model é a sincronização dos blind indexes em
-  `Guest.save()` — `models.py:53-63` — e a justificativa está no docstring do
-  módulo (`models.py:1-8`): tem de valer para qualquer caminho de escrita.
-  Zero dinheiro no model.
+- **Models anêmicos por decisão** (`hotel/models.py`): campos, `Meta`
+  (índices e constraints), `__str__`. O único comportamento que sobrevive no
+  model é a normalização de documento/telefone em `Guest.save()` — e a
+  justificativa está no docstring do módulo: tem de valer para qualquer
+  caminho de escrita. Zero dinheiro no model.
 - **Leitura em `selectors.py`** (90 linhas): 4 consultas nomeadas, nenhum
   efeito colateral. Nenhuma view monta QuerySet à mão — exceto os
   `select_related` triviais de `get_queryset` (`views.py:240,249`).
@@ -176,14 +184,14 @@ to_attr=...)` para que o serializer leia uma lista já materializada
 | Transação / trava | `reservations.py:73,91,127` + `_lock:147-149` | `atomic` + `select_for_update`. |
 | Relógio | `views.py:321,377` (`timezone.now()`) | **Uma exceção:** `serializers.py:222`. |
 | Conversão de fuso | `reservations.py:77,99-100,141-142` | `localtime` antes da regra. |
-| Cifra de PII | `hotel/fields.py:19-27` | Fernet, não determinístico. |
-| Busca exata sobre PII | `hotel/crypto.py:47-49` (HMAC) | Blind index, normalização por tipo. |
-| Mascaramento | `crypto.py:52-67` + escolha de serializer `serializers.py:58-88` | Por endpoint, não por flag. |
-| Integridade | `models.py:100-120` (3 constraints) | No banco, não só em Python. |
+| Normalização de PII | `hotel/normalization.py` | Por tipo (D9); `Guest.save()` persiste o valor normalizado. |
+| Busca por fragmento | `selectors.search_guests` | `icontains` em nome, documento e telefone. |
+| Unicidade de documento | `document` unique + `services/guests.py` | D12: leitura prévia + constraint. |
+| Integridade | `models.py` (3 constraints) | No banco, não só em Python. |
 | Envelope de erro | `exceptions.py:61-79` | Um ponto. |
 | Validação de agendamento (D11/D13) | `serializers.py:219-233` | **Vaza para o I/O** — ver T11. |
-| Guarda de documento duplicado (D12) | `serializers.py:129-132` + constraint única | Leitura + corrida. |
-| Criação de Guest/Reservation | **não existe serviço** | Só serializer e `seed_demo.py:118-138`. |
+| Guarda de documento duplicado (D12) | `services/guests.py` + constraint única | Leitura + corrida. |
+| Criação de Guest | `services/guests.py` | Toda escrita passa por serviço. |
 
 ## 1.4 O dinheiro
 
@@ -229,38 +237,31 @@ errada silenciosamente. Hoje há um único chamador e ele acerta.
 
 ## 1.6 A PII
 
-O desenho é o da SPEC §2.1, implementado sem biblioteca de terceiros além de
-`cryptography`:
+`document` e `phone` são `CharField` em claro. `Guest.save()` normaliza por
+tipo (D9) em qualquer caminho de escrita: documento alfanumérico maiúsculo,
+telefone só dígitos. A coluna guarda `12345678901`, não `123.456.789-01`. Há
+teste de que dois passaportes distintos não colidem
+(`tests/db/test_selectors.py`) — a alternativa rejeitada em §0.5/D9 era um
+bug real, e ela está coberta.
 
-- Coluna cifrada com Fernet (`fields.py:10-27`), armazenada como `text`
-  (confirmado no `\d+`). Fernet é não determinístico de propósito — e o
-  docstring diz isso (`fields.py:14-16`).
-- Coluna paralela `*_hash` = HMAC-SHA256 do valor normalizado
-  (`crypto.py:47-49`), com normalização **por tipo** (D9): documento
-  alfanumérico maiúsculo, telefone só dígitos (`crypto.py:32-44`). Há teste de
-  que dois passaportes distintos não colidem
-  (`tests/db/test_selectors.py:57`) — a alternativa rejeitada em §0.5/D9 era um
-  bug real, e ela está coberta.
-- Unicidade de documento no banco (`unique=True`, `models.py:33`) + guarda de
-  leitura no serializer (`serializers.py:129-132`) + tradução da corrida no
-  `create` (`views.py:154-159`).
-- Mascaramento decidido por **classe de serializer**, não por flag de runtime
-  (`serializers.py:58-88`) — listagens e abas sempre mascaram, só o detalhe por
-  id devolve valor pleno. Verificado ao vivo: `GET /api/guests/` devolve
-  `•••.•••.•89-01`; `GET /api/guests/1/` devolve `123.456.789-01`.
-- **Fail-closed** na configuração: sem `FIELD_ENCRYPTION_KEY` ou sem
-  `HASH_PEPPER` o sistema levanta `ImproperlyConfigured`
-  (`crypto.py:70-86`) em vez de gravar em claro. Essa é a decisão certa e é
-  raro vê-la.
-- O handler de erro não ecoa o body (`exceptions.py:17-19,109-118`), e há dois
-  testes de que o texto livre da IA não vai para log
-  (`tests/api/test_ai.py:279,293`).
+Busca (`selectors.search_guests`) é `icontains` nos três campos, com o termo
+de documento/telefone normalizado antes do predicado — `789` e `789-01`
+acham a Ana. Três índices GIN funcionais (`Upper(...) gin_trgm_ops`) casam
+o SQL real do `icontains`. Unicidade de documento é `unique=True` na própria
+coluna; a guarda D12 mora em `services.guests.create_guest`.
 
-Uma pegadinha estrutural, documentada mas não impedida: como
-`get_prep_value` cifra também o valor de *lookup*,
-`Guest.objects.filter(document="123.456.789-01")` **não acha nada** e não
-levanta erro. O campo não bloqueia lookups (`get_lookup` não é sobrescrito).
-Hoje ninguém faz isso; é uma armadilha aberta para o próximo desenvolvedor.
+A API devolve o valor gravado (listagem e detalhe são o mesmo serializer).
+Máscara de CPF/telefone é formatação de exibição no frontend. O handler de
+erro não ecoa o body (`exceptions.py`), e há dois testes de que o texto
+livre da IA não vai para log (`tests/api/test_ai.py`).
+
+`Guest.objects.bulk_create` é recusado: sem `save()`, a linha entra com a
+máscara digitada e fura unicidade e busca em silêncio.
+
+A cifra Fernet + blind index HMAC existiu até 2026-09 e foi revertida: cifra
+e `LIKE` são objetivos incompatíveis, e criptografia de campo é excesso que
+o negócio não usa (D5). Sem ciphertext não há chave para girar; sem hash não
+há pepper. T6 desta lista está superada.
 
 ## 1.7 As fronteiras que existem de fato
 
@@ -281,7 +282,7 @@ Hoje ninguém faz isso; é uma armadilha aberta para o próximo desenvolvedor.
 │         ║  pricing.py      ║   │       dependência de UMA via:
 │         ║  PURO — sem ORM  ║   │       ai/ → hotel/, nunca o inverso
 │         ╚══════════════════╝   │       não está em INSTALLED_APPS
-│ models.py · fields.py · crypto │
+│ models.py · normalization.py   │
 └─────────────────────────────────┘
                 │
         ┌───── accounts/ ─────┐   CustomUser vazio (AbstractUser)
@@ -324,9 +325,11 @@ acima da média. Os acertos que eu defenderia num comitê:
    que provam que disparam `IntegrityError`
    (`tests/db/test_models.py:89,101,115`). Regra que só vive na aplicação é
    regra que a próxima migração de dados vai violar.
-4. **Cripto fail-closed.** Chave ausente = erro de configuração, não gravação
-   em claro. E a normalização por tipo do blind index resolve um bug concreto
-   (colisão de passaportes) que a leitura "óbvia" teria introduzido.
+4. **Normalização por tipo no armazenamento.** Documento alfanumérico
+   maiúsculo, telefone só dígitos, persistidos em `Guest.save()`. Resolve um
+   bug concreto (colisão de passaportes) que a leitura "óbvia" (só dígitos)
+   teria introduzido — e é o que faz a unicidade e o `icontains` casarem a
+   máscara digitada.
 5. **Envelope de erro com `code`.** O cliente ramifica por código
    (`EARLY_CHECKIN`), não por texto. Isso é contrato, e é o que permite o
    protocolo alerta→override do D4 existir sem gambiarra ("200 que não muta").
@@ -517,13 +520,12 @@ E há duas escritas de fato divergentes:
    depende dela. Ou seja: hoje há um caminho validado (API) e um não validado
    (seed), e o não validado é necessário. Isso não é bug; é dívida de desenho
    ainda invisível.
-2. `Guest.save()` deriva os hashes (`models.py:53-63`), mas `bulk_create` e
-   `QuerySet.update()` **não chamam `save()`**. Um
-   `Guest.objects.bulk_create([...])` gravaria `document_hash=""` (default de
-   `CharField`) — a primeira linha entra como um hóspede que nunca será
-   encontrado por documento, e a segunda estoura a constraint única. Um
-   `.update(document=...)` cifra o valor novo e deixa o hash antigo: o hóspede
-   fica inencontrável e a unicidade passa a proteger o valor errado.
+2. `Guest.save()` normaliza PII (`models.py`), mas `bulk_create` e
+   `QuerySet.update()` **não chamam `save()`**. Sem o guarda do manager, um
+   `Guest.objects.bulk_create([...])` gravaria a máscara digitada — a linha
+   entra invisível para a busca por fragmento normalizado e para a unicidade
+   de documento. O manager recusa `bulk_create`; `QuerySet.update()` continua
+   sendo o caminho a não usar.
 
 Nenhum desses caminhos existe hoje. Os dois são a primeira coisa que aparece
 quando alguém escrever um importador de CSV ou um `hotel/admin.py`.
@@ -545,38 +547,18 @@ linhas reaproveitando `statement()` + `build_statement()`. É a menor razão
 custo/benefício desta lista inteira — e ela interage com T2: o dia em que essa
 rota existir, a divergência de tarifa fica visível ao cliente.
 
-## T6 — Rotação de chave e re-indexação do blind index: hoje é "não podemos"
+## T6 — Rotação de chave Fernet: **resolvida pela reversão**
 
-```python
-# hotel/crypto.py:70-77
-def fernet() -> Fernet:
-    key = getattr(settings, "FIELD_ENCRYPTION_KEY", "") or ""
-    if not key: raise ImproperlyConfigured(...)
-    return _fernet_for(key)      # lru_cache por valor de chave
-```
+Esta tensão existia enquanto `document`/`phone` eram cifrados com uma única
+`FIELD_ENCRYPTION_KEY` e buscados via `HASH_PEPPER`. Trocar a chave quebrava
+toda leitura (`InvalidToken` → 500 em todo endpoint de hóspede); trocar o
+pepper invalidava a busca em silêncio. A correção proposta era `MultiFernet`
++ comando `rotate_pii`.
 
-Uma chave, sem versão, sem `MultiFernet`.
-
-**Cenário A — incidente de segurança, `FIELD_ENCRYPTION_KEY` precisa girar.**
-Ao trocar a env, toda leitura de `Guest` chama `from_db_value`
-(`fields.py:24-27`) sobre ciphertext da chave antiga → `InvalidToken`. Não é
-exceção do DRF → cai no `return None` do handler (T3) → **500 em todo endpoint
-de hóspede**, incluindo as abas. Não há coluna de versão de chave, não há
-comando de re-cifragem, não há decriptação com chave anterior.
-
-**Cenário B — `HASH_PEPPER` precisa girar.** Pior, porque falha *silenciosamente*:
-todos os `document_hash` existentes passam a ser lixo. A constraint única deixa
-de impedir duplicatas (dois cadastros do mesmo CPF passam, com peppers
-diferentes), e a busca por documento devolve `200 OK` com zero resultados. O
-README já registra a consequência ("trocar a `HASH_PEPPER` invalida toda a busca
-exata já cadastrada", README:328) — o que falta não é consciência, é caminho.
-
-**O bom desta tensão:** a correção é pequena e o código já fez metade do
-trabalho. `MultiFernet([Fernet(nova), Fernet(antiga)])` resolve a leitura
-durante a transição; e um comando `rotate_pii` que faça `guest.save()` em cada
-linha recalcula **os dois hashes de graça**, porque `Guest.save()`
-(`models.py:53-63`) já é a autoridade de derivação. Falta um `pepper_version`
-na tabela se a rotação tiver de ser online.
+Em 2026-09 a cifra saiu do sistema. Sem ciphertext não há chave para girar;
+sem blind index não há pepper. O armazenamento é o valor normalizado, a
+busca é `icontains`, a unicidade é a coluna `document`. A4 desta lista está
+superada.
 
 ## T7 — Contrato REST sem versão, e envelope não universal
 
@@ -608,14 +590,15 @@ não é uniforme:
 |---|---|
 | `hotel_id` em `Guest`/`Reservation` + backfill | Baixo (migração aditiva) |
 | Filtrar 4 selectors e 2 viewsets | Baixo hoje; um vazamento por endpoint quando forem 40 |
-| **`document_hash` unique → unique por hotel** | **Alto** |
+| **`document` unique → unique por hotel** | **Alto** |
 | Decidir se o hóspede é da rede ou do hotel | Modelagem, não migração |
 
-A linha do meio é a afiada. `unique=True` numa coluna só (`models.py:33`) tem de
-virar `UniqueConstraint(fields=["hotel", "document_hash"])`. Como o valor é HMAC,
-não se pode inspecionar nem deduplicar manualmente depois do fato — a migração
-tem de acertar de primeira. Se multi-tenancy é *sabidamente* futura, o seguro
-barato é a constraint composta desde já (com um tenant default), não a coluna.
+A linha do meio é a afiada. `unique=True` numa coluna só tem de virar
+`UniqueConstraint(fields=["hotel", "document"])`. Como o valor agora é o
+documento normalizado em claro, dá para inspecionar e deduplicar na migração
+— o que a cifra antiga impedia. Se multi-tenancy é *sabidamente* futura, o
+seguro barato continua sendo a constraint composta desde já (com um tenant
+default), não a coluna.
 
 ## T9 — Concorrência: a trava certa, no lugar certo, com o alcance errado
 
@@ -740,7 +723,7 @@ específicos. Nenhuma camada nova, nenhum diretório novo.
 | A1 | Traduzir `IntegrityError` de invariante em erro de domínio | `services/reservations.py` | 1 h |
 | A2 | Rede de segurança no handler: exceção não tratada → 500 no envelope | `hotel/exceptions.py:71-79` | 0,5 h |
 | A3 | `-w 3 --threads 2` no gunicorn | `docker-compose.yml:36`, `Dockerfile:30` | 0,5 h |
-| A4 | `MultiFernet` + comando `rotate_pii` | `hotel/crypto.py`, novo command | 2 h |
+| A4 | ~~`MultiFernet` + `rotate_pii`~~ — **superado**: cifra removida em 2026-09 | — | — |
 | A5 | `GET /reservations/{id}/statement/` + `retrieve` | `hotel/views.py` | 1 h |
 | A6 | `PASSWORD_HASHERS` rápido nos testes | settings/conftest | 0,5 h |
 | A7 | `max_length` em `document`/`phone` no serializer de criação | `serializers.py:90-100` | 0,5 h |
@@ -1106,8 +1089,8 @@ sinal de que C e D não são o que falta.
 
 **Bloco 2 — próxima janela (4 h).**
 3. **A6** (suíte de 82 s → ~10 s; o retorno por linha é o maior do documento).
-4. **A4** (`MultiFernet` + `rotate_pii`) — não porque a chave vai girar, mas
-   porque hoje a resposta a um incidente é "não conseguimos".
+4. ~~**A4** (`MultiFernet` + `rotate_pii`)~~ — **superado**. A cifra saiu;
+   não há chave para girar.
 5. **A7** + **A8** (limite de tamanho em PII; throttling em login e na rota de
    IA, que gasta dinheiro de terceiro por requisição autenticada).
 
@@ -1168,7 +1151,7 @@ por um teste que prova comportamento, não por acaso.
 | Primeiro pedido de mudança de tarifa | A9, e depois **Opção B** |
 | Segundo caminho de escrita no repo (admin, importador) | **Opção B** (serviços de escrita) |
 | Segundo cliente da API entrar em desenvolvimento | Versionar (T7) antes dele existir |
-| Segundo hotel entrar no negócio | Constraint composta de `document_hash` primeiro |
+| Segundo hotel entrar no negócio | Constraint composta de `document` primeiro |
 | Consumidor do domínio fora do processo Django | Considerar **Opção C** |
 | `services/reservations.py` > 400 linhas **e** 3ª invariante escapando | Considerar **Opção D** |
 | Efeito externo que não pode ser perdido | Outbox transacional (fragmento de E) |
@@ -1186,9 +1169,8 @@ sendo decisões de arquitetura:
 2. **`SECRET_KEY` com default silencioso.** `settings.py:31` cai em
    `"insecure-dev-key-change-me"` se a env faltar, com `DEBUG=0`. O SimpleJWT
    assina com `SECRET_KEY` — quem conhece o repositório forja tokens. O
-   `.env.example` e o README instruem gerar a chave (README:339), mas a ausência
-   é silenciosa, ao contrário de `FIELD_ENCRYPTION_KEY`/`HASH_PEPPER`, que falham
-   alto (`crypto.py:70-86`). Sugestão: falhar alto também quando
+   `.env.example` e o README instruem gerar a chave, mas a ausência
+   é silenciosa. Sugestão: falhar alto também quando
    `DEBUG=0` e `SECRET_KEY` for o default.
 3. **`seed_demo` cria superusuário com senha conhecida** —
    `is_staff=True, is_superuser=True` e `atendente/atendente123`
@@ -1200,19 +1182,17 @@ sendo decisões de arquitetura:
    `DEFAULT_THROTTLE_CLASSES` em `settings.py`.
 5. **`/api/ai/parse-guest/` sem throttling** gasta dinheiro de terceiro por
    chamada autenticada, e cada chamada bloqueia o único worker por até 10 s.
-6. **`document`/`phone` sem limite de tamanho na entrada.** `EncryptedCharField`
-   é `TextField` (`fields.py:10`) e `GuestCreateSerializer`
-   (`serializers.py:90-100`) não declara `max_length` — o `ModelSerializer` herda
-   `max_length=None` do model. As validações de mínimo existem
-   (`serializers.py:102-117`); de máximo, não.
-7. **`bulk_create` / `QuerySet.update()` corrompem o blind index** — T11. Não há
-   caminho que faça isso hoje; é a primeira armadilha para o próximo
-   desenvolvedor. Um teste que falhe de propósito
-   (`test_bulk_create_is_not_a_supported_write_path`) documentaria melhor do que
-   um comentário.
-8. **`filter(document=…)` não acha nada e não avisa** — `get_prep_value` cifra o
-   valor de lookup (`fields.py:19-22`). Está no docstring; não está impedido.
-   Sobrescrever `get_lookup` para recusar lookups nesse campo custa 4 linhas.
+6. **`document`/`phone` sem limite de tamanho na entrada.** Histórico do
+   retrato de 2026-09-01 (`EncryptedCharField` era `TextField`). **Corrigido:**
+   os campos são `CharField` com `max_length` no model e no serializer de
+   criação.
+7. **`bulk_create` / `QuerySet.update()` pulam a normalização** — o manager
+   recusa `bulk_create`; `QuerySet.update()` continua sendo o caminho a não
+   usar. O teste `test_bulk_create_is_refused_instead_of_writing_a_broken_row`
+   trava o guarda.
+8. **`filter(document=…)` em campo cifrado** — histórico: `get_prep_value` do
+   Fernet cifrava o lookup e devolvia vazio em silêncio. **Superado:** a coluna
+   é `CharField` em claro; `filter(document=normalize_document(...))` casa.
 9. **`desafio.md` está fora do `.gitignore` e não versionado.** O briefing do
    cliente vai para o repositório público no próximo `git add -A`. Decisão sua —
    mas é decisão, não acidente.

@@ -46,11 +46,11 @@ edição de hóspede — de propósito (`README.md` §8).
 
 ## 2. Subir, entrar, e provar que funciona
 
-O passo a passo completo (incluindo a geração das três chaves obrigatórias no
-`.env`) está na **seção 1 do `README.md`**. O mínimo para não sair daqui:
+O passo a passo completo (incluindo a geração da `SECRET_KEY` no `.env`) está
+na **seção 1 do `README.md`**. O mínimo para não sair daqui:
 
 ```bash
-cp .env.example .env          # depois preencha SECRET_KEY, FIELD_ENCRYPTION_KEY, HASH_PEPPER
+cp .env.example .env          # depois preencha SECRET_KEY
 docker compose up --build     # sobe db + backend + frontend
 ```
 
@@ -76,7 +76,7 @@ backend se dividem em três camadas, e a divisão importa para o §7:
 
 | Suíte | Testes | Precisa de banco? | Prova |
 |---|---|---|---|
-| `backend/tests/unit/` | 57 | não | o motor financeiro e a criptografia, isolados |
+| `backend/tests/unit/` | 57 | não | o motor financeiro e a normalização de PII, isolados |
 | `backend/tests/db/` | 59 | sim (PostgreSQL real) | models, constraints, selectors, services |
 | `backend/tests/api/` | 76 | sim | os endpoints ponta a ponta, com HTTP de verdade |
 
@@ -174,11 +174,11 @@ accounts/            # 41 linhas de código (fora a migração gerada)
 
 hotel/               # o domínio inteiro
 ├── models.py        # Guest, Reservation, ReservationStatus
-├── fields.py        # EncryptedCharField — o campo cifrado
-├── crypto.py        # normalização, blind index, máscara de PII
+├── normalization.py # documento alfanumérico, telefone dígitos (D9)
 ├── selectors.py     # LEITURA: consultas nomeadas
 ├── services/
 │   ├── pricing.py       # o motor financeiro, PURO (sem banco, sem relógio)
+│   ├── guests.py        # ESCRITA: cadastro de hóspede (unicidade de documento)
 │   └── reservations.py  # ESCRITA: check-in, checkout, cancelamento
 ├── serializers.py   # a fronteira de entrada/saída (JSON ↔ Python)
 ├── views.py         # HTTP: rotas, status codes, delegação
@@ -411,18 +411,18 @@ $ curl -w "\nHTTP %{http_code}\n" -X POST localhost:8000/api/reservations/ \
 HTTP 400
 ```
 
-O mesmo serializer decide **o que sai** para cada endpoint. Existem dois
-serializers de hóspede porque a política de PII é por endpoint, não por flag de
-runtime: `GuestSerializer` (`:60-76`) sempre mascara; `GuestDetailSerializer`
-(`:79-89`) devolve o valor completo. Ao vivo:
+O mesmo serializer decide **o que sai**. Listagem e detalhe devolvem o valor
+**gravado** — já normalizado (D9), sem máscara: `GuestSerializer` (`:54-60`). A
+máscara de CPF/telefone na tabela é formatação de exibição no frontend
+(`frontend/src/lib/pii.ts`). Ao vivo:
 
 ```console
 # só os dois campos de PII de cada resposta:
-$ curl "localhost:8000/api/guests/?search=ana"   # listagem  → GuestSerializer
-  "document": "•••.•••.•89-01",  "phone": "(••) •••••-7777"
+$ curl "localhost:8000/api/guests/?search=ana"   # listagem
+  "document": "12345678901",  "phone": "21988887777"
 
-$ curl "localhost:8000/api/guests/1/"            # detalhe   → GuestDetailSerializer
-  "document": "123.456.789-01",  "phone": "(21) 98888-7777"
+$ curl "localhost:8000/api/guests/1/"            # detalhe — o mesmo serializer
+  "document": "12345678901",  "phone": "21988887777"
 ```
 
 **Model e ORM.** Um *model* é uma classe Python que descreve uma tabela; cada
@@ -503,7 +503,7 @@ Por que não no model: o cálculo do extrato depende de três valores
 (`checked_in_at`, `checked_out_at`, `has_vehicle`) e de nenhum banco. Como
 função pura ele é testável 9 vezes em milissegundos; como método de model,
 exigiria uma linha no banco para cada caso. A única lógica que sobrou no model é
-a sincronização dos blind indexes em `hotel/models.py:53-63`, e ela está lá
+a normalização de documento/telefone em `hotel/models.py:82-86`, e ela está lá
 justamente porque precisa valer para **todo** caminho de escrita (API, seed,
 admin, shell).
 
@@ -761,142 +761,86 @@ lugares: `ReservationActions.tsx:61-67` intercepta apenas esse código,
 `lib/errors.ts:61-65` extrai o horário do envelope, e
 `lib/queryClient.ts:25-33` mantém `EARLY_CHECKIN` fora do toast global de erro.
 
-### 6.3 PII cifrada, com busca por *blind index*
+### 6.3 PII em claro normalizada, com busca por fragmento
 
-`document` e `phone` são cifrados no banco. Prova, lendo a coluna crua:
+`document` e `phone` ficam em claro no banco, **já normalizados** (D9): a coluna
+guarda `12345678901` e `21988887777`, não a máscara digitada. Prova, lendo a
+coluna crua:
 
 ```console
 $ docker compose exec db psql -U hotel -d hotel \
-    -c 'SELECT id, full_name, left(document, 42), left(document_hash, 16) FROM hotel_guest;'
- id |  full_name  |                    left                    |       left
-----+-------------+--------------------------------------------+------------------
-  1 | Ana Souza   | gAAAAABql0n_7mG4k-ByErkcQc3O57nidOAKZgDkEg | 1e3bf0b831674aee
-  2 | Bruno Lima  | gAAAAABql0n_Th4tvaIzgiszjHr9J27LQ_2qOvacKa | 50c8d698e4f98c67
-  3 | Carla Nunes | gAAAAABql0n_vKe2MCNDT17FyU8Lp5S2rGO_TztGw5 | f37610a71f32ec12
-  4 | Davi Rocha  | gAAAAABql0n_1K7lDy4WXEUCl5j6MSpIv6ipG-p0sU | 44fbe79cee43abe2
-(4 rows)
+    -c 'SELECT id, full_name, document, phone FROM hotel_guest;'
+ id |  full_name  |   document   |    phone
+----+-------------+--------------+-------------
+  1 | Ana Souza   | 12345678901  | 21988887777
+  2 | Bruno Lima  | 98765432100  | 11977776666
+  … | …           | …            | …
 ```
 
-Quem faz isso é um **campo de model customizado** de 42 linhas:
+Quem garante isso é o `save()` do model, autoridade de qualquer caminho de
+escrita (API, seed, admin, shell):
 
 ```python
-# hotel/fields.py:11-28 (docstring e os guardas de None omitidos)
-class EncryptedCharField(models.TextField):
-    def get_prep_value(self, value: str | None) -> str | None:          # Python -> banco
-        ...
-        return fernet().encrypt(str(value).encode()).decode()
-
-    def from_db_value(self, value, expression, connection):             # banco -> Python
-        ...
-        return fernet().decrypt(value.encode()).decode()
+# hotel/models.py:82-86
+def save(self, *args, **kwargs):
+    self.document = normalize_document(self.document)  # alfanumerico maiusculo
+    self.phone = normalize_phone(self.phone)            # so digitos
+    super().save(*args, **kwargs)
 ```
 
-`get_prep_value` e `from_db_value` são ganchos do ORM: qualquer campo pode
-interceptar a conversão nos dois sentidos. O resultado é que o ORM continua
-devolvendo o valor claro para o atendente
-(`backend/tests/db/test_models.py:68-71`), e a coluna nunca contém o valor
-claro (`:53-67`).
+A normalização mora em `hotel/normalization.py` e é **por tipo**, não uma regra
+só: documento vira alfanumérico maiúsculo porque os passaportes `AB123456` e
+`CD123456` são documentos diferentes — normalizar por dígitos gravaria o mesmo
+valor nos dois e o segundo cadastro seria recusado como duplicata (D9). Telefone
+é só dígitos, porque só a máscara varia.
 
-**O problema.** O algoritmo é Fernet (AES-128-CBC + HMAC) e é
-**não-determinístico**: cifrar `"123.456.789-01"` duas vezes produz dois
-ciphertexts diferentes. Isso é bom para confidencialidade e fatal para busca:
-não existe `WHERE document = <cifra>` que case, e `LIKE '%789%'` é impossível
-por construção.
-
-**A solução: uma coluna paralela `*_hash`.** Um *blind index* é um HMAC do valor
-**normalizado**, com uma chave secreta (`HASH_PEPPER`):
+A busca (`?search=`) acha por **fragmento** nos três campos. O termo de
+documento/telefone é normalizado *antes* do `icontains`, então `789` e `789-01`
+casam a coluna `12345678901`:
 
 ```python
-# hotel/crypto.py:36-53 (docstrings omitidas; comentários à direita são deste guia)
-def normalize_document(value: str) -> str:      # CPF, RG, passaporte
-    return re.sub(r"[^A-Z0-9]", "", value.upper())     # alfanumerico maiusculo
-
-def normalize_phone(value: str) -> str:
-    return re.sub(r"\D", "", value)                    # so digitos
-
-def blind_index(normalized: str) -> str:
-    return hmac.new(_pepper(), normalized.encode(), sha256).hexdigest()
-```
-
-Determinístico, então serve a igualdade e a unicidade; e não reversível, então
-não expõe o dado. `hotel/models.py:53-63` mantém as duas colunas de hash
-sincronizadas a cada `save()`, e a busca usa o hash:
-
-```python
-# hotel/selectors.py:33-41  (comentários à direita são deste guia)
+# hotel/selectors.py:32-40  (comentários à direita são deste guia)
     predicate = Q(full_name__icontains=term)          # nome: fragmento (trigram)
 
     document = normalize_document(term)
     if document:
-        predicate |= Q(document_hash=blind_index(document))     # documento: exato
+        predicate |= Q(document__icontains=document)  # documento: fragmento
 
     phone = normalize_phone(term)
     if phone:
-        predicate |= Q(phone_hash=blind_index(phone))           # telefone: exato
+        predicate |= Q(phone__icontains=phone)        # telefone: fragmento
 ```
 
 (`Q` é um objeto de condição do ORM, combinável com `|` e `&` — é o que permite
-montar um `OR` de três predicados.)
+montar um `OR` de três predicados.) Três índices GIN funcionais
+(`Upper("coluna") gin_trgm_ops`) casam o SQL real do `icontains` no Postgres.
 
-**O trade-off, explícito.** Busca parcial em campo cifrado exigiria *searchable
-encryption*, que é infraestrutura pesada. A decisão foi: cifra + busca **exata**
-em documento e telefone, busca parcial (trigram) apenas em `full_name`, que não
-é cifrado. Na prática o atendente lê o documento inteiro no balcão, então
-igualdade tolerante a máscara resolve — e resolve mesmo:
+Ao vivo, o mesmo hóspede por nome, documento inteiro, fragmento e máscara:
 
 ```console
-# três buscas, o mesmo hóspede (à direita, o resumo de count/nomes da resposta):
+$ curl "localhost:8000/api/guests/?search=ana"            → 1 ['Ana Souza']
 $ curl "localhost:8000/api/guests/?search=12345678901"    → 1 ['Ana Souza']
+$ curl "localhost:8000/api/guests/?search=789"            → 1 ['Ana Souza']
 $ curl "localhost:8000/api/guests/?search=123.456.789-01" → 1 ['Ana Souza']
-$ curl "localhost:8000/api/guests/?search=21988887777"    → 1 ['Ana Souza']
+$ curl "localhost:8000/api/guests/?search=98888"          → 1 ['Ana Souza']
 ```
 
-A normalização é **por tipo**, não uma regra só: documento vira alfanumérico
-maiúsculo porque os passaportes `AB123456` e `CD123456` são documentos
-diferentes — normalizar por dígitos daria o mesmo hash aos dois e o segundo
-cadastro seria recusado como duplicata.
+A API devolve o valor gravado. A máscara `123.456.789-01` / `(21) 98888-7777`
+na tabela é formatação de exibição no frontend (`frontend/src/lib/pii.ts`):
+CPF se o documento tem exatamente 11 dígitos, telefone se tem 10 ou 11;
+passaporte e demais tamanhos saem crus. Logs não contêm PII.
 
-**Por que `Guest.objects.filter(document=...)` levanta erro de propósito.**
-Porque a alternativa é o pior modo de falha possível. `get_prep_value` cifraria
-o valor procurado, o Fernet não é determinístico, o `WHERE` nunca casaria — e o
-ORM devolveria **zero resultados sem erro nenhum**, indistinguível de "não
-existe". Então o campo recusa qualquer lookup:
-
-```python
-# hotel/fields.py:30-42 (dentro de EncryptedCharField; docstring omitida)
-    def get_lookup(self, lookup_name: str):
-        ...
-        raise FieldError(
-            f"`{self.name}` e cifrado com Fernet (nao deterministico): nenhum "
-            f"lookup casa. Busque por `{self.name}_hash` com "
-            "`blind_index(normalize_*(valor))`."
-        )
-```
-
-Ao vivo, com a mensagem que aponta a saída:
-
-```console
-$ uv run python manage.py shell -c "from hotel.models import Guest; \
-    Guest.objects.filter(document='123.456.789-01').exists()"
-
-... (traceback)
-django.core.exceptions.FieldError: `document` e cifrado com Fernet (nao
-deterministico): nenhum lookup casa. Busque por `document_hash` com
-`blind_index(normalize_*(valor))`.
-```
-
-Testado em `backend/tests/db/test_models.py:183-198`.
+Cifra em repouso (Fernet + blind index) foi a alternativa rejeitada: cifra e
+`LIKE '%…%'` são objetivos incompatíveis, e criptografia de campo é excesso
+que o negócio não usa (D5).
 
 **A armadilha que sobra**, e está documentada como teste:
-`Guest.objects.bulk_create(...)` **não chama `save()`**, logo não calcula os
-hashes, e o hóspede nasce invisível para a busca exata. `hotel/models.py:53-63`
-é a única defesa, e ela depende de `save()`. O teste
-`backend/tests/db/test_models.py:201-215` existe para que a próxima pessoa que
-pensar em `bulk_create` descubra isso ali e não em produção.
-
-Duas consequências operacionais: perder `FIELD_ENCRYPTION_KEY` é perder os dados
-(`.env.example:17`), e trocar `HASH_PEPPER` invalida toda busca exata existente
-(`.env.example:19`).
+`Guest.objects.bulk_create(...)` **não chama `save()`**, logo não normaliza, e
+o hóspede nasceria com a máscara digitada — invisível para a busca por
+fragmento e para a unicidade de documento, sem erro nenhum. O manager recusa
+a operação. O teste `backend/tests/db/test_models.py:181-192` existe para que
+a próxima pessoa que pensar em `bulk_create` descubra isso ali e não em
+produção.
 
 ---
 
@@ -916,7 +860,7 @@ Decida pela natureza da mudança, não pelo arquivo que você abriu primeiro:
 | uma rota, um status code, um parâmetro de query | `hotel/views.py` (+ `config/urls.py` se for rota nova) | `tests/api/` |
 | a forma de um erro | `hotel/exceptions.py` | `tests/api/` |
 | tela, formulário, tabela, diálogo | `frontend/src/features/<x>/` | `<Componente>.test.tsx` ao lado |
-| formatação de dinheiro ou data | `frontend/src/lib/` | `lib/*.test.ts` |
+| formatação de dinheiro, data ou PII | `frontend/src/lib/` | `lib/*.test.ts` |
 
 Regra prática: se a sua mudança precisa de banco para ser testada, ela
 provavelmente está na camada errada. O motor financeiro tem 57 testes e nenhum

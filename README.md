@@ -50,21 +50,15 @@ cd hotel-management
 # 2. criar o .env a partir do exemplo documentado
 cp .env.example .env
 
-# 3. gerar as três chaves obrigatórias (uma linha cada, sem espaços)
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"   # -> FIELD_ENCRYPTION_KEY
-python3 -c "import secrets; print(secrets.token_hex(32))"                                    # -> HASH_PEPPER
-python3 -c "import secrets; print(secrets.token_urlsafe(50))"                                # -> SECRET_KEY
+# 3. gerar a SECRET_KEY (uma linha, sem espaços)
+python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
 
-Cole cada valor na variável correspondente do `.env`.
-
-Sem `python3` na máquina (ou sem o pacote `cryptography`, que a primeira linha
-exige), gere as três dentro da própria imagem do backend — ela já traz tudo:
+Cole o valor em `SECRET_KEY` no `.env`. Sem `python3` na máquina, gere dentro
+da própria imagem do backend:
 
 ```bash
 docker compose build backend
-docker compose run --rm --no-deps backend uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-docker compose run --rm --no-deps backend uv run python -c "import secrets; print(secrets.token_hex(32))"
 docker compose run --rm --no-deps backend uv run python -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
 
@@ -116,10 +110,10 @@ usa, com o relógio injetado.
 
 1. Abra <http://localhost:5173> e entre com **`atendente` / `atendente123`**.
 2. **Aba "Todos" — localizar (RF3).** Digite `ana` na busca: o nome acha por
-   fragmento. Agora `12345678901` e depois `123.456.789-01`: os dois acham a
-   mesma Ana Souza — documento é cifrado em repouso e localizado por valor
-   exato *em qualquer formatação*. O mesmo vale para `21988887777`.
-   Repare que documento e telefone aparecem **mascarados** na listagem.
+   fragmento. Agora `789` e depois `123.456.789-01`: os dois acham a
+   mesma Ana Souza — documento e telefone estão em claro, já normalizados, e a
+   busca é por fragmento em qualquer formatação. O mesmo vale para `98888`.
+   Na tabela, CPF e telefone aparecem formatados pelo frontend.
 3. **Cadastrar (RF1).** "Novo hóspede" → nome, documento e telefone → cadastrar.
    O formulário abre em seguida a criação da reserva desse hóspede (RF2): a
    entrada não pode ser no passado e o mínimo é 1 noite.
@@ -261,14 +255,14 @@ Estas decisões são **normativas**. Todo código e teste deriva delas.
 | D2 | Qual tarifa aplica em cada diária? | A do dia da semana **da própria data da diária**. Sex→Seg = sex 120 + sáb 180 + dom 180. |
 | D3 | Multa de checkout tardio | Incide se `hora local do checkout > 12:00:00`. **Exatamente 12:00:00 é isento.** Base = 50% da tarifa da diária correspondente ao **dia da saída** (útil 60,00 / fds 90,00). Independe de vaga. |
 | D4 | Check-in antes das 14h | Permitido se `hora local >= 14:00:00`. Antes disso a API responde `409 EARLY_CHECKIN` (alerta). O atendente pode **confirmar mesmo assim** reenviando com `allow_early: true` — o briefing pede *alerta*, não bloqueio. |
-| D5 | Busca parcial × criptografia | `documento` e `telefone` são cifrados em repouso → **busca exata** via blind index (HMAC do valor normalizado). Busca **parcial** (trigram) apenas em `full_name`, que não é cifrado. Trade-off documentado em §2.1. |
+| D5 | Busca parcial em documento/telefone | `documento` e `telefone` em claro, **já normalizados** (D9). Busca **parcial** (trigram/`icontains`) nos três campos: nome, documento e telefone. Cifra em repouso foi rejeitada — custa o `LIKE` e o negócio não a usa. |
 | D6 | Cobrança usa datas agendadas ou reais? | **Reais** (`checked_in_at` / `checked_out_at`). Datas agendadas servem à reserva e às listagens; o dinheiro segue o fato. |
 | D7 | Check-in fora da data agendada | Não validamos correspondência com a data agendada (fora de escopo). D6 garante que a cobrança permanece correta. |
 | D8 | Cancelamento | Enum inclui `CANCELLED`; transição `PENDING → CANCELLED` exposta via endpoint. Nenhum outro estado cancela. |
-| D9 | Documento sem dígito / passaporte | Normalização para o blind index é **por tipo**: documento = alfanumérico maiúsculo (`re.sub(r"[^A-Z0-9]", "", v.upper())`), telefone = dígitos. Validação: documento ≥ 4 alfanuméricos; telefone ≥ 8 dígitos. |
+| D9 | Documento sem dígito / passaporte | Normalização de **armazenamento** é **por tipo**: documento = alfanumérico maiúsculo (`re.sub(r"[^A-Z0-9]", "", v.upper())`), telefone = dígitos. A coluna guarda o valor normalizado; a máscara digitada não persiste. Validação: documento ≥ 4 alfanuméricos; telefone ≥ 8 dígitos. |
 | D10 | Vaga no dia da saída em checkout tardio | **Não** se cobra vaga do dia de saída: a taxa de vaga acompanha as diárias (intervalo semiaberto de D1) e a única consequência do atraso é a multa de D3 — o briefing enumera a penalidade de forma exaustiva. |
 | D11 | Reserva com data no passado | Criação exige `checkin_date >= data local de hoje` (`400 VALIDATION_ERROR`). O passado entra no sistema pelos fatos (check-in/checkout reais), nunca pelo agendamento. |
-| D12 | Hóspede duplicado | `document_hash` é único (`409 DUPLICATE_DOCUMENT` no segundo cadastro). Telefone **não** é único (familiares compartilham). |
+| D12 | Hóspede duplicado | `document` é único (`409 DUPLICATE_DOCUMENT` no segundo cadastro). Como a coluna já está normalizada (D9), a unicidade é tolerante a máscara. Telefone **não** é único (familiares compartilham). |
 | D13 | Day-use agendado | Agendamento exige mínimo de 1 noite (constraint §1.5 mantida). Day-use existe apenas como **fato** (check-in e checkout reais no mesmo dia — T9), coberto por D1. |
 | D14 | Reserva PENDING vencida | Continua listada em `pending-checkin` até ação do atendente (check-in ou cancelamento). O sistema não muda estado sem gesto humano. |
 
@@ -284,7 +278,7 @@ Para cada decisão: a leitura alternativa em uma frase testável, um caso concre
 
 **D4 — alerta com override (e a defesa do 409).** Alternativa: "antes das 14h o check-in é bloqueado, sem exceção." Divergência: hóspede no balcão às 13:59 → adotada: modal + confirmação = hospedado; alternativa: espera forçada. Venceu a adotada: o briefing manda **permitir** o check-in e **emitir alerta** — alerta não é proibição. Defesa do 409 (devolutiva técnica, três linhas): (1) RFC 9110 define 409 como conflito que o cliente pode resolver **alterando a requisição e reenviando** — exatamente o ciclo `allow_early`; (2) preserva a semântica binária do POST mutador (2xx ⇔ check-in efetivado), sem "200 que não muta"; (3) com o envelope §4.1, `EARLY_CHECKIN` é ramo de protocolo de primeira classe no cliente — e o caminho comum (≥ 14h) segue `200` direto, sem passar por erro.
 
-**D5 — cifra + busca exata.** Alternativa: "PII em claro com busca parcial também em documento e telefone." Divergência: buscar `789` acharia `123.456.789-01` por fragmento; na adotada, só o valor completo (em qualquer formatação) acha. Venceu a adotada: "localizar por documento" se satisfaz com igualdade tolerante a máscara — documento se lê inteiro no balcão — e a premissa de projeto exige cifra em repouso.
+**D5 — PII em claro + busca parcial nos três campos.** Alternativa: "cifrar documento/telefone em repouso (Fernet) e buscar só por igualdade via blind index." Divergência: buscar `789` acharia a Ana na adotada e devolveria vazio na alternativa. Venceu a adotada: o briefing pede localizar por documento e telefone, o atendente busca por fragmento, e cifra + `LIKE` são objetivos incompatíveis. Criptografia de campo é excesso que o negócio não usa.
 
 **D6 — cobrança pelos fatos.** Alternativa: "a fatura usa as datas agendadas da reserva." Divergência: agendado seg 03 → qua 05 (R$ 240,00); hóspede sai qui 06/03 11:00 → adotada: seg+ter+qua = **R$ 360,00**; alternativa: R$ 240,00 (R$ 120,00 de subfaturamento). Venceu a adotada: dinheiro segue ocupação real; e a simetria protege o hóspede na saída antecipada.
 
@@ -292,7 +286,7 @@ Para cada decisão: a leitura alternativa em uma frase testável, um caso concre
 
 **D8 — cancelamento só de PENDING.** Alternativa: "CHECKED_IN também cancela (estorno)." Divergência: cancelar após uma noite dormida exigiria política de estorno inexistente no briefing. Venceu a adotada: dinheiro monotônico, extrato único.
 
-**D9 — normalização alfanumérica do documento.** Alternativa: "normalizar documento por dígitos." Divergência: passaportes `AB123456` e `CD123456` teriam o mesmo blind index → `409 DUPLICATE_DOCUMENT` indevido no segundo. Venceu a adotada: preserva a unicidade real; telefone segue por dígitos porque só a máscara varia.
+**D9 — normalização alfanumérica do documento.** Alternativa: "normalizar documento por dígitos." Divergência: passaportes `AB123456` e `CD123456` colidiriam na coluna única → `409 DUPLICATE_DOCUMENT` indevido no segundo. Venceu a adotada: preserva a unicidade real; telefone segue por dígitos porque só a máscara varia.
 
 **D10 — sem vaga no dia da saída.** Alternativa: "checkout tardio cobra também a vaga do dia da saída." Divergência: T7 iria de **R$ 425,00** para R$ 445,00 (+ dom 20,00). Venceu a adotada: a consequência do atraso está enumerada exaustivamente no briefing (os 50%); cobrar vaga extra é regra inventada — e alteraria a §3.3, já conferida.
 
@@ -314,39 +308,9 @@ Nenhum segredo vive no repositório. O `.env.example` documenta cada variável; 
 `.env` é local e está no `.gitignore`.
 
 ```bash
-# FIELD_ENCRYPTION_KEY — chave Fernet (32 bytes em base64 url-safe)
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-
-# HASH_PEPPER — pepper do blind index (HMAC-SHA256)
-python3 -c "import secrets; print(secrets.token_hex(32))"
-
 # SECRET_KEY — assinatura do Django
 python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
-
-Duas consequências que convém saber antes de trocar qualquer uma:
-
-- perder a `FIELD_ENCRYPTION_KEY` é perder documento e telefone de todos os
-  hóspedes (os valores estão cifrados em repouso, não há cópia em claro);
-- trocar a `HASH_PEPPER` invalida toda a busca exata já cadastrada (os *blind
-  indexes* deixam de casar com o valor digitado).
-
-**Trocar não é o mesmo que girar.** Para rotacionar sem perder nada, a
-`FIELD_ENCRYPTION_KEY` aceita uma lista separada por vírgula — a primeira
-cifra, as demais apenas decifram:
-
-```bash
-# 1. a chave nova entra na frente, a antiga continua decifrando o que já existe
-FIELD_ENCRYPTION_KEY="<nova>,<antiga>"
-# 2. re-cifra cada ficha com a chave corrente e re-deriva os blind indexes
-docker compose exec backend uv run python manage.py rotate_pii
-# 3. a chave antiga pode ser aposentada
-FIELD_ENCRYPTION_KEY="<nova>"
-```
-
-O mesmo comando restaura a busca exata depois de uma troca de `HASH_PEPPER`,
-porque ele recalcula os dois *blind indexes* junto. É idempotente e aceita
-`--dry-run`.
 
 ### 5.2 Matriz de variáveis de ambiente
 
@@ -357,8 +321,6 @@ fora dele, exporte com `set -a && . ../.env && set +a`, como na seção 2.
 | Variável | Obrigatória | Default | Papel |
 |---|---|---|---|
 | `SECRET_KEY` | **sim** | `insecure-dev-key-change-me` | Assinatura do Django. Gere a sua (5.1). |
-| `FIELD_ENCRYPTION_KEY` | **sim** | — | Chave Fernet dos campos cifrados (documento, telefone). |
-| `HASH_PEPPER` | **sim** | — | Pepper do HMAC do *blind index* (busca exata e unicidade de documento). |
 | `DEBUG` | não | `0` | O Compose fixa `0` no serviço `backend`. |
 | `ALLOWED_HOSTS` | não | `localhost,127.0.0.1,backend` | O Compose fixa o valor acima. |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | não | `hotel` / `hotel` / `hotel` | Credenciais do banco; valem para o serviço `db` e para o backend. |
@@ -369,22 +331,19 @@ fora dele, exporte com `set -a && . ../.env && set +a`, como na seção 2.
 | `ANTHROPIC_API_KEY` | não | vazio | **Liga** o diferencial de IA da seção 5.4. Vazio = feature desligada. |
 | `ANTHROPIC_MODEL` | não | `claude-haiku-4-5` | Modelo usado pela extração, quando a IA está ligada. Não consta do `.env.example` por ser opcional; se você a adicionar ao `.env`, o Compose a entrega ao backend como qualquer outra. |
 
-### 5.3 PII, criptografia e busca
+### 5.3 PII e busca
 
-`documento` e `telefone` são cifrados em repouso com **Fernet** e nunca
-trafegam em log. Como cifra e `LIKE '%…%'` são objetivos incompatíveis sem
-infraestrutura pesada, cada campo cifrado tem uma coluna paralela de *blind
-index* (`HMAC-SHA256` do valor normalizado): isso dá **busca exata tolerante a
-máscara** e unicidade de documento, sem expor o dado. A **busca parcial** existe
-onde é segura e onde o briefing a exige de fato: no nome, via índice trigram
-(decisões D5 e D9 da seção 4).
+`documento` e `telefone` ficam em claro, **já normalizados** (D9): a coluna
+guarda `12345678901` e `21988887777`, não a máscara digitada. A busca
+(`?search=`) acha por **fragmento** nos três campos — nome, documento e
+telefone — via `icontains` e índice trigram. Termo com máscara (`789-01`,
+`(21) 98888`) é normalizado antes do predicado, então casa o valor gravado.
+Documento é único nessa forma normalizada (D12); telefone não.
 
-Nas listagens, PII sai **sempre mascarada** (`•••.•••.•89-01`). O valor completo
-existe no endpoint de detalhe (`GET /api/guests/{id}/`), navegável pelo Swagger,
-mas **a interface desta entrega não o consome**: os fluxos F1–F3 da especificação
-não pedem tela de detalhe, e o briefing pede localizar o hóspede, não conferir o
-documento na tela. Fica registrado como decisão, não como esquecimento — expor
-PII plena na UI é a mudança que se faz com um requisito na mão, não por conta.
+A API devolve o valor gravado. A máscara de CPF/telefone na tabela é
+formatação de exibição no frontend (`formatDocument` / `formatPhone`). Logs
+jamais contêm PII: nenhum `print`/log de payload de hóspede, e o exception
+handler não ecoa o body.
 
 ### 5.4 Diferencial opcional: preenchimento por IA
 
@@ -498,19 +457,19 @@ hotel-management/
 ├── backend/
 │   ├── config/                 # settings, urls, health
 │   ├── accounts/               # CustomUser (o atendente nasce do seed)
-│   ├── hotel/                  # domínio: models, fields/crypto, selectors, services
+│   ├── hotel/                  # domínio: models, normalization, selectors, services
 │   │   ├── selectors.py        # leitura: consultas nomeadas, sem efeito colateral
 │   │   ├── services/
 │   │   │   ├── pricing.py      # motor financeiro PURO: sem ORM, sem I/O, sem relógio próprio
 │   │   │   ├── guests.py       # escrita de hóspede (unicidade de documento)
 │   │   │   ├── reservations.py # escrita de reserva: criação e transições de status
 │   │   │   └── errors.py       # erros de domínio já no formato do envelope da API
-│   │   └── management/commands/{seed_demo,rotate_pii}.py
+│   │   └── management/commands/seed_demo.py
 │   ├── ai/                     # diferencial opcional (5.4), zero acoplamento
 │   └── tests/{unit,db,api}/
 └── frontend/src/
     ├── app/                    # router, providers, ProtectedRoute, dashboard
-    ├── lib/                    # apiClient (Bearer + refresh-once), money, errors
+    ├── lib/                    # apiClient (Bearer + refresh-once), money, pii, errors
     ├── components/ui/          # primitivos Tailwind mínimos
     └── features/{auth,guests,reservations,ai}/
 ```
@@ -558,7 +517,7 @@ acima endereça — e o que ela deliberadamente **não** antecipa:
 |---|---|
 | Primeira mudança de tarifa | Persistir a versão da tabela na reserva (`calculate_bill` já recebe `RateTable`; falta só a coluna) |
 | Pergunta de auditoria que o banco não responde ("quem fez este checkout?") | Livro-caixa append-only + ator nas transições |
-| Segundo hotel no negócio | Constraint composta de `document_hash` **antes** da coluna de tenant |
+| Segundo hotel no negócio | Constraint composta de `document` **antes** da coluna de tenant |
 | Segundo cliente da API (mobile, integrador) | Versionar a rota antes de ele existir, nunca depois |
 | Efeito externo que não pode ser perdido (e-mail, channel manager) | Outbox transacional — não um broker no caminho crítico |
 | Consumidor do domínio fora do processo Django | Aí sim, considerar inversão de dependência |
@@ -575,10 +534,11 @@ não guardado. Isso é determinístico **enquanto a tabela de tarifas não mudar
 por isso a tarifa virou parâmetro, e por isso a linha da tabela acima existe.
 
 Segurança, em uma linha cada: JWT com permissão global fechada
-(`IsAuthenticated`) e exceções explícitas; PII cifrada em repouso e mascarada nas
-listagens; CSP estrita com isenção pontual só na página do Swagger; headers de
-nosniff, referrer-policy e clickjacking; imagens Docker rodando como usuário
-**non-root**; assets do Swagger servidos localmente (funciona offline).
+(`IsAuthenticated`) e exceções explícitas; documento e telefone em claro
+normalizado, busca por fragmento, PII fora de log; CSP estrita com isenção
+pontual só na página do Swagger; headers de nosniff, referrer-policy e
+clickjacking; imagens Docker rodando como usuário **non-root**; assets do
+Swagger servidos localmente (funciona offline).
 
 ---
 
