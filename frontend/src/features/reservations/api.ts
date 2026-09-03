@@ -1,26 +1,11 @@
-import { apiClient, type Paginated } from '@/lib/apiClient'
+import { apiClient } from '@/lib/apiClient'
 
 import type {
   CheckInPayload,
   CheckoutStatement,
   CreateReservationPayload,
   Reservation,
-  ReservationStatus,
 } from './types'
-
-export interface ReservationFilters {
-  status?: ReservationStatus
-  guest?: number
-}
-
-export async function fetchReservations(
-  filters: ReservationFilters = {},
-): Promise<Paginated<Reservation>> {
-  const response = await apiClient.get<Paginated<Reservation>>('/reservations/', {
-    params: filters,
-  })
-  return response.data
-}
 
 export async function createReservation(payload: CreateReservationPayload): Promise<Reservation> {
   const response = await apiClient.post<Reservation>('/reservations/', payload)

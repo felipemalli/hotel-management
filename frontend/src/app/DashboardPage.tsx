@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Alert, Button, Dialog } from '@/components/ui'
 import { GuestForm } from '@/features/guests/GuestForm'
 import { type GuestRow, GuestTable } from '@/features/guests/GuestTable'
+import type { GuestRef } from '@/features/guests/types'
 import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStatementDialog'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ReservationForm } from '@/features/reservations/ReservationForm'
@@ -12,10 +13,7 @@ import { AppLayout } from './AppLayout'
 
 export function DashboardPage() {
   const [guestDialogOpen, setGuestDialogOpen] = useState(false)
-  const [reservationFor, setReservationFor] = useState<{
-    id: number
-    full_name: string
-  } | null>(null)
+  const [reservationFor, setReservationFor] = useState<GuestRef | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   // O extrato mora nesta página, e não na linha da tabela: o checkout tira o
   // hóspede da aba "No hotel", a linha desmonta e levaria o dialog com ela.

@@ -1,36 +1,14 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 
-import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'
-import { RESERVATIONS_ROOT, useInvalidateServerState } from '@/lib/queryKeys'
+import { useInvalidateServerState } from '@/lib/queryKeys'
 
-import {
-  cancelReservation,
-  checkIn,
-  checkOut,
-  createReservation,
-  fetchReservations,
-  type ReservationFilters,
-} from './api'
+import { cancelReservation, checkIn, checkOut, createReservation } from './api'
 import type {
   CheckInPayload,
   CheckoutStatement,
   CreateReservationPayload,
   Reservation,
-  ReservationStatus,
 } from './types'
-
-export const reservationKeys = {
-  all: RESERVATIONS_ROOT,
-  list: (status?: ReservationStatus) => ['reservations', { status }] as const,
-}
-
-export function useReservations(filters: ReservationFilters = {}) {
-  return useQuery({
-    queryKey: reservationKeys.list(filters.status),
-    queryFn: () => fetchReservations(filters),
-    staleTime: DEFAULT_STALE_TIME_MS,
-  })
-}
 
 export function useCreateReservation(options?: { onSuccess?: (r: Reservation) => void }) {
   const invalidateServerState = useInvalidateServerState()

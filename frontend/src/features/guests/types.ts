@@ -8,6 +8,8 @@ export interface Guest {
   created_at: string
 }
 
+export type GuestRef = Pick<Guest, 'id' | 'full_name'>
+
 export interface ReservationSummary {
   id: number
   checkin_date: string

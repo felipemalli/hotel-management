@@ -5,9 +5,9 @@ import { earlyCheckinServerTime } from '@/lib/errors'
 
 import { EarlyCheckinDialog } from './EarlyCheckinDialog'
 import { useCancelReservation, useCheckIn, useCheckOut } from './hooks'
-import type { CheckoutStatement } from './types'
+import type { CheckoutStatement, ReservationStatus } from './types'
 
-export type ReservationActionState = 'PENDING' | 'CHECKED_IN'
+export type ReservationActionState = Extract<ReservationStatus, 'PENDING' | 'CHECKED_IN'>
 
 export interface ReservationActionsProps {
   reservationId: number

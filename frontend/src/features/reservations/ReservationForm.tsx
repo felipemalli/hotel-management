@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react'
 
 import { Alert, Button, Checkbox, Input } from '@/components/ui'
+import type { GuestRef } from '@/features/guests/types'
 import { addDaysISO, todayISO } from '@/lib/dates'
 import { fieldErrors } from '@/lib/errors'
 
@@ -10,7 +11,7 @@ import type { Reservation } from './types'
 const REQUIRED_MESSAGE = 'Campo obrigatório.'
 
 export interface ReservationFormProps {
-  guest: { id: number; full_name: string }
+  guest: GuestRef
   onSuccess?: (reservation: Reservation) => void
   onCancel?: () => void
 }

@@ -50,8 +50,6 @@ export const session = {
 
   getRefreshToken: (): string | null => refresh,
 
-  getSnapshot: (): string | null => access,
-
   // O nome do atendente vem do que ele digitou no login: a API nao expoe um
   // endpoint de perfil, e o token e opaco para o cliente.
   getUsername: (): string | null => username,
