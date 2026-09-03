@@ -106,8 +106,10 @@ class Command(BaseCommand):
             bill = reservation_services.check_out(
                 carla_reservation, now=local_dt(sunday, time(12, 1)), actor=attendant
             )
+            # Deliberadamente NAO paga: a demo precisa de uma conta fechada e
+            # em aberto para exercitar `POST /api/reservations/{id}/pay/`.
             self.stdout.write(
-                f"  estadia encerrada: Carla Nunes - total R$ {bill.total} "
+                f"  estadia encerrada (em aberto): Carla Nunes - total R$ {bill.total} "
                 f"(multa R$ {bill.late_fee})"
             )
 

@@ -379,6 +379,9 @@ def test_sync_matches_refresh_from_db(actor):
     written_by_transitions = {
         "status",
         "policy_id",
+        "paid_at",
+        "payment_method",
+        "paid_by_id",
         "checked_in_at",
         "checked_in_by_id",
         "checked_out_at",
@@ -388,6 +391,7 @@ def test_sync_matches_refresh_from_db(actor):
         "total_daily",
         "total_parking",
         "late_fee",
+        "late_fee_base",
         "total_amount",
     }
     assert set(service.SYNCED_FIELDS) == written_by_transitions
@@ -556,8 +560,14 @@ def test_cancel_rejects_anything_but_pending(trait, actor):
         service.cancel(reservation, now=local(MARCH_7, 10), actor=actor)
 
 
-def test_statement_recomputes_the_frozen_bill(actor):
-    """SPEC 1.3: o extrato linha a linha e recomputavel, sem JSON no banco."""
+def test_persisted_statement_matches_recomputation(actor):
+    """O extrato HIDRATADO bate com o que o motor produziu no checkout.
+
+    Nao e mais uma prova de que o extrato e recomputavel -- ele deixou de ser
+    recomputado. E a prova de que persistir nao mudou nenhum numero: o `Bill`
+    reemitido das colunas e das `StatementLine` e igual ao que `check_out`
+    devolveu, campo a campo, linhas inclusive.
+    """
     reservation = t7_reservation()
     service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False, actor=actor)
     frozen = service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)

@@ -81,13 +81,38 @@ def guests_pending_checkin() -> QuerySet[Guest]:
     )
 
 
-def list_reservations(*, status: str | None = None, guest_id: int | None = None):
-    """Reservas filtradas por status e/ou hospede (SPEC 4.2)."""
-    queryset = Reservation.objects.select_related("guest")
+# Tudo o que `ReservationSerializer` le fora da propria linha. Sem isto a
+# listagem paginada faz uma consulta por reserva POR relacao -- 20 linhas com 6
+# relacoes sao 120 idas ao banco para uma tela. `django_assert_num_queries` no
+# teste e o que impede a regressao silenciosa.
+RESERVATION_RELATIONS = (
+    "guest",
+    "policy",
+    "created_by",
+    "checked_in_by",
+    "checked_out_by",
+    "cancelled_by",
+    "paid_by",
+)
+
+
+def list_reservations(
+    *,
+    status: str | None = None,
+    guest_id: int | None = None,
+    paid: bool | None = None,
+):
+    """Reservas filtradas por status, hospede e/ou pagamento (SPEC 4.2)."""
+    queryset = Reservation.objects.select_related(*RESERVATION_RELATIONS)
     if status:
         queryset = queryset.filter(status=status)
     if guest_id is not None:
         queryset = queryset.filter(guest_id=guest_id)
+    if paid is not None:
+        # `paid_at` e a coluna canonica do pagamento: a CHECK
+        # `resv_payment_complete` garante que os tres campos andam juntos, entao
+        # testar um responde pelos tres.
+        queryset = queryset.filter(paid_at__isnull=not paid)
     return queryset
 
 

@@ -288,6 +288,7 @@ Estas decisões são **normativas**. Todo código e teste deriva delas.
 | D12 | Hóspede duplicado | `document` é único (`409 DUPLICATE_DOCUMENT` no segundo cadastro). Como a coluna já está normalizada (D9), a unicidade é tolerante a máscara. Telefone **não** é único (familiares compartilham). |
 | D13 | Day-use agendado | Agendamento exige mínimo de 1 noite (constraint §1.5 mantida). Day-use existe apenas como **fato** (check-in e checkout reais no mesmo dia — T9), coberto por D1. |
 | D14 | Reserva PENDING vencida | Continua listada em `pending-checkin` até ação do atendente (check-in ou cancelamento). O sistema não muda estado sem gesto humano. |
+| D18 | Pagamento da conta fechada | Pagamento **único e integral**, com forma e ator, registrado depois do checkout. Não é um status: `CHECKED_OUT` continua sendo o estado terminal. Sem pagamento parcial e sem estorno. |
 | D15 | Qual política de tarifa rege a estadia | A política **amarrada no check-in** rege tudo: diárias, vaga, fator da multa **e** limite de checkout. Só o horário de abertura do check-in vem da política vigente no ato, porque antecede a amarração. |
 
 ### 4.2 Leituras alternativas rejeitadas
@@ -311,6 +312,10 @@ Para cada decisão: a leitura alternativa em uma frase testável, um caso concre
 **D8 — cancelamento só de PENDING.** Alternativa: "CHECKED_IN também cancela (estorno)." Divergência: cancelar após uma noite dormida exigiria política de estorno inexistente no briefing. Venceu a adotada: dinheiro monotônico, extrato único.
 
 **D9 — normalização alfanumérica do documento.** Alternativa: "normalizar documento por dígitos." Divergência: passaportes `AB123456` e `CD123456` colidiriam na coluna única → `409 DUPLICATE_DOCUMENT` indevido no segundo. Venceu a adotada: preserva a unicidade real; telefone segue por dígitos porque só a máscara varia.
+
+**D18 — pagamento único e integral, em colunas da reserva.** Alternativa: `ReservationStatus.PAID` como quinto estado, ou uma tabela `Payment` desde já. Divergência: `PAID` obrigaria toda consulta de "estadia encerrada" a olhar dois valores, numa máquina de estados linear que já termina em `CHECKED_OUT` — e pago é um **fato sobre** a reserva encerrada, não um estágio dela. Uma tabela `Payment` 1:1 duplicaria os quatro totais e o ator, ou obrigaria a movê-los. Adotada: três colunas (`paid_at`, `payment_method`, `paid_by`) que nascem e morrem juntas, guardadas pela CHECK `resv_payment_complete` — meio pagamento gravado seria um recibo que não se sustenta. Pagar duas vezes responde `409 INVALID_STATUS` com `extra.paid_at`, e **não** um código `ALREADY_PAID`: é uma operação ilegal para o estado atual do recurso, o mesmo significado de D8. **Gatilho para extrair `Payment`:** o primeiro pagamento parcial ou estorno — aí a transição passa a ser repetível e a coluna deixa de ser o histórico.
+
+**O extrato deixa de ser recomputado.** Até aqui a 2ª via chamava `calculate_bill` de novo. Com a tarifa versionada isso parou de divergir, mas ainda fazia o recibo depender de o motor continuar produzindo o mesmo número para a mesma entrada — e o recibo de uma estadia encerrada não é uma função, é um fato. O checkout grava uma `StatementLine` por diária e a base da multa; `statement()` hidrata das colunas. `pricing.calculate_bill` fica com **um único chamador** em `services/reservations.py`. `late_fee_applied` deriva de `late_fee_base IS NOT NULL` em vez de virar coluna: duas colunas para o mesmo fato podem discordar. `weekday_label` **não** é coluna — nome de dia da semana é formatação na fronteira de I/O, e congelá-lo guardaria o idioma junto com o dinheiro.
 
 **D15 — a política amarrada no check-in rege a estadia inteira.** Alternativa: "ler o limite de checkout da política vigente no momento do checkout." Divergência com caso numérico: política A (`checkout_limit=12:00`, multa 50%) amarrada na sexta; o admin publica B (`13:00`, 25%) no sábado; a saída é domingo 12:30. Adotada: **atraso sob A** — multa de R$ 90,00 e total de R$ 425,00 (o T7). Alternativa: isento, porque 12:30 < 13:00 — e a diária viria de A enquanto a decisão de multar viria de B, duas políticas dentro do mesmo extrato. Venceu a adotada: o hóspede combinou uma política na entrada, e é a combinada que fecha a conta.
 
@@ -477,7 +482,7 @@ nunca por texto:
 | `PERMISSION_DENIED` | 403 | Atendente numa rota restrita ao `ADMIN` (`IsHotelAdmin`) |
 | `NOT_FOUND` | 404 | Recurso inexistente |
 | `EARLY_CHECKIN` | 409 | Check-in antes da abertura da política vigente (default do briefing: 14h) sem `allow_early` (D4). `extra`: `server_time`, `opens_at` |
-| `INVALID_STATUS` | 409 | Transição de status ilegal |
+| `INVALID_STATUS` | 409 | Transição de status ilegal; pagamento fora de `CHECKED_OUT` ou conta já paga (`extra.paid_at`) |
 | `DUPLICATE_DOCUMENT` | 409 | Documento já cadastrado (D12) |
 | `AI_UPSTREAM_ERROR` | 502 | Provedor de IA indisponível ou resposta inutilizável |
 | `THROTTLED` | 429 | Login 10/min por IP; IA 20/min por usuário |

@@ -32,6 +32,9 @@ GUEST_DOCUMENT_UNIQUE = "guest_document_unique"
 POLICY_MONEY_NON_NEGATIVE = "policy_money_non_negative"
 POLICY_CHECKOUT_BEFORE_CHECKIN = "policy_checkout_before_checkin"
 RESV_ACTIVE_HAS_POLICY = "resv_active_has_policy"
+RESV_PAYMENT_COMPLETE = "resv_payment_complete"
+RESV_PAID_REQUIRES_CHECKED_OUT = "resv_paid_requires_checked_out"
+STMTLINE_UNIQUE_DATE = "stmtline_unique_date"
 
 
 class ReservationStatus(models.TextChoices):
@@ -39,6 +42,21 @@ class ReservationStatus(models.TextChoices):
     CHECKED_IN = "CHECKED_IN", "Hospede no hotel"
     CHECKED_OUT = "CHECKED_OUT", "Finalizada"
     CANCELLED = "CANCELLED", "Cancelada"
+
+
+class PaymentMethod(models.TextChoices):
+    """Como a conta foi paga. NAO e um estado da reserva.
+
+    Pagamento nao entrou em `ReservationStatus` de proposito: `PAID` seria um
+    quinto estado numa maquina linear que ja termina em `CHECKED_OUT`, e
+    obrigaria toda consulta de "estadia encerrada" a olhar dois valores. Pago e
+    um FATO sobre a reserva encerrada, e vive em colunas proprias.
+    """
+
+    CASH = "CASH", "Dinheiro"
+    CARD = "CARD", "Cartão"
+    PIX = "PIX", "Pix"
+    OTHER = "OTHER", "Outro"
 
 
 class GuestManager(models.Manager):
@@ -258,7 +276,36 @@ class Reservation(models.Model):
     total_daily = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     total_parking = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     late_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # A tarifa que serviu de base a multa. `late_fee_applied` do extrato DERIVA
+    # daqui (`late_fee_base IS NOT NULL`) em vez de ser uma coluna boolean: duas
+    # colunas para o mesmo fato podem discordar, e um `late_fee_applied=True`
+    # com base nula nao teria como ser reemitido.
+    late_fee_base = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # Pagamento unico e integral (D18): tres colunas que nascem e morrem juntas,
+    # guardadas pela CHECK `resv_payment_complete`. Pagamento parcial ou estorno
+    # sao o gatilho para extrair uma tabela `Payment` -- ai a transicao passa a
+    # ser repetivel e a coluna deixa de ser o historico.
+    paid_at = models.DateTimeField(null=True, blank=True)
+    # `null=True` num CharField contraria a convencao do Django (DJ001), e
+    # aqui e deliberado: as tres colunas do pagamento formam um grupo que a
+    # CHECK `resv_payment_complete` exige nulo JUNTO. Com `""` como ausencia, o
+    # grupo teria duas representacoes de "nao pago" e a CHECK precisaria
+    # verificar as duas -- e uma string vazia numa coluna com `choices` seria um
+    # valor fora do enum gravado como se fosse um.
+    payment_method = models.CharField(  # noqa: DJ001
+        max_length=8,
+        choices=PaymentMethod,
+        null=True,
+        blank=True,
+    )
+    paid_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reservations_paid",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -296,7 +343,70 @@ class Reservation(models.Model):
                 condition=~Q(status="CHECKED_OUT")
                 | (Q(checked_out_at__isnull=False) & Q(total_amount__isnull=False)),
             ),
+            # Os tres campos do pagamento nascem juntos ou nao nascem. Meio
+            # pagamento gravado (valor sem ator, ator sem instante) seria um
+            # recibo que nao se sustenta, e nenhuma leitura saberia se houve
+            # pagamento ou nao.
+            models.CheckConstraint(
+                name=RESV_PAYMENT_COMPLETE,
+                condition=(
+                    Q(paid_at__isnull=True)
+                    & Q(payment_method__isnull=True)
+                    & Q(paid_by__isnull=True)
+                )
+                | (
+                    Q(paid_at__isnull=False)
+                    & Q(payment_method__isnull=False)
+                    & Q(paid_by__isnull=False)
+                ),
+            ),
+            # So se paga o que foi fechado: sem checkout nao existe total.
+            models.CheckConstraint(
+                name=RESV_PAID_REQUIRES_CHECKED_OUT,
+                condition=Q(paid_at__isnull=True) | Q(status="CHECKED_OUT"),
+            ),
         ]
 
     def __str__(self) -> str:
         return f"{self.guest_id} {self.checkin_date} -> {self.checkout_date} ({self.status})"
+
+
+class StatementLine(models.Model):
+    """Uma diaria do extrato, congelada no checkout. Snapshot imutavel.
+
+    Existe porque a 2a via nao pode RECOMPUTAR. Antes, `statement()` chamava
+    `calculate_bill` de novo: com a tarifa versionada isso deixou de divergir,
+    mas ainda faria o recibo depender de o motor continuar produzindo o mesmo
+    numero para a mesma entrada -- e o recibo de uma estadia encerrada nao e
+    uma funcao, e um fato.
+
+    `CASCADE` e nao `PROTECT`: a linha nao tem vida sem a reserva, e apagar
+    reserva ja e barrado pelo `PROTECT` do hospede.
+
+    `weekday_label` NAO e coluna: deriva de `date` em `build_statement` via
+    `pricing.weekday_label`. Nome de dia da semana e formatacao na fronteira de
+    I/O -- guardar em coluna congelaria o idioma junto com o dinheiro.
+    """
+
+    reservation = models.ForeignKey(
+        Reservation,
+        on_delete=models.CASCADE,
+        related_name="statement_lines",
+    )
+    date = models.DateField()
+    daily_rate = models.DecimalField(max_digits=10, decimal_places=2)
+    parking_fee = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        ordering = ["date"]
+        constraints = [
+            # Uma diaria por data (D1). A constraint e o que impede um checkout
+            # reexecutado de duplicar as linhas em silencio.
+            models.UniqueConstraint(
+                fields=["reservation", "date"],
+                name=STMTLINE_UNIQUE_DATE,
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.reservation_id} {self.date} {self.daily_rate}"

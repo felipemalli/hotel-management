@@ -18,7 +18,13 @@ from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 
 from accounts.models import Role
-from hotel.models import Guest, PricingPolicy, Reservation, ReservationStatus
+from hotel.models import (
+    Guest,
+    PricingPolicy,
+    Reservation,
+    ReservationStatus,
+    StatementLine,
+)
 from hotel.services import pricing
 
 CHECKIN_TIME = time(15, 0)
@@ -92,6 +98,10 @@ class GuestFactory(factory.django.DjangoModelFactory):
 class ReservationFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Reservation
+        # O hook `with_statement_lines` grava em OUTRA tabela; um `save()`
+        # automatico da reserva depois dele seria uma escrita a mais, e com
+        # `update_fields` ausente reescreveria a linha inteira.
+        skip_postgeneration_save = True
 
     class Params:
         # `policy` nos dois traits: a constraint `resv_active_has_policy`
@@ -116,13 +126,36 @@ class ReservationFactory(factory.django.DjangoModelFactory):
             total_daily=factory.LazyAttribute(lambda o: _frozen_bill(o).subtotal_daily),
             total_parking=factory.LazyAttribute(lambda o: _frozen_bill(o).subtotal_parking),
             late_fee=factory.LazyAttribute(lambda o: _frozen_bill(o).late_fee),
+            late_fee_base=factory.LazyAttribute(lambda o: _frozen_bill(o).late_fee_base),
             total_amount=factory.LazyAttribute(lambda o: _frozen_bill(o).total),
+            with_statement_lines=True,
         )
 
     guest = factory.SubFactory(GuestFactory)
     checkin_date = factory.LazyFunction(timezone.localdate)
     checkout_date = factory.LazyAttribute(lambda o: o.checkin_date + timedelta(days=2))
     has_vehicle = False
+
+    @factory.post_generation
+    def with_statement_lines(obj, create, extracted, **kwargs):
+        """Linhas do extrato para o trait `checked_out`.
+
+        `post_generation` e nao `LazyAttribute` porque as linhas sao outra
+        tabela e precisam do pk da reserva. Os valores vem do PROPRIO motor
+        (`_frozen_bill`), nunca digitados: fixture que recalcula dinheiro por
+        conta propria mente sobre o sistema.
+        """
+        if not create or not extracted:
+            return
+        StatementLine.objects.bulk_create(
+            StatementLine(
+                reservation=obj,
+                date=line.date,
+                daily_rate=line.daily_rate,
+                parking_fee=line.parking_fee,
+            )
+            for line in _frozen_bill(obj).lines
+        )
 
 
 def _frozen_bill(obj) -> pricing.Bill:

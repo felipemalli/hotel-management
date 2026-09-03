@@ -19,7 +19,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from hotel import selectors
-from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.models import Guest, PaymentMethod, Reservation, ReservationStatus, StatementLine
 from hotel.services import pricing
 from hotel.services.catalog import rate_table_of
 from hotel.services.errors import DomainError, DomainValidationError
@@ -45,6 +45,9 @@ ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
 SYNCED_FIELDS = (
     "status",
     "policy_id",
+    "paid_at",
+    "payment_method",
+    "paid_by_id",
     "checked_in_at",
     "checked_out_at",
     "cancelled_at",
@@ -54,6 +57,7 @@ SYNCED_FIELDS = (
     "total_daily",
     "total_parking",
     "late_fee",
+    "late_fee_base",
     "total_amount",
 )
 
@@ -201,6 +205,7 @@ def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUse
         locked.total_daily = bill.subtotal_daily
         locked.total_parking = bill.subtotal_parking
         locked.late_fee = bill.late_fee
+        locked.late_fee_base = bill.late_fee_base
         locked.total_amount = bill.total
         locked.save(
             update_fields=[
@@ -210,8 +215,20 @@ def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUse
                 "total_daily",
                 "total_parking",
                 "late_fee",
+                "late_fee_base",
                 "total_amount",
             ]
+        )
+        # As linhas entram na MESMA transacao dos totais: extrato com total
+        # congelado e sem linhas seria um recibo que nao se explica.
+        StatementLine.objects.bulk_create(
+            StatementLine(
+                reservation=locked,
+                date=line.date,
+                daily_rate=line.daily_rate,
+                parking_fee=line.parking_fee,
+            )
+            for line in bill.lines
         )
 
     _sync(reservation, locked)
@@ -232,15 +249,84 @@ def cancel(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) 
 
 
 def statement(reservation: Reservation) -> Bill:
-    """Recomputa o extrato de uma reserva ja finalizada (SPEC 1.3: sem JSON no banco)."""
+    """Reemite o extrato congelado. NAO recomputa (D18).
+
+    Hidrata o `Bill` das colunas e das `StatementLine` gravadas no checkout.
+    Recomputar faria o recibo de uma estadia encerrada depender de o motor
+    continuar produzindo o mesmo numero para a mesma entrada -- e um recibo nao
+    e uma funcao, e um fato. `pricing.calculate_bill` fica com um unico
+    chamador no modulo: `check_out`.
+
+    `weekday_label` deriva da data aqui e nao de coluna: nome de dia da semana e
+    formatacao, e guarda-lo congelaria o idioma junto com o dinheiro.
+    """
     if reservation.status != ReservationStatus.CHECKED_OUT:
         raise InvalidStatusError("Extrato disponível apenas após o checkout.")
-    return pricing.calculate_bill(
-        checkin=timezone.localtime(reservation.checked_in_at),
-        checkout=timezone.localtime(reservation.checked_out_at),
-        has_vehicle=reservation.has_vehicle,
-        rates=rate_table_of(reservation.policy),
+
+    lines = [
+        pricing.BillLine(
+            date=line.date,
+            weekday_label=pricing.weekday_label(line.date),
+            daily_rate=line.daily_rate,
+            parking_fee=line.parking_fee,
+        )
+        for line in reservation.statement_lines.all()
+    ]
+    if not lines:
+        # Reserva encerrada antes de o extrato passar a ser persistido, ou
+        # escrita que driblou `check_out`. Melhor um 409 explicito que um
+        # recibo de zero diarias.
+        raise InvalidStatusError("Extrato indisponível: esta reserva não tem linhas gravadas.")
+
+    return Bill(
+        lines=lines,
+        subtotal_daily=reservation.total_daily,
+        subtotal_parking=reservation.total_parking,
+        late_fee_applied=reservation.late_fee_base is not None,
+        late_fee_base=reservation.late_fee_base,
+        late_fee=reservation.late_fee,
+        total=reservation.total_amount,
     )
+
+
+def mark_paid(
+    reservation: Reservation,
+    *,
+    now: datetime,
+    actor: AbstractBaseUser,
+    payment_method: str,
+) -> Reservation:
+    """Registra o pagamento unico e integral da conta fechada (D18).
+
+    Nao e transicao de status: `CHECKED_OUT` continua sendo o estado terminal
+    (ver `PaymentMethod`). Por isso a guarda e explicita em vez de passar por
+    `_assert_transition` -- e sai como `INVALID_STATUS`, nao como um codigo
+    `ALREADY_PAID` proprio: pagar duas vezes e uma operacao ilegal para o
+    estado atual do recurso, exatamente o significado de D8/`INVALID_STATUS`. O
+    `extra.paid_at` diz ao cliente QUANDO foi pago, que e o que a tela precisa.
+    """
+    with transaction.atomic():
+        locked = _lock(reservation)
+        if locked.status != ReservationStatus.CHECKED_OUT:
+            raise InvalidStatusError(
+                "Pagamento disponível apenas após o checkout.",
+                extra={"status": locked.status},
+            )
+        if locked.paid_at is not None:
+            raise InvalidStatusError(
+                "Esta conta já foi paga.",
+                # Hora LOCAL, como todo timestamp que a API devolve: o banco
+                # guarda UTC, e um `extra` em UTC ao lado de um `paid_at` local
+                # no mesmo payload faria a tela mostrar dois horarios.
+                extra={"paid_at": timezone.localtime(locked.paid_at).isoformat()},
+            )
+
+        locked.paid_at = now
+        locked.payment_method = PaymentMethod(payment_method)
+        locked.paid_by = actor
+        locked.save(update_fields=["paid_at", "payment_method", "paid_by"])
+
+    return _sync(reservation, locked)
 
 
 def _lock(reservation: Reservation) -> Reservation:

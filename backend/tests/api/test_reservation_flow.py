@@ -270,6 +270,10 @@ def test_checkout_statement_matches_T7(auth_client):
         "subtotal_parking": "35.00",
         "late_fee": {"applied": True, "base_rate": "180.00", "amount": "90.00"},
         "total": "425.00",
+        # Conta fechada e em aberto: `null` e nao um dict de campos nulos, que
+        # diria "houve pagamento, sem dados". O cliente ramifica por `payment
+        # === null` (RESUMO 7).
+        "payment": None,
     }
 
 
@@ -458,3 +462,130 @@ def test_checkin_with_active_stay_returns_invalid_status_not_500(auth_client):
     assert response.data["extra"]["active_reservation_id"] == first.pk
     second.refresh_from_db()
     assert second.status == ReservationStatus.PENDING
+
+
+# -- pagamento (D18) ----------------------------------------------------------
+
+
+def pay_url(reservation) -> str:
+    return f"/api/reservations/{reservation.pk}/pay/"
+
+
+def _checked_out_t7(auth_client):
+    reservation = t7_reservation()
+    with freeze_time(local(MARCH_7, 15, 0)):
+        auth_client.post(checkin_url(reservation), {}, format="json")
+    with freeze_time(local(MARCH_9, 12, 1)):
+        auth_client.post(checkout_url(reservation), format="json")
+    return reservation
+
+
+def test_pay_returns_statement_with_payment(auth_client, attendant):
+    reservation = _checked_out_t7(auth_client)
+
+    with freeze_time(local(MARCH_9, 12, 30)):
+        response = auth_client.post(pay_url(reservation), {"payment_method": "PIX"}, format="json")
+
+    assert response.status_code == 200
+    # O extrato inteiro continua sendo T7: pagar nao mexe em dinheiro.
+    assert response.data["total"] == "425.00"
+    assert response.data["lines"] == T7_LINES
+    assert response.data["payment"] == {
+        "paid_at": "2025-03-09T12:30:00-03:00",
+        "method": "PIX",
+        "paid_by": {"id": attendant.pk, "username": attendant.username},
+    }
+
+
+def test_statement_reissued_after_payment_shows_it(auth_client):
+    reservation = _checked_out_t7(auth_client)
+    with freeze_time(local(MARCH_9, 12, 30)):
+        paid = auth_client.post(pay_url(reservation), {"payment_method": "CASH"}, format="json")
+
+    reissued = auth_client.get(statement_url(reservation))
+
+    assert reissued.status_code == 200
+    assert reissued.data == paid.data
+
+
+def test_pay_twice_returns_409(auth_client):
+    reservation = _checked_out_t7(auth_client)
+    with freeze_time(local(MARCH_9, 12, 30)):
+        auth_client.post(pay_url(reservation), {"payment_method": "PIX"}, format="json")
+
+    response = auth_client.post(pay_url(reservation), {"payment_method": "CARD"}, format="json")
+
+    assert response.status_code == 409
+    # `INVALID_STATUS`, nao um `ALREADY_PAID`: pagar de novo e operacao ilegal
+    # para o estado atual do recurso -- o mesmo significado de D8.
+    assert response.data["code"] == "INVALID_STATUS"
+    assert response.data["extra"]["paid_at"] == "2025-03-09T12:30:00-03:00"
+
+
+def test_pay_before_checkout_returns_409(auth_client):
+    reservation = ReservationFactory(checked_in=True)
+
+    response = auth_client.post(pay_url(reservation), {"payment_method": "PIX"}, format="json")
+
+    assert response.status_code == 409
+    assert response.data["code"] == "INVALID_STATUS"
+
+
+def test_pay_rejects_an_unknown_payment_method(auth_client):
+    reservation = _checked_out_t7(auth_client)
+
+    response = auth_client.post(pay_url(reservation), {"payment_method": "BITCOIN"}, format="json")
+
+    assert response.status_code == 400
+    assert "payment_method" in response.data["extra"]
+
+
+def test_list_reservations_filters_by_paid(auth_client):
+    paid_one = _checked_out_t7(auth_client)
+    with freeze_time(local(MARCH_9, 12, 30)):
+        auth_client.post(pay_url(paid_one), {"payment_method": "PIX"}, format="json")
+    open_one = ReservationFactory(checked_out=True, checkin_date=MARCH_7, checkout_date=MARCH_9)
+
+    def ids(params) -> list[int]:
+        rows = auth_client.get("/api/reservations/", params).data["results"]
+        return sorted(row["id"] for row in rows)
+
+    assert ids({"paid": "true"}) == [paid_one.pk]
+    assert ids({"paid": "false"}) == [open_one.pk]
+    assert ids({}) == sorted([paid_one.pk, open_one.pk])
+
+
+def test_list_reservations_rejects_an_invalid_status_filter(auth_client):
+    response = auth_client.get("/api/reservations/", {"status": "INEXISTENTE"})
+
+    assert response.status_code == 400
+    assert response.data["code"] == "VALIDATION_ERROR"
+    assert "status" in response.data["extra"]
+
+
+def test_list_reservations_rejects_a_non_numeric_guest_filter(auth_client):
+    response = auth_client.get("/api/reservations/", {"guest": "abc"})
+
+    assert response.status_code == 400
+    assert "guest" in response.data["extra"]
+
+
+def test_reservation_list_does_not_grow_queries_with_rows(auth_client, django_assert_num_queries):
+    """N+1 na listagem: 6 relacoes por linha vira 120 idas ao banco em 20 linhas.
+
+    O numero exato importa menos que a INVARIANCIA: a mesma contagem com 1 e
+    com 3 reservas prova que `select_related` esta fazendo o trabalho.
+    """
+    ReservationFactory(checked_out=True, checkin_date=MARCH_7, checkout_date=MARCH_9)
+    with django_assert_num_queries(2) as captured:
+        auth_client.get("/api/reservations/")
+
+    for _ in range(2):
+        ReservationFactory(checked_out=True, checkin_date=MARCH_7, checkout_date=MARCH_9)
+
+    # Mesma contagem com o triplo de linhas: `select_related` esta cobrindo as
+    # 6 relacoes que o serializer le.
+    with django_assert_num_queries(len(captured.captured_queries)):
+        response = auth_client.get("/api/reservations/")
+
+    assert response.data["count"] == 3

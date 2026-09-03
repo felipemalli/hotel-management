@@ -37,13 +37,16 @@ from hotel.serializers.policies import (
 )
 from hotel.serializers.reservations import (
     CheckInRequestSerializer,
+    PaymentRequestSerializer,
     ReservationCreateSerializer,
+    ReservationListQuerySerializer,
     ReservationSerializer,
     ReservationSummarySerializer,
 )
 from hotel.serializers.statement import (
     BillLineSerializer,
     LateFeeSerializer,
+    PaymentSerializer,
     StatementSerializer,
     build_statement,
 )
@@ -59,9 +62,12 @@ __all__ = [
     "GuestPendingCheckinSerializer",
     "GuestSerializer",
     "LateFeeSerializer",
+    "PaymentRequestSerializer",
+    "PaymentSerializer",
     "PricingPolicyCreateSerializer",
     "PricingPolicySerializer",
     "ReservationCreateSerializer",
+    "ReservationListQuerySerializer",
     "ReservationSerializer",
     "ReservationSummarySerializer",
     "StatementSerializer",

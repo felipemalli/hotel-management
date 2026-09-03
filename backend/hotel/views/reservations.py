@@ -16,7 +16,7 @@ from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
 )
-from rest_framework import mixins, serializers, status, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -26,7 +26,9 @@ from hotel.models import Reservation, ReservationStatus
 from hotel.serializers import (
     CheckInRequestSerializer,
     ErrorEnvelopeSerializer,
+    PaymentRequestSerializer,
     ReservationCreateSerializer,
+    ReservationListQuerySerializer,
     ReservationSerializer,
     StatementSerializer,
     build_statement,
@@ -55,6 +57,12 @@ from hotel.views.openapi import (
                 description="Filtra por id de hóspede.",
                 required=False,
                 type=int,
+            ),
+            OpenApiParameter(
+                name="paid",
+                description="`true` só contas pagas, `false` só em aberto.",
+                required=False,
+                type=bool,
             ),
         ],
         responses={200: ReservationSerializer(many=True), 400: ErrorEnvelopeSerializer},
@@ -93,7 +101,7 @@ class ReservationViewSet(
 ):
     """Reservas e transições de status (RF2, RF6, RF7)."""
 
-    queryset = Reservation.objects.select_related("guest")
+    queryset = Reservation.objects.select_related(*selectors.RESERVATION_RELATIONS)
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -101,33 +109,18 @@ class ReservationViewSet(
         return ReservationSerializer
 
     def get_queryset(self):
+        base = Reservation.objects.select_related(*selectors.RESERVATION_RELATIONS)
         if self.action != "list":
-            return Reservation.objects.select_related("guest")
+            return base
+        # Os filtros passam por serializer: tipos, enum e mensagens de erro
+        # saem do mesmo lugar que documenta o schema.
+        query = ReservationListQuerySerializer(data=self.request.query_params)
+        query.is_valid(raise_exception=True)
         return selectors.list_reservations(
-            status=self._status_filter(),
-            guest_id=self._guest_filter(),
+            status=query.validated_data.get("status"),
+            guest_id=query.validated_data.get("guest"),
+            paid=query.validated_data.get("paid"),
         )
-
-    def _status_filter(self) -> str | None:
-        raw = self.request.query_params.get("status")
-        if not raw:
-            return None
-        if raw not in ReservationStatus.values:
-            raise serializers.ValidationError(
-                {"status": [f"Status inválido. Use um de: {', '.join(ReservationStatus.values)}."]}
-            )
-        return raw
-
-    def _guest_filter(self) -> int | None:
-        raw = self.request.query_params.get("guest")
-        if not raw:
-            return None
-        try:
-            return int(raw)
-        except ValueError:
-            raise serializers.ValidationError(
-                {"guest": ["Informe o id numérico do hóspede."]}
-            ) from None
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         serializer = ReservationCreateSerializer(data=request.data)
@@ -233,6 +226,53 @@ class ReservationViewSet(
     @action(detail=True, methods=["get"], url_path="statement")
     def statement(self, request: Request, pk: str | None = None) -> Response:
         reservation = self.get_object()
+        bill = reservations_service.statement(reservation)
+        return Response(StatementSerializer(build_statement(reservation, bill)).data)
+
+    @extend_schema(
+        summary="Registra o pagamento da conta",
+        description=(
+            "Pagamento **único e integral** (D18): não há valor no payload, nem "
+            "pagamento parcial, nem estorno. Exige `CHECKED_OUT` — só se paga o "
+            "que foi fechado. Pagar duas vezes responde `409 INVALID_STATUS` com "
+            "`extra.paid_at`: é uma operação ilegal para o estado atual do "
+            "recurso, não um código de erro próprio. Devolve o extrato com o "
+            "pagamento preenchido."
+        ),
+        request=PaymentRequestSerializer,
+        responses={
+            200: StatementSerializer,
+            400: ErrorEnvelopeSerializer,
+            409: OpenApiResponse(
+                response=ErrorEnvelopeSerializer,
+                description="Reserva não finalizada, ou conta já paga.",
+                examples=[
+                    OpenApiExample(
+                        "ALREADY_PAID",
+                        value={
+                            "code": "INVALID_STATUS",
+                            "detail": "Esta conta já foi paga.",
+                            "extra": {"paid_at": "2025-03-09T12:30:00-03:00"},
+                        },
+                        response_only=True,
+                    ),
+                    INVALID_STATUS_EXAMPLE,
+                ],
+            ),
+            404: ErrorEnvelopeSerializer,
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="pay")
+    def pay(self, request: Request, pk: str | None = None) -> Response:
+        reservation = self.get_object()
+        payload = PaymentRequestSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        reservations_service.mark_paid(
+            reservation,
+            now=timezone.now(),  # relogio injetado (SPEC 0.3)
+            actor=request.user,
+            payment_method=payload.validated_data["payment_method"],
+        )
         bill = reservations_service.statement(reservation)
         return Response(StatementSerializer(build_statement(reservation, bill)).data)
 
