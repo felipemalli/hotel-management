@@ -7,7 +7,7 @@ import { tabPanelId } from './tabIds'
 import { Tabs } from './Tabs'
 
 const TABS = [
-  { id: 'todos', label: 'Todos' },
+  { id: 'all', label: 'Todos' },
   { id: 'in-hotel', label: 'No hotel' },
   { id: 'pending-checkin', label: 'Check-in pendente' },
 ] as const
@@ -15,7 +15,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id']
 
 function TabsFixture() {
-  const [value, setValue] = useState<TabId>('todos')
+  const [value, setValue] = useState<TabId>('all')
   return (
     <>
       <button type="button">Antes das abas</button>

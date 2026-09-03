@@ -1,11 +1,10 @@
-import { type KeyboardEvent, type ReactNode, useRef } from 'react'
+import { type KeyboardEvent, useRef } from 'react'
 
 import { tabId, tabPanelId } from './tabIds'
 
 export interface TabItem<T extends string> {
   id: T
   label: string
-  badge?: ReactNode
 }
 
 export interface TabsProps<T extends string> {
@@ -74,13 +73,6 @@ export function Tabs<T extends string>({ items, value, onChange, label }: TabsPr
             ].join(' ')}
           >
             {item.label}
-            {item.badge !== undefined ? (
-              <span
-                className={`ml-1.5 text-xs font-normal ${selected ? 'text-slate-300' : 'text-slate-500'}`}
-              >
-                {item.badge}
-              </span>
-            ) : null}
           </button>
         )
       })}

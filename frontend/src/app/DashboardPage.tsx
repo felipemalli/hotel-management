@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Alert, Button, Dialog, ErrorState } from '@/components/ui'
 import { GuestForm } from '@/features/guests/GuestForm'
-import { type GuestRow, GuestTable } from '@/features/guests/GuestTable'
+import { GuestTable } from '@/features/guests/GuestTable'
+import type { GuestRow } from '@/features/guests/tabs'
 import type { GuestRef } from '@/features/guests/types'
 import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStatementDialog'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
@@ -22,7 +23,7 @@ export function DashboardPage() {
   const [statement, setStatement] = useState<CheckoutStatement | null>(null)
 
   function renderActions(row: GuestRow) {
-    if (row.tab === 'todos') {
+    if (row.tab === 'all') {
       return (
         <Button
           size="sm"
@@ -38,7 +39,7 @@ export function DashboardPage() {
       <ReservationActions
         reservationId={row.reservation.id}
         guestName={row.guest.full_name}
-        state={row.tab === 'in-hotel' ? 'CHECKED_IN' : 'PENDING'}
+        state={row.reservationStatus}
         onCheckedOut={setStatement}
       />
     )

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 
 import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'
 import { GUESTS_ROOT } from '@/lib/queryKeys'
@@ -22,6 +22,7 @@ export function useGuests(search: string, options?: QueryOptions) {
     queryKey: guestKeys.list(search),
     queryFn: () => fetchGuests(search),
     staleTime: DEFAULT_STALE_TIME_MS,
+    placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
   })
 }

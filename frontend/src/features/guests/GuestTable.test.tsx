@@ -10,7 +10,8 @@ import { elementAt, page } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { ANA, BRUNO, DAVI, inHotel, pendingCheckin } from './__fixtures__/guests'
-import { DEBOUNCE_MS, GuestTable } from './GuestTable'
+import { GuestTable } from './GuestTable'
+import { DEBOUNCE_MS } from './tabs'
 import type { Guest } from './types'
 
 vi.mock('@/features/guests/api')
@@ -32,7 +33,7 @@ describe('GuestTable', () => {
   })
 
   it('test_search_input_debounces_and_queries', async () => {
-    // Tripwire: o componente exporta a constante que o teste avanca, e o
+    // Tripwire: o teste avanca a mesma constante que a tabela usa, e o
     // contrato de busca fixa 300 ms — divergencia entre as duas quebra aqui.
     expect(DEBOUNCE_MS).toBe(300)
 
@@ -155,6 +156,49 @@ describe('GuestTable', () => {
       resolve(page([ANA]))
     })
     expect(await screen.findByText('Ana Souza')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('mantem a listagem na tela enquanto a busca seguinte esta em voo', async () => {
+    vi.useFakeTimers()
+    try {
+      let releaseSearch: (value: Paginated<Guest>) => void = vi.fn()
+      vi.mocked(fetchGuests).mockImplementation((search: string) =>
+        search === ''
+          ? Promise.resolve(page([ANA, DAVI]))
+          : new Promise<Paginated<Guest>>((resolve) => {
+              releaseSearch = resolve
+            }),
+      )
+
+      renderWithProviders(<GuestTable />)
+      await advanceTimersAndFlush(0)
+      expect(screen.getByText('Davi Rocha')).toBeInTheDocument()
+
+      fireEvent.change(screen.getByLabelText('Buscar hóspede'), { target: { value: 'ana' } })
+      await advanceTimersAndFlush(DEBOUNCE_MS)
+
+      expect(fetchGuests).toHaveBeenCalledTimes(2)
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+      expect(screen.getByText('Davi Rocha')).toBeInTheDocument()
+      expect(screen.getByText('Atualizando…')).toBeInTheDocument()
+
+      releaseSearch(page([ANA]))
+      await advanceTimersAndFlush(0)
+
+      expect(screen.queryByText('Davi Rocha')).not.toBeInTheDocument()
+      expect(screen.queryByText('Atualizando…')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('anuncia a contagem de resultados sem criar uma segunda regiao de status', async () => {
+    renderWithProviders(<GuestTable />)
+
+    const announcement = await screen.findByText('2 resultados encontrados')
+    expect(announcement).toHaveAttribute('aria-live', 'polite')
+    expect(announcement).toHaveClass('sr-only')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 })
