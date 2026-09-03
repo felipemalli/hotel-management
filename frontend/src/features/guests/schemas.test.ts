@@ -1,7 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { describe, expect, it } from 'vitest'
 
-import { guestFormSchema } from './schemas'
+import { ANA, BRUNO, inHotel, pendingCheckin } from './__fixtures__/guests'
+import {
+  guestFormSchema,
+  guestInHotelPageSchema,
+  guestPageSchema,
+  guestPendingCheckinPageSchema,
+} from './schemas'
 
 const VALID = { full_name: 'Ana Souza', document: '123.456.789-01', phone: '(21) 98888-7777' }
 
@@ -69,5 +75,28 @@ describe('guestFormSchema pelo resolver do formulario', () => {
 
     expect(errors.document?.message).toBe('Documento exige ao menos 4 caracteres alfanuméricos.')
     expect(errors.phone).toBeUndefined()
+  })
+})
+
+describe('schemas de resposta dos hospedes', () => {
+  function envelope<T>(results: T[]) {
+    return { count: results.length, next: null, previous: null, results }
+  }
+
+  it('aceita as tres formas que as abas consomem', () => {
+    expect(guestPageSchema.safeParse(envelope([ANA, BRUNO])).success).toBe(true)
+    expect(guestInHotelPageSchema.safeParse(envelope([inHotel(ANA)])).success).toBe(true)
+    expect(guestPendingCheckinPageSchema.safeParse(envelope([pendingCheckin(BRUNO)])).success).toBe(
+      true,
+    )
+  })
+
+  it('recusa a listagem sem o envelope de paginacao', () => {
+    expect(guestPageSchema.safeParse([ANA]).success).toBe(false)
+    expect(guestPageSchema.safeParse({ results: [ANA] }).success).toBe(false)
+  })
+
+  it('recusa hospede sem a reserva que a aba promete', () => {
+    expect(guestInHotelPageSchema.safeParse(envelope([ANA])).success).toBe(false)
   })
 })

@@ -1,5 +1,6 @@
-import { apiClient } from '@/lib/apiClient'
+import { apiClient, parseResponse } from '@/lib/apiClient'
 
+import { checkoutStatementSchema, reservationSchema } from './schemas'
 import type {
   CheckInPayload,
   CheckoutStatement,
@@ -8,23 +9,23 @@ import type {
 } from './types'
 
 export async function createReservation(payload: CreateReservationPayload): Promise<Reservation> {
-  const response = await apiClient.post<Reservation>('/reservations/', payload)
-  return response.data
+  const response = await apiClient.post<unknown>('/reservations/', payload)
+  return parseResponse(reservationSchema, response)
 }
 
 export async function checkIn({ id, allow_early }: CheckInPayload): Promise<Reservation> {
-  const response = await apiClient.post<Reservation>(`/reservations/${id}/check-in/`, {
+  const response = await apiClient.post<unknown>(`/reservations/${id}/check-in/`, {
     allow_early,
   })
-  return response.data
+  return parseResponse(reservationSchema, response)
 }
 
 export async function checkOut(id: number): Promise<CheckoutStatement> {
-  const response = await apiClient.post<CheckoutStatement>(`/reservations/${id}/checkout/`)
-  return response.data
+  const response = await apiClient.post<unknown>(`/reservations/${id}/checkout/`)
+  return parseResponse(checkoutStatementSchema, response)
 }
 
 export async function cancelReservation(id: number): Promise<Reservation> {
-  const response = await apiClient.post<Reservation>(`/reservations/${id}/cancel/`)
-  return response.data
+  const response = await apiClient.post<unknown>(`/reservations/${id}/cancel/`)
+  return parseResponse(reservationSchema, response)
 }

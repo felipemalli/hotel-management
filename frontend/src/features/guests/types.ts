@@ -1,30 +1,21 @@
-// `document` e `phone` chegam normalizados da API: documento alfanumérico
-// maiúsculo, telefone só dígitos. A máscara de exibição é de `lib/pii.ts`.
-export interface Guest {
-  id: number
-  full_name: string
-  document: string
-  phone: string
-  created_at: string
-}
+import type { z } from 'zod'
+
+import type {
+  guestInHotelSchema,
+  guestPendingCheckinSchema,
+  guestSchema,
+  reservationSummarySchema,
+} from './schemas'
+
+export type Guest = z.infer<typeof guestSchema>
 
 export type GuestRef = Pick<Guest, 'id' | 'full_name'>
 
-export interface ReservationSummary {
-  id: number
-  checkin_date: string
-  checkout_date: string
-  has_vehicle: boolean
-  checked_in_at: string | null
-}
+export type ReservationSummary = z.infer<typeof reservationSummarySchema>
 
-export interface GuestInHotel extends Guest {
-  active_reservation: ReservationSummary
-}
+export type GuestInHotel = z.infer<typeof guestInHotelSchema>
 
-export interface GuestPendingCheckin extends Guest {
-  pending_reservations: ReservationSummary[]
-}
+export type GuestPendingCheckin = z.infer<typeof guestPendingCheckinSchema>
 
 export interface CreateGuestPayload {
   full_name: string

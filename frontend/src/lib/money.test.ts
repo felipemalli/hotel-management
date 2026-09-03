@@ -33,4 +33,17 @@ describe('formatBRL', () => {
   it('agrupa milhares acima de seis digitos, ainda sem aritmetica', () => {
     expect(formatBRL('1234567.89')).toBe('R$ 1.234.567,89')
   })
+
+  it('preserva o sinal negativo e os centavos abaixo de um real', () => {
+    expect(formatBRL('-90.00')).toBe('R$ -90,00')
+    expect(formatBRL('-1234.56')).toBe('R$ -1.234,56')
+    expect(formatBRL('0.50')).toBe('R$ 0,50')
+    expect(formatBRL('0.05')).toBe('R$ 0,05')
+  })
+
+  it('lanca em vez de exibir um valor plausivel para entrada fora do contrato', () => {
+    for (const malformed of ['120', '120.0', '120.000', '120,00', 'R$ 120,00', '', ' 120.00']) {
+      expect(() => formatBRL(malformed)).toThrow(TypeError)
+    }
+  })
 })

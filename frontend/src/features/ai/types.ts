@@ -1,9 +1,7 @@
-export interface AiStatus {
-  enabled: boolean
-}
+import type { z } from 'zod'
 
-export interface ParsedGuestFields {
-  full_name: string
-  document: string
-  phone: string
-}
+import type { aiStatusSchema, parsedGuestSchema } from './schemas'
+
+export type AiStatus = z.infer<typeof aiStatusSchema>
+
+export type ParsedGuestFields = z.infer<typeof parsedGuestSchema>

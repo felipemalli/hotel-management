@@ -6,8 +6,9 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 
-import type { apiClient as ApiClientValue } from './apiClient'
+import type { apiClient as ApiClientValue, parseResponse as ParseResponseValue } from './apiClient'
 import type { ErrorContext } from './errorLogger'
 import type { session as SessionValue } from './session'
 import type { toastStore as ToastStoreValue } from './toast'
@@ -87,6 +88,7 @@ const adapter: AxiosAdapter = (config) => {
 const originalAdapter = axios.defaults.adapter
 
 let apiClient: typeof ApiClientValue
+let parseResponse: typeof ParseResponseValue
 let session: typeof SessionValue
 let toastStore: typeof ToastStoreValue
 let capture: ReturnType<typeof vi.fn<(error: unknown, context: ErrorContext) => void>>
@@ -104,6 +106,7 @@ beforeEach(async () => {
 
   apiClient = clientModule.apiClient
   apiClient.defaults.adapter = adapter
+  parseResponse = clientModule.parseResponse
   session = sessionModule.session
   toastStore = toastModule.toastStore
   capture = vi.fn<(error: unknown, context: ErrorContext) => void>()
@@ -253,5 +256,46 @@ describe('apiClient · normalizacao do erro', () => {
       message: 'Cota do plano esgotada.',
       extra: { raw_code: 'QUOTA_EXCEEDED' },
     })
+  })
+})
+
+describe('parseResponse', () => {
+  const schema = z.object({ id: z.number(), total: z.string() })
+
+  function thrownBy(run: () => unknown): unknown {
+    try {
+      run()
+    } catch (cause) {
+      return cause
+    }
+    throw new Error('a chamada devolveu em vez de lancar')
+  }
+
+  it('devolve o corpo tipado quando ele respeita o schema', () => {
+    expect(parseResponse(schema, { status: 200, data: { id: 7, total: '425.00' } })).toEqual({
+      id: 7,
+      total: '425.00',
+    })
+  })
+
+  it('vira CONTRACT_ERROR com o status da resposta e uma frase sem detalhe tecnico', () => {
+    const error = thrownBy(() => parseResponse(schema, { status: 200, data: { id: '7' } }))
+
+    expect(error).toMatchObject({
+      code: 'CONTRACT_ERROR',
+      status: 200,
+      message: 'Resposta inesperada do servidor.',
+    })
+  })
+
+  it('manda os problemas do zod ao logger, e nao a tela', () => {
+    thrownBy(() => parseResponse(schema, { status: 500, data: null }))
+
+    const [logged, context] = capture.mock.calls[0] ?? []
+    expect(context).toEqual(expect.objectContaining({ scope: 'api-contract' }))
+    expect(logged).toBeInstanceOf(z.ZodError)
+    expect((logged as z.ZodError).issues).toEqual([
+      expect.objectContaining({ code: 'invalid_type', path: [] }),
+    ])
   })
 })

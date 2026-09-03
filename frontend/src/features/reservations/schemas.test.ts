@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { reservationFormSchema } from './schemas'
+import { BILL_FIXTURES, T7_STATEMENT } from './__fixtures__/bills'
+import {
+  checkoutStatementSchema,
+  lateFeeSchema,
+  reservationFormSchema,
+  reservationSchema,
+} from './schemas'
 
 const TODAY = '2026-09-03'
 
@@ -76,5 +82,61 @@ describe('reservationFormSchema', () => {
       has_vehicle: false,
     })
     expect(before.success).toBe(false)
+  })
+})
+
+describe('checkoutStatementSchema', () => {
+  it('aceita os nove extratos da tabela de precos', () => {
+    const rejected = Object.entries(BILL_FIXTURES)
+      .filter(([, statement]) => !checkoutStatementSchema.safeParse(statement).success)
+      .map(([id]) => id)
+
+    expect(rejected).toEqual([])
+  })
+
+  it('recusa multa cobrada sem a tarifa que a originou', () => {
+    const impossible = {
+      ...T7_STATEMENT,
+      late_fee: { applied: true, base_rate: null, amount: '90.00' },
+    }
+
+    expect(checkoutStatementSchema.safeParse(impossible).success).toBe(false)
+    expect(
+      lateFeeSchema.safeParse({ applied: false, base_rate: '180.00', amount: '0.00' }).success,
+    ).toBe(false)
+  })
+
+  it('recusa dinheiro que exigiria conversao', () => {
+    expect(checkoutStatementSchema.safeParse({ ...T7_STATEMENT, total: 425 }).success).toBe(false)
+    expect(checkoutStatementSchema.safeParse({ ...T7_STATEMENT, total: '425' }).success).toBe(false)
+  })
+})
+
+describe('reservationSchema', () => {
+  const PENDING = {
+    id: 7,
+    guest_id: 1,
+    checkin_date: '2026-09-03',
+    checkout_date: '2026-09-05',
+    has_vehicle: true,
+    status: 'PENDING',
+    checked_in_at: null,
+    checked_out_at: null,
+    total_daily: null,
+    total_parking: null,
+    late_fee: null,
+    total_amount: null,
+    created_at: '2026-09-01T10:00:00-03:00',
+  }
+
+  it('aceita a reserva sem valores fechados e recusa status desconhecido', () => {
+    expect(reservationSchema.safeParse(PENDING).success).toBe(true)
+    expect(reservationSchema.safeParse({ ...PENDING, status: 'NO_SHOW' }).success).toBe(false)
+  })
+
+  it('recusa data-hora sem deslocamento, que o formatador nao saberia situar', () => {
+    expect(
+      reservationSchema.safeParse({ ...PENDING, created_at: '2026-09-01T10:00:00' }).success,
+    ).toBe(false)
   })
 })

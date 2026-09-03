@@ -1,4 +1,5 @@
 import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
+import type { z } from 'zod'
 
 import { errorLogger } from './errorLogger'
 import { ApiError, type ErrorEnvelope, isErrorCode } from './errors'
@@ -164,5 +165,23 @@ export function toApiError(error: unknown): ApiError {
     code: 'UNKNOWN_ERROR',
     detail: error instanceof Error ? error.message : 'Erro inesperado.',
     status: 0,
+  })
+}
+
+// O contrato é conferido na borda: um corpo fora do schema para aqui, e não
+// dentro de um componente com um campo `undefined` na mão. Os problemas do zod
+// (caminho e formato esperado) vão ao logger; a tela recebe uma frase só.
+export function parseResponse<Schema extends z.ZodType>(
+  schema: Schema,
+  response: { status: number; data: unknown },
+): z.output<Schema> {
+  const result = schema.safeParse(response.data)
+  if (result.success) return result.data
+
+  errorLogger.capture(result.error, { scope: 'api-contract' })
+  throw new ApiError({
+    code: 'CONTRACT_ERROR',
+    detail: 'Resposta inesperada do servidor.',
+    status: response.status,
   })
 }

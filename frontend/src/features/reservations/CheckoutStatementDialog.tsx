@@ -73,7 +73,7 @@ export function CheckoutStatementDialog({
         <div className="rounded-lg bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
           <SummaryRow label="Subtotal diárias" value={formatBRL(statement.subtotal_daily)} />
           <SummaryRow label="Subtotal vaga" value={formatBRL(statement.subtotal_parking)} />
-          {lateFee.applied && lateFee.base_rate ? (
+          {lateFee.applied ? (
             <SummaryRow
               label={`Multa de checkout tardio (50% de ${formatBRL(lateFee.base_rate)})`}
               value={formatBRL(lateFee.amount)}

@@ -23,12 +23,23 @@ describe('formatISODate', () => {
 })
 
 describe('formatISODateTime', () => {
-  it('junta a data já invertida com a hora, sem recalcular nenhuma das duas', () => {
+  it('mostra a hora do hotel, e nao a hora que veio na string', () => {
     expect(formatISODateTime('2026-01-01T21:00:00-03:00')).toBe('01/01/2026 21:00')
+    expect(formatISODateTime('2026-01-02T00:00:00Z')).toBe('01/01/2026 21:00')
+    expect(formatISODateTime('2026-01-02T02:00:00+02:00')).toBe('01/01/2026 21:00')
+  })
+
+  it('nao encosta na meia-noite: 00:00 nunca vira 24:00', () => {
+    expect(formatISODateTime('2026-01-01T00:00:00-03:00')).toBe('01/01/2026 00:00')
   })
 
   it('devolve so a data quando nao ha parte de hora', () => {
     expect(formatISODateTime('2026-01-01')).toBe('01/01/2026')
+  })
+
+  it('devolve a entrada intacta quando a data-hora nao existe', () => {
+    expect(formatISODateTime('2026-01-32T10:00:00-03:00')).toBe('2026-01-32T10:00:00-03:00')
+    expect(formatISODateTime('')).toBe('')
   })
 })
 
@@ -46,10 +57,11 @@ describe('addDaysISO', () => {
     expect(addDaysISO('2026-09-03', 5)).toBe('2026-09-08')
   })
 
-  it('devolve a string original quando falta um segmento da data', () => {
+  it('devolve a string original quando a data nao esta em AAAA-MM-DD', () => {
     expect(addDaysISO('2026-09', 3)).toBe('2026-09')
     expect(addDaysISO('2026', 3)).toBe('2026')
     expect(addDaysISO('', 3)).toBe('')
+    expect(addDaysISO('03/09/2026', 3)).toBe('03/09/2026')
   })
 })
 
