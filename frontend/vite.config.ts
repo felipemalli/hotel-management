@@ -30,5 +30,20 @@ export default defineConfig({
     globals: false,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    mockReset: true,
+    restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['src/**'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/**/__fixtures__/**',
+        'src/main.tsx',
+        'src/**/types.ts',
+      ],
+      thresholds: { lines: 85, statements: 85, functions: 70, branches: 85 },
+    },
   },
 })
