@@ -4,6 +4,8 @@ import { Button } from '@/components/ui'
 import { useAuth } from '@/features/auth/useAuth'
 import { toastStore } from '@/lib/toast'
 
+export const MAIN_CONTENT_ID = 'main'
+
 export function AppLayout({ children }: { children: ReactNode }) {
   const { username, signOut } = useAuth()
 
@@ -15,7 +17,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-100">
       <a
-        href="#main"
+        href={`#${MAIN_CONTENT_ID}`}
         className="sr-only rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
       >
         Ir para o conteúdo
@@ -37,7 +39,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </header>
 
       <main
-        id="main"
+        id={MAIN_CONTENT_ID}
         tabIndex={-1}
         className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 focus:outline-none"
       >

@@ -57,7 +57,13 @@ describe('EarlyCheckinFlow', () => {
     })
 
     renderWithProviders(
-      <ReservationActions reservationId={RESERVATION_ID} guestName={GUEST_NAME} state="PENDING" />,
+      <ReservationActions
+        reservationId={RESERVATION_ID}
+        guestName={GUEST_NAME}
+        state="PENDING"
+        onCheckedOut={vi.fn()}
+        onRequestCancel={vi.fn()}
+      />,
     )
 
     await user.click(screen.getByRole('button', { name: 'Check-in' }))
@@ -153,7 +159,13 @@ describe('EarlyCheckinFlow', () => {
     )
 
     renderWithProviders(
-      <ReservationActions reservationId={RESERVATION_ID} guestName={GUEST_NAME} state="PENDING" />,
+      <ReservationActions
+        reservationId={RESERVATION_ID}
+        guestName={GUEST_NAME}
+        state="PENDING"
+        onCheckedOut={vi.fn()}
+        onRequestCancel={vi.fn()}
+      />,
     )
 
     await user.click(screen.getByRole('button', { name: 'Check-in' }))

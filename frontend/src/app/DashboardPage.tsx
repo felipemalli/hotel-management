@@ -1,26 +1,23 @@
-import { useState } from 'react'
-
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Alert, Button, Dialog, ErrorState } from '@/components/ui'
+import { Button, Dialog, ErrorState } from '@/components/ui'
 import { GuestForm } from '@/features/guests/GuestForm'
 import { GuestTable } from '@/features/guests/GuestTable'
 import type { GuestRow } from '@/features/guests/tabs'
-import type { GuestRef } from '@/features/guests/types'
 import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStatementDialog'
+import { CancelReservationDialog } from '@/features/reservations/components/CancelReservationDialog'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ReservationForm } from '@/features/reservations/ReservationForm'
-import type { CheckoutStatement } from '@/features/reservations/types'
 import { errorMessage } from '@/lib/errors'
+import { notifySuccess } from '@/lib/toast'
 
-import { AppLayout } from './AppLayout'
+import { AppLayout, MAIN_CONTENT_ID } from './AppLayout'
+import { useDashboardDialog } from './useDashboardDialog'
 
+// Os dialogs disparados por uma linha vivem aqui, e não na linha: checkout e
+// cancelamento tiram o hóspede da aba, a linha desmonta e levaria o painel com
+// ela no meio da mutation.
 export function DashboardPage() {
-  const [guestDialogOpen, setGuestDialogOpen] = useState(false)
-  const [reservationFor, setReservationFor] = useState<GuestRef | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
-  // O extrato mora nesta página, e não na linha da tabela: o checkout tira o
-  // hóspede da aba "No hotel", a linha desmonta e levaria o dialog com ela.
-  const [statement, setStatement] = useState<CheckoutStatement | null>(null)
+  const { current, open, close } = useDashboardDialog()
 
   function renderActions(row: GuestRow) {
     if (row.tab === 'all') {
@@ -28,7 +25,7 @@ export function DashboardPage() {
         <Button
           size="sm"
           variant="secondary"
-          onClick={() => setReservationFor({ id: row.guest.id, full_name: row.guest.full_name })}
+          onClick={() => open({ kind: 'reservation', guest: row.guest })}
         >
           Nova reserva
         </Button>
@@ -40,7 +37,14 @@ export function DashboardPage() {
         reservationId={row.reservation.id}
         guestName={row.guest.full_name}
         state={row.reservationStatus}
-        onCheckedOut={setStatement}
+        onCheckedOut={(statement) => open({ kind: 'statement', statement })}
+        onRequestCancel={() =>
+          open({
+            kind: 'cancel',
+            reservationId: row.reservation.id,
+            guestName: row.guest.full_name,
+          })
+        }
       />
     )
   }
@@ -48,14 +52,8 @@ export function DashboardPage() {
   return (
     <AppLayout>
       <div className="flex justify-end">
-        <Button onClick={() => setGuestDialogOpen(true)}>Novo hóspede</Button>
+        <Button onClick={() => open({ kind: 'guest' })}>Novo hóspede</Button>
       </div>
-
-      {notice ? (
-        <Alert tone="success" onDismiss={() => setNotice(null)}>
-          {notice}
-        </Alert>
-      ) : null}
 
       {/* Uma quebra na tabela não derruba o header, o "Novo hóspede" nem os
           dialogs: o fallback é o mesmo `ErrorState` do erro de leitura. */}
@@ -69,42 +67,68 @@ export function DashboardPage() {
       </ErrorBoundary>
 
       <Dialog
-        open={guestDialogOpen}
+        open={current?.kind === 'guest'}
         title="Novo hóspede"
         description="Nome, documento e telefone são obrigatórios."
-        onClose={() => setGuestDialogOpen(false)}
+        onClose={close}
       >
         <GuestForm
-          onCancel={() => setGuestDialogOpen(false)}
+          onCancel={close}
           onSuccess={(guest) => {
-            setGuestDialogOpen(false)
-            setNotice(`Hóspede ${guest.full_name} cadastrado.`)
-            setReservationFor({ id: guest.id, full_name: guest.full_name })
+            notifySuccess(`Hóspede ${guest.full_name} cadastrado.`)
+            open({ kind: 'reservation', guest })
           }}
         />
       </Dialog>
 
-      {reservationFor ? (
+      {current?.kind === 'reservation' ? (
         <Dialog
           open
           title="Nova reserva"
           description="Mínimo de 1 noite; a entrada não pode ser no passado."
-          onClose={() => setReservationFor(null)}
+          onClose={close}
         >
           <ReservationForm
-            guest={reservationFor}
-            onCancel={() => setReservationFor(null)}
+            guest={current.guest}
+            onCancel={close}
             onSuccess={(reservation) => {
-              setReservationFor(null)
-              setNotice(`Reserva #${reservation.id} criada para ${reservationFor.full_name}.`)
+              close()
+              notifySuccess(`Reserva #${reservation.id} criada para ${current.guest.full_name}.`)
             }}
           />
         </Dialog>
       ) : null}
 
-      {statement ? (
-        <CheckoutStatementDialog open statement={statement} onClose={() => setStatement(null)} />
+      {current?.kind === 'cancel' ? (
+        <CancelReservationDialog
+          reservationId={current.reservationId}
+          guestName={current.guestName}
+          onClose={close}
+          onCancelled={() => {
+            returnFocusToContent()
+            close()
+            notifySuccess(`Reserva de ${current.guestName} cancelada.`)
+          }}
+        />
+      ) : null}
+
+      {current?.kind === 'statement' ? (
+        <CheckoutStatementDialog
+          open
+          statement={current.statement}
+          onClose={() => {
+            returnFocusToContent()
+            close()
+          }}
+        />
       ) : null}
     </AppLayout>
   )
+}
+
+// O botão que abriu o dialog acabou de sair da listagem junto com a linha: sem
+// um alvo vivo, o foco de volta cairia no `<body>` e o teclado recomeçaria do
+// topo do documento.
+function returnFocusToContent(): void {
+  document.getElementById(MAIN_CONTENT_ID)?.focus()
 }

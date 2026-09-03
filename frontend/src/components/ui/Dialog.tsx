@@ -46,12 +46,24 @@ export function Dialog({
   useEffect(() => {
     if (!open) return
 
+    const panel = panelRef.current
     previouslyFocused.current = document.activeElement
-    panelRef.current?.focus()
+    panel?.focus()
 
     return () => {
       const previous = previouslyFocused.current
-      if (previous instanceof HTMLElement) previous.focus()
+      if (!(previous instanceof HTMLElement)) return
+
+      // Quem fecha o dialog pode ter movido o foco de propósito — é o caso da
+      // confirmação destrutiva, cuja origem desaparece da listagem junto com a
+      // linha. O painel não desfaz essa escolha: só devolve o foco quando ele
+      // ainda está no painel ou já caiu no `<body>` com o painel desmontado.
+      const active = document.activeElement
+      const movedElsewhere =
+        active !== null && active !== document.body && !(panel?.contains(active) ?? false)
+      if (movedElsewhere) return
+
+      previous.focus()
     }
   }, [open])
 

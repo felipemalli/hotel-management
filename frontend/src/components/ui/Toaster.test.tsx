@@ -16,7 +16,13 @@ vi.mock('@/features/reservations/api')
 function renderActions() {
   return render(
     <AppProviders>
-      <ReservationActions reservationId={1} guestName="Ana Souza" state="CHECKED_IN" />
+      <ReservationActions
+        reservationId={1}
+        guestName="Ana Souza"
+        state="CHECKED_IN"
+        onCheckedOut={vi.fn()}
+        onRequestCancel={vi.fn()}
+      />
     </AppProviders>,
   )
 }
@@ -76,7 +82,13 @@ describe('handler global de erros', () => {
 
     render(
       <AppProviders>
-        <ReservationActions reservationId={1} guestName="Ana Souza" state="PENDING" />
+        <ReservationActions
+          reservationId={1}
+          guestName="Ana Souza"
+          state="PENDING"
+          onCheckedOut={vi.fn()}
+          onRequestCancel={vi.fn()}
+        />
       </AppProviders>,
     )
     await user.click(screen.getByRole('button', { name: 'Check-in' }))

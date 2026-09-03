@@ -1,10 +1,11 @@
 import { useState } from 'react'
 
-import { Button, Dialog } from '@/components/ui'
+import { Button } from '@/components/ui'
 import { earlyCheckinServerTime } from '@/lib/errors'
+import { notifySuccess } from '@/lib/toast'
 
 import { EarlyCheckinDialog } from './EarlyCheckinDialog'
-import { useCancelReservation, useCheckIn, useCheckOut } from './hooks'
+import { useCheckIn, useCheckOut } from './hooks'
 import type { CheckoutStatement, ReservationStatus } from './types'
 
 export type ReservationActionState = Extract<ReservationStatus, 'PENDING' | 'CHECKED_IN'>
@@ -13,7 +14,11 @@ export interface ReservationActionsProps {
   reservationId: number
   guestName: string
   state: ReservationActionState
-  onCheckedOut?: (statement: CheckoutStatement) => void
+  // Obrigatórios: o extrato e a confirmação de cancelamento moram na página,
+  // porque as duas mutations tiram esta linha da listagem. Sem o callback, a
+  // ação seguiria clicável e o atendente ficaria sem o extrato e sem confirmar.
+  onCheckedOut: (statement: CheckoutStatement) => void
+  onRequestCancel: () => void
 }
 
 export function ReservationActions({
@@ -21,13 +26,17 @@ export function ReservationActions({
   guestName,
   state,
   onCheckedOut,
+  onRequestCancel,
 }: ReservationActionsProps) {
   const [serverTime, setServerTime] = useState<string | null>(null)
-  const [confirmingCancel, setConfirmingCancel] = useState(false)
 
-  const checkIn = useCheckIn({ onSuccess: () => setServerTime(null) })
+  const checkIn = useCheckIn({
+    onSuccess: () => {
+      setServerTime(null)
+      notifySuccess(`Check-in de ${guestName} registrado.`)
+    },
+  })
   const checkOut = useCheckOut({ onSuccess: onCheckedOut })
-  const cancel = useCancelReservation({ onSuccess: () => setConfirmingCancel(false) })
 
   function runCheckIn(allowEarly: boolean) {
     checkIn.mutate(
@@ -45,10 +54,6 @@ export function ReservationActions({
     checkOut.mutate(reservationId)
   }
 
-  function runCancel() {
-    cancel.mutate(reservationId)
-  }
-
   return (
     <div className="flex flex-col items-start gap-1">
       <div className="flex flex-wrap gap-2">
@@ -57,12 +62,7 @@ export function ReservationActions({
             <Button size="sm" disabled={checkIn.isPending} onClick={() => runCheckIn(false)}>
               {checkIn.isPending ? 'Registrando…' : 'Check-in'}
             </Button>
-            <Button
-              size="sm"
-              variant="danger"
-              disabled={cancel.isPending}
-              onClick={() => setConfirmingCancel(true)}
-            >
+            <Button size="sm" variant="danger" onClick={onRequestCancel}>
               Cancelar
             </Button>
           </>
@@ -80,29 +80,6 @@ export function ReservationActions({
         pending={checkIn.isPending}
         onConfirm={() => runCheckIn(true)}
         onCancel={() => setServerTime(null)}
-      />
-
-      <Dialog
-        open={confirmingCancel}
-        role="alertdialog"
-        size="sm"
-        title="Cancelar reserva"
-        description={`A reserva de ${guestName} será cancelada. A ação não pode ser desfeita.`}
-        onClose={() => setConfirmingCancel(false)}
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              disabled={cancel.isPending}
-              onClick={() => setConfirmingCancel(false)}
-            >
-              Voltar
-            </Button>
-            <Button variant="danger" disabled={cancel.isPending} onClick={runCancel}>
-              {cancel.isPending ? 'Cancelando…' : 'Cancelar reserva'}
-            </Button>
-          </>
-        }
       />
     </div>
   )
