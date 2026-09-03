@@ -50,8 +50,8 @@ export const session = {
 
   getRefreshToken: (): string | null => refresh,
 
-  // O nome do atendente vem do que ele digitou no login: a API nao expoe um
-  // endpoint de perfil, e o token e opaco para o cliente.
+  // O nome do atendente vem do que ele digitou no login: a API não expõe um
+  // endpoint de perfil, e o token é opaco para o cliente.
   getUsername: (): string | null => username,
 
   set: (data: SessionData): void => {

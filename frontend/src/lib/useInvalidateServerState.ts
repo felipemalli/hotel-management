@@ -3,8 +3,8 @@ import { useCallback } from 'react'
 
 import { GUESTS_ROOT, RESERVATIONS_ROOT } from './queryKeys'
 
-// Invalidacao cruzada: toda mutation invalida as duas raizes, porque check-in e
-// checkout movem o hospede de aba e criar hospede muda o universo de reservas.
+// Invalidação cruzada: toda mutation invalida as duas raízes, porque check-in e
+// checkout movem o hóspede de aba e criar hóspede muda o universo de reservas.
 export function useInvalidateServerState(): () => void {
   const queryClient = useQueryClient()
 
