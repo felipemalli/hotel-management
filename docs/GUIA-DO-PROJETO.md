@@ -18,6 +18,10 @@ repetem:
 Toda afirmação aqui tem `arquivo:linha` conferido por leitura. Os números de
 teste e as saídas de API foram obtidos rodando, não inferidos.
 
+> **Leia os `arquivo:linha` como de 03/09/2026**, quando foram reconferidos um
+> por um. Números deslocam alguns pontos a cada mudança; nomes de função, classe
+> e módulo continuam exatos, e são eles que localizam o trecho.
+
 ---
 
 ## 1. O que o sistema faz
@@ -63,22 +67,22 @@ As duas suítes — é assim que você sabe que não quebrou nada:
 ```bash
 # backend (dentro do container)
 docker compose exec backend uv run pytest -q
-# → 192 passed
+# → 191 passed
 
 # frontend (de dentro de frontend/)
 cd frontend && npm run test -- --run
-# → Test Files 13 passed (13) / Tests 43 passed (43)
+# → Test Files 32 passed (32) / Tests 174 passed (174)
 ```
 
-Os números acima são os da execução em 01/09/2026, no commit `b690433`; o total
-sobe a cada teste novo, e o que importa é estar verde, não o número. Os 192 do
-backend se dividem em três camadas, e a divisão importa para o §7:
+Os números acima são os da execução em 03/09/2026; o total sobe a cada teste
+novo, e o que importa é estar verde, não o número. Os 191 do backend se dividem
+em três camadas, e a divisão importa para o §7:
 
 | Suíte | Testes | Precisa de banco? | Prova |
 |---|---|---|---|
-| `backend/tests/unit/` | 57 | não | o motor financeiro e a normalização de PII, isolados |
-| `backend/tests/db/` | 59 | sim (PostgreSQL real) | models, constraints, selectors, services |
-| `backend/tests/api/` | 76 | sim | os endpoints ponta a ponta, com HTTP de verdade |
+| `backend/tests/unit/` | 44 | não | o motor financeiro e a normalização de PII, isolados |
+| `backend/tests/db/` | 69 | sim (PostgreSQL real) | models, constraints, selectors, services |
+| `backend/tests/api/` | 78 | sim | os endpoints ponta a ponta, com HTTP de verdade |
 
 O banco de demonstração já vem povoado por um *seed* com quatro hóspedes, um
 deles com extrato fechado — veja a tabela em `README.md` §1.3.
@@ -207,7 +211,7 @@ documentado em `ai/__init__.py:1-16`: `hotel/` não importa nada de `ai/`, e o a
 nem entra em `INSTALLED_APPS` — ele é alcançado apenas pela rota de
 `config/urls.py:33`. Sem a chave `ANTHROPIC_API_KEY`, `ai/config.py:32-34`
 desliga a feature inteira, `/api/ai/status/` responde `enabled: false` e o
-frontend nem renderiza o botão (`frontend/src/features/ai/AiFillGuest.tsx:40`).
+frontend nem renderiza o botão (`frontend/src/features/ai/AiFillGuest.tsx:25`).
 O sistema é 100% funcional nesse estado.
 
 ### 3.2 `frontend/src/` — organizado por feature
@@ -215,38 +219,108 @@ O sistema é 100% funcional nesse estado.
 ```
 frontend/src/
 ├── main.tsx              # ponto de entrada: createRoot(...).render(<App />)
-├── app/                  # a casca: App, providers, router, ProtectedRoute, DashboardPage
-├── lib/                  # infraestrutura sem UI
-│   ├── apiClient.ts      # axios: baseURL /api, Bearer, refresh-once em 401
+├── app/                  # a casca; é o único lugar que compõe mais de uma feature
+│   ├── App.tsx           # AppProviders > BrowserRouter > AppRoutes
+│   ├── providers.tsx     # ErrorBoundary raiz, QueryClientProvider, Toaster, devtools (dev)
+│   ├── router.tsx        # /login eager, / com o dashboard em chunk lazy
+│   ├── routes.ts         # ROUTES = { login, home }
+│   ├── AppLayout.tsx     # skip-link, <header> com "Sair", <main id="main">
+│   ├── PageFallback.tsx  # o fallback do Suspense da rota
+│   ├── DashboardPage.tsx # composição: GuestTable + ações + os quatro diálogos
+│   └── useDashboardDialog.ts   # qual diálogo está aberto, em união discriminada
+├── lib/                  # infraestrutura sem UI (nada aqui importa componente ou feature)
+│   ├── apiClient.ts      # axios: baseURL /api, Bearer, refresh-once em 401, parseResponse
+│   ├── errors.ts         # ApiError com união de códigos fechada, a partir do envelope
+│   ├── errorLogger.ts    # destino dos erros: console em DEV, silencioso em produção
+│   ├── schemas.ts        # zod compartilhado: moneyString, isoDate, isoDateTime, paginated
+│   ├── forms.ts          # requiredString + applyServerErrors (erro do servidor → campo)
+│   ├── normalize.ts      # documento alfanumérico, telefone dígitos (espelho de D9)
 │   ├── money.ts          # formatBRL — formata, nunca calcula
-│   ├── errors.ts         # ApiError a partir do envelope da API
-│   ├── queryKeys.ts      # política de invalidação de cache
-│   ├── queryClient.ts    # cache + handler global de erro de mutation
+│   ├── pii.ts            # máscara de exibição de CPF e telefone
+│   ├── dates.ts          # formatação de data por manipulação de string
+│   ├── queryKeys.ts      # as raízes de cache, só constantes
+│   ├── queryClient.ts    # a política de roteamento de erro (toast × inline × boundary)
+│   ├── useInvalidateServerState.ts   # a invalidação cruzada, num hook só
 │   ├── session.ts        # store observável dos tokens
-│   └── dates.ts          # formatação de data por manipulação de string
-├── components/ui/        # primitivos: Button, Input, Checkbox, Dialog, Table,
-│                         #             Tabs, Alert, Toaster, States (loading/vazio/erro)
+│   ├── toast.ts          # store observável dos avisos
+│   └── useDebouncedValue.ts    # o atraso de 300 ms da busca
+├── components/
+│   ├── ErrorBoundary/    # ErrorBoundary + ErrorFallback ("Algo deu errado" com retry)
+│   ├── icons/            # AlertIcon, CloseIcon, RefreshIcon, SpinnerIcon
+│   └── ui/               # primitivos: Button, Input, Checkbox, Textarea, Dialog, Table,
+│                         #   Tabs, Alert, Toaster, DismissButton, States, + index.ts
 ├── features/
-│   ├── auth/             # LoginPage, useAuth, api
-│   ├── guests/           # GuestTable, GuestForm, api, hooks, types
-│   ├── reservations/     # ReservationForm, ReservationActions, os dois diálogos, __fixtures__
-│   └── ai/               # AiFillGuest, api, hooks
-└── test/                 # renderWithProviders, setup
+│   ├── auth/             # LoginPage, ProtectedRoute, useAuth, api, hooks, schemas
+│   ├── guests/           # GuestTable, GuestForm, tabs.ts, components/, __fixtures__
+│   ├── reservations/     # ReservationForm, ReservationActions, os três diálogos, __fixtures__
+│   └── ai/               # AiFillGuest, api, hooks, schemas, types
+└── test/                 # renderWithProviders, fixtures, setup
 ```
 
-Cada `features/<x>/` segue o mesmo quarteto: `types.ts` (o contrato tipado),
-`api.ts` (as chamadas HTTP), `hooks.ts` (as queries e mutations do TanStack
-Query), e os componentes. Os testes moram ao lado do arquivo testado
-(`GuestTable.test.tsx` vizinho de `GuestTable.tsx`).
+Cada `features/<x>/` segue o mesmo **quinteto**: `types.ts` (o contrato tipado),
+`schemas.ts` (os schemas zod de onde esses tipos saem, por `z.infer`), `api.ts`
+(as chamadas HTTP), `hooks.ts` (as queries e mutations do TanStack Query), e os
+componentes. Os testes moram ao lado do arquivo testado (`GuestTable.test.tsx`
+vizinho de `GuestTable.tsx`).
 
-Não há Redux nem Zustand. O servidor é a fonte de estado e o TanStack Query é o
-cache dessa fonte (`frontend/src/app/providers.tsx:15-23`); estado local cobre
-apenas modais e formulários.
+Três regras de importação, impostas por lint e não por combinado: um único alias
+(`@/`), com relativo apenas dentro da própria pasta; barrel (`index.ts`) só na
+camada compartilhada — `components/ui`, `components/icons` e
+`components/ErrorBoundary` —, nunca em `lib/` nem nas features; e camadas em uma
+direção só, `lib` → `components` → `features` → `app`, com uma única aresta
+documentada entre features (`guests` → `ai`).
 
 **Não existe CORS neste projeto.** O Vite serve o frontend em `:5173` e faz
-proxy de tudo sob `/api` para o backend (`frontend/vite.config.ts:24-26`). No
+proxy de tudo sob `/api` para o backend (`frontend/vite.config.ts:19-25`). No
 browser, portanto, tudo é a mesma origem — uma superfície de configuração a
 menos.
+
+#### Decisões do frontend
+
+Sete escolhas que um revisor pergunta, com o motivo — que é o que não está
+escrito no código:
+
+- **O dashboard é uma tela com abas, não três rotas.** As três listagens do
+  balcão (todos, no hotel, check-in pendente) são recortes do mesmo trabalho, e
+  o atendente alterna entre elas dezenas de vezes por turno; rota separada
+  custaria uma navegação a cada troca e não ganharia nada — o `/` e o `/login`
+  são as duas rotas do sistema.
+- **Nem Redux nem Zustand.** O servidor é a fonte de estado e o TanStack Query é
+  o cache dessa fonte (`frontend/src/app/providers.tsx:22-46`); o que sobra de
+  estado de cliente é qual diálogo está aberto e o conteúdo dos formulários, e
+  isso mora no componente. Os dois únicos stores globais — sessão e avisos — são
+  lidos por `useSyncExternalStore`, porque quem escreve neles é o interceptor de
+  401, que roda fora do React.
+- **Toast × inline × boundary.** Erro de *mutation* vira toast: o gesto é
+  repetível e o formulário precisa continuar na tela com o que foi digitado.
+  Erro de *query* vira estado inline com "Tentar novamente", que é o que o
+  briefing pede para uma listagem que não carregou. Só erro de render e `5xx` na
+  primeira carga vão ao ErrorBoundary — quando não há nada na tela para
+  preservar. A tabela completa está em `frontend/src/lib/queryClient.ts:9-22`.
+- **Invalidação cruzada, sempre nas duas raízes.** Check-in e checkout movem o
+  hóspede de uma aba para outra, e cadastrar hóspede muda o universo de
+  reservas; por isso toda mutation invalida `["guests"]` **e**
+  `["reservations"]` (`frontend/src/lib/useInvalidateServerState.ts:8-15`).
+  Invalidar só a raiz "óbvia" deixava a outra aba mentindo até o `staleTime`
+  vencer.
+- **O portão da IA é um `return null`.** `AiFillGuest` consulta
+  `/api/ai/status/` e não renderiza nada quando a feature está desligada
+  (`frontend/src/features/ai/AiFillGuest.tsx:25`), em vez de a página de
+  cadastro conhecer a existência da chave. É o que faz o diferencial ser
+  removível apagando a pasta (`README.md` §5.4).
+- **A validação do cliente espelha o servidor; o servidor decide.** Os schemas
+  de `features/<x>/schemas.ts` repetem as regras de D9, D11 e D13 para o erro
+  aparecer antes da rede — e o `400 VALIDATION_ERROR` continua sendo remapeado
+  campo a campo quando chega (`frontend/src/lib/forms.ts:24-56`). Duplicidade
+  deliberada, com a autoridade em um lado só.
+- **Abas com o padrão ARIA completo, e o extrato fora da linha.** As abas usam
+  `role="tablist"` com *roving tabindex* e navegação por setas
+  (`frontend/src/components/ui/Tabs.tsx:25-64`), porque meia implementação de
+  ARIA é pior que nenhuma. E os diálogos disparados por uma linha — extrato de
+  checkout, confirmação de cancelamento — vivem na página, não na linha: o
+  checkout tira o hóspede da aba, a linha desmonta, e um diálogo montado dentro
+  dela iria embora no meio da mutation
+  (`frontend/src/app/DashboardPage.tsx:16-19`).
 
 ---
 
@@ -258,15 +332,15 @@ lados. Cada peça é explicada na hora em que aparece.
 ```
 [ NAVEGADOR ]
  clique em "Checkout"
-   ReservationActions.tsx:97-99   ─ botão
-   ReservationActions.tsx:71-73   ─ runCheckOut() → checkOut.mutate(id)
-   hooks.ts:66-76                 ─ useCheckOut: a mutation do TanStack Query
-   api.ts:46-49                   ─ apiClient.post(`/reservations/${id}/checkout/`)
-   apiClient.ts:47-55             ─ interceptor injeta Authorization: Bearer <access>
+   ReservationActions.tsx:70-72   ─ botão
+   ReservationActions.tsx:53-55   ─ runCheckOut() → checkOut.mutate(id)
+   reservations/hooks.ts:37-47    ─ useCheckOut: a mutation do TanStack Query
+   reservations/api.ts:23-26      ─ apiClient.post(`/reservations/${id}/checkout/`)
+   lib/apiClient.ts:34-42         ─ interceptor injeta Authorization: Bearer <access>
         │
         │  POST /api/reservations/2/checkout/
         ▼
-[ VITE DEV SERVER :5173 ]  proxy /api → http://backend:8000   vite.config.ts:24-26
+[ VITE DEV SERVER :5173 ]  proxy /api → http://backend:8000   vite.config.ts:19-25
         │
         ▼
 [ GUNICORN → WSGI ]  config/wsgi.py:7
@@ -316,11 +390,12 @@ lados. Cada peça é explicada na hora em que aparece.
         ▼  200 OK  {"lines":[...], "subtotal_daily":"300.00", ..., "total":"425.00"}
         │
 [ NAVEGADOR ]
-   hooks.ts:71-74      ─ onSuccess: invalida o cache e chama onCheckedOut
-   queryKeys.ts:19-26  ─ invalida ["guests"] E ["reservations"] → as abas refazem a busca
-   DashboardPage.tsx:65, :38  ─ setStatement(extrato)
-   DashboardPage.tsx:133-139  ─ monta o CheckoutStatementDialog
-   CheckoutStatementDialog.tsx:75-82  ─ uma linha por diária, via formatBRL
+   reservations/api.ts:25      ─ parseResponse(checkoutStatementSchema, …): valida o extrato
+   reservations/hooks.ts:42-45 ─ onSuccess: invalida o cache e chama onCheckedOut
+   lib/useInvalidateServerState.ts:11-14  ─ invalida ["guests"] E ["reservations"]
+   app/DashboardPage.tsx:40         ─ open({ kind: 'statement', statement })
+   app/DashboardPage.tsx:115-123    ─ monta o CheckoutStatementDialog
+   reservations/CheckoutStatementDialog.tsx:62-69  ─ uma linha por diária, via formatBRL
 ```
 
 Agora, o papel de cada peça.
@@ -570,7 +645,7 @@ replicada literalmente em dois arquivos:
 - `backend/tests/unit/test_pricing.py:29-142` — os 9 casos como parâmetros de
   teste; T7 é `:106-117`. O teste (`:152-174`) confere linha a linha, subtotais,
   base da multa e total.
-- `frontend/src/features/reservations/__fixtures__/bills.ts:217-240` — o mesmo
+- `frontend/src/features/reservations/__fixtures__/bills.ts:169-192` — o mesmo
   T7 na forma do payload JSON, usado para provar o *render* do extrato.
 
 E o seed produz o caso ao vivo: `seed_demo.py:78-94` cria a hóspede Carla Nunes
@@ -589,8 +664,9 @@ $ docker compose exec db psql -U hotel -d hotel \
 
 Os campos financeiros são `NULL` até o checkout e congelados nele — por isso
 `ReservationSerializer` os declara todos como `null`áveis
-(`hotel/serializers.py:187-190`) e o tipo do frontend também
-(`frontend/src/features/reservations/types.ts:28-31`).
+(`hotel/serializers.py:187-190`) e o schema do frontend também
+(`frontend/src/features/reservations/schemas.ts:21-24`, de onde o tipo sai por
+`z.infer`).
 
 ---
 
@@ -636,34 +712,45 @@ valor devolvido é `Decimal` com exatamente 2 casas decimais. E o **CI tem uma
 guarda de texto** que barra o `float` antes de qualquer teste rodar:
 
 ```yaml
-# .github/workflows/ci.yml:48-50
-- name: "Guard - dinheiro nunca usa float (SPEC 0.3)"
-  run: '! grep -RnE "float\(" backend/hotel backend/accounts'
+# .github/workflows/ci.yml:52-54 — o passo "Guard", antes de instalar qualquer coisa
+run: '! grep -RnE "float\(" backend/hotel backend/accounts'
 ```
 
 Se você escrever `float(` em qualquer arquivo de `hotel/` ou `accounts/`, o job
 falha no terceiro passo. É grosseiro de propósito: é uma guarda, não um
 analisador.
 
-Do lado do frontend a proteção é o **tipo**: todo campo monetário é `string`,
-nunca `number` (`frontend/src/features/reservations/types.ts:1-7, :28-31`), e a
-única função que toca dinheiro formata por manipulação de string, sem nenhuma
+Do lado do frontend a proteção é o **schema**: todo campo monetário é validado
+em runtime como string decimal de duas casas
+(`frontend/src/lib/schemas.ts:6-8`, usado por
+`frontend/src/features/reservations/schemas.ts:21-24` e `:28-53`), e a única
+função que toca dinheiro formata por manipulação de string, sem nenhuma
 conversão numérica:
 
 ```typescript
-// frontend/src/lib/money.ts:26-33
-  const separator = unsigned.indexOf('.')
-  const integerPart = separator === -1 ? unsigned : unsigned.slice(0, separator)
-  const fractionPart = separator === -1 ? '' : unsigned.slice(separator + 1)
+// frontend/src/lib/money.ts:4-19
+const MONEY = /^(-?)(\d+)\.(\d{2})$/
+const THOUSANDS = /\B(?=(\d{3})+(?!\d))/g
 
-  const integerDigits = integerPart.replace(/\D/g, '') || '0'
-  const cents = `${fractionPart.replace(/\D/g, '')}00`.slice(0, 2)
+function groupThousands(digits: string): string {
+  return digits.replace(THOUSANDS, '.')
+}
 
-  return `R$ ${negative ? '-' : ''}${groupThousands(integerDigits)},${cents}`
+export function formatBRL(value: string): string {
+  const parts = MONEY.exec(value)
+  if (!parts) throw new TypeError(`Valor monetário fora do contrato: ${JSON.stringify(value)}`)
+
+  const [, sign = '', reais = '', centavos = ''] = parts
+  return `R$ ${sign}${groupThousands(reais)},${centavos}`
+}
 ```
 
-Zero `Number`, zero `parseFloat`, zero `toLocaleString`. O frontend **nunca**
-soma: se um subtotal parecer errado na tela, o bug é do backend.
+Nenhuma conversão para número, em lugar nenhum — e há uma guarda de texto no CI
+para os dois arquivos que tocam dinheiro na tela, espelhando a do `float` no
+backend. Note também que entrada fora do contrato **lança**, em vez de devolver
+um valor plausível: um total errado que "parece certo" ninguém confere. O
+frontend **nunca** soma; se um subtotal parecer errado na tela, o bug é do
+backend.
 
 ### 6.2 Relógio injetável: `now` é parâmetro, nunca chamada interna
 
@@ -696,9 +783,9 @@ O ganho fica visível no teste que prova a parte mais escorregadia da regra — 
 14h é **hora local**, e o banco guarda UTC:
 
 ```python
-# backend/tests/db/test_services.py:75-83
+# backend/tests/db/test_services.py:216-223 (docstring omitida: 16:30 UTC
+# é 13:30 em São Paulo — é cedo, mesmo parecendo tarde)
 def test_check_in_rule_is_evaluated_in_local_time():
-    """SPEC 0.3: 16:30 UTC e 13:30 em Sao Paulo -- e cedo, mesmo parecendo tarde."""
     reservation = t7_reservation()
     now_utc = datetime(2025, 3, 7, 16, 30, tzinfo=UTC)
 
@@ -716,7 +803,7 @@ avaliada — e no checkout em `:105-106`.
 No checkout a conversão faz mais do que decidir se houve multa: ela decide
 **quais diárias entram na conta**. São Paulo é UTC-3, então um check-in às 21:00
 locais é 00:00 UTC do dia seguinte, e ler as datas em UTC pularia uma diária
-inteira. `backend/tests/db/test_services.py:276-299` prova isso passando os
+inteira. `backend/tests/db/test_services.py:417-441` prova isso passando os
 timestamps em UTC, como a produção faz: sexta 21:00 → domingo 11:00 dá R$ 300,00
 em datas locais e R$ 180,00 em UTC.
 
@@ -752,14 +839,14 @@ def test_checkin_before_14_returns_409_and_override(auth_client):
 `local(...)` (`backend/tests/api/conftest.py:18-20`) monta um `datetime` ciente
 no fuso `America/Sao_Paulo`. Note que o teste prova o **protocolo inteiro** do
 alerta: 409 sem override, nada persistido, e 200 no reenvio com `allow_early`.
-Do outro lado, `frontend/src/features/reservations/EarlyCheckinFlow.test.tsx:76-132`
+Do outro lado, `frontend/src/features/reservations/EarlyCheckinFlow.test.tsx:51-104`
 prova a outra metade: o 409 abre o diálogo com o `server_time`, cancelar não
 dispara segunda chamada, confirmar reenvia com `allow_early: true`.
 
 O `409` não é falha, é um ramo de protocolo — e o frontend o trata assim em três
-lugares: `ReservationActions.tsx:61-67` intercepta apenas esse código,
-`lib/errors.ts:61-65` extrai o horário do envelope, e
-`lib/queryClient.ts:25-33` mantém `EARLY_CHECKIN` fora do toast global de erro.
+lugares: `features/reservations/ReservationActions.tsx:41-51` intercepta apenas
+esse código, `lib/errors.ts:77-81` extrai o horário do envelope, e
+`lib/queryClient.ts:17-26` mantém `EARLY_CHECKIN` fora do toast global de erro.
 
 ### 6.3 PII em claro normalizada, com busca por fragmento
 
@@ -859,12 +946,16 @@ Decida pela natureza da mudança, não pelo arquivo que você abriu primeiro:
 | validação de entrada, ou forma da resposta | `hotel/serializers.py` | `tests/api/test_guests.py` ou `test_reservation_flow.py` |
 | uma rota, um status code, um parâmetro de query | `hotel/views.py` (+ `config/urls.py` se for rota nova) | `tests/api/` |
 | a forma de um erro | `hotel/exceptions.py` | `tests/api/` |
-| tela, formulário, tabela, diálogo | `frontend/src/features/<x>/` | `<Componente>.test.tsx` ao lado |
+| tela, tabela, diálogo | `frontend/src/features/<x>/` | `<Componente>.test.tsx` ao lado |
+| uma regra de formulário (campo obrigatório, mínimo, comparação de datas) | `frontend/src/features/<x>/schemas.ts` | `schemas.test.ts` ao lado, sem montar componente |
+| a forma de uma resposta da API | `frontend/src/features/<x>/schemas.ts` (+ `types.ts` por `z.infer`) | `schemas.test.ts`, e o teste do componente que a consome |
+| onde um erro do servidor aparece na tela | `frontend/src/lib/forms.ts` (campo × alerta) ou `frontend/src/lib/queryClient.ts` (toast × inline × boundary) | `lib/forms.test.ts` · `lib/errors.test.ts` |
 | formatação de dinheiro, data ou PII | `frontend/src/lib/` | `lib/*.test.ts` |
+| um primitivo de UI novo, ou um ícone | `frontend/src/components/ui/` (+ `index.ts`) ou `frontend/src/components/icons/` | `<Primitivo>.test.tsx` ao lado |
 
 Regra prática: se a sua mudança precisa de banco para ser testada, ela
-provavelmente está na camada errada. O motor financeiro tem 57 testes e nenhum
-toca no PostgreSQL.
+provavelmente está na camada errada. A camada `tests/unit/` tem 44 testes e
+nenhum toca no PostgreSQL.
 
 ### 7.2 Onde escrever o teste
 
@@ -893,19 +984,41 @@ verdade** (`:86-92`) — uma fixture que recalculasse dinheiro por conta própri
 mentiria sobre o sistema.
 
 **Frontend — Vitest + React Testing Library.** `describe`/`it`/`expect`, como
-Jest. Duas convenções locais:
+Jest, com uma diferença que surpreende quem vem do Jest: os globais estão
+**desligados** (`globals: false` em `frontend/vite.config.ts:26-46`), então todo
+arquivo de teste importa o que usa — `import { describe, expect, it, vi } from 'vitest'`.
+É mais uma linha por arquivo, e em troca o programa de tipos da aplicação não
+enxerga nenhum global de teste. Cinco convenções locais:
 
 - As chamadas de API são **mockadas por módulo**: `vi.mock('@/features/reservations/api')`.
   Não há MSW nem servidor de teste.
 - A montagem passa por `renderWithProviders`
-  (`frontend/src/test/renderWithProviders.tsx:26-37`), que cria um `QueryClient`
+  (`frontend/src/test/renderWithProviders.tsx:18-37`), que cria um `QueryClient`
   novo por render — cache compartilhado entre testes vaza dado de um caso para o
-  outro.
+  outro. Quem precisa de rota passa a opção `route`, e só então o
+  `MemoryRouter` entra na árvore; `signInForTest()` grava uma sessão, e
+  `resetGlobalStores()` roda em `beforeEach` global
+  (`frontend/src/test/setup.ts`).
+- Dados de teste vêm de **fixtures compartilhadas**, não de literais copiados:
+  `frontend/src/test/fixtures.ts` (o envelope paginado do DRF),
+  `frontend/src/features/guests/__fixtures__/guests.ts` (Ana, Bruno, Carla,
+  Davi, com os helpers `inHotel()` e `pendingCheckin()`) e
+  `frontend/src/features/reservations/__fixtures__/bills.ts` (T1–T9).
+- Os dublês se limpam sozinhos: `mockReset` e `restoreMocks` estão ligados na
+  configuração do Vitest, então nenhum teste herda o estado do vizinho e nenhum
+  `beforeEach` precisa repetir isso à mão.
+- **Formulário se testa pela regra, não pela tela, quando dá.** O par
+  react-hook-form + zod deixa a regra em `features/<x>/schemas.ts`, que é
+  função pura e tem teste próprio; o teste de componente fica com o que só o
+  componente prova — foco no primeiro campo inválido, erro do servidor
+  remapeado por `applyServerErrors` (`frontend/src/lib/forms.ts:24-56`) e
+  desaparecendo ao editar.
 
 E uma doutrina que vale respeitar: **teste de frontend não recalcula
 aritmética.** Os fixtures são cópia literal da tabela de casos
-(`__fixtures__/bills.ts`), então o que o teste prova é que o valor certo aparece
-no lugar certo — não que a conta fecha. A conta é do backend.
+(`frontend/src/features/reservations/__fixtures__/bills.ts`), então o que o
+teste prova é que o valor certo aparece no lugar certo — não que a conta fecha.
+A conta é do backend.
 
 ### 7.3 Rodar
 
@@ -922,11 +1035,20 @@ docker compose exec backend uv run pytest -q -k test_checkout_statement_matches_
 # backend, com o piso de cobertura que o CI aplica
 docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q
 
-# frontend (de dentro de frontend/)
+# frontend (de dentro de frontend/) — tudo, na ordem em que o CI cobra
+npm run check              # typecheck && lint && format:check && test:coverage && build
+
+# frontend, uma peça por vez
 npm run test -- --run      # o -- passa o --run para o vitest: uma execução, sem watch
-npm run typecheck          # tsc --noEmit
-npm run lint
+npm run test               # modo watch, para desenvolver
+npm run test:coverage      # a suíte com o piso de cobertura que o CI aplica
+npm run typecheck          # tsc -b: os três programas (aplicação, testes, vite.config.ts)
+npm run lint               # eslint . --max-warnings 0   (lint:fix corrige o que dá)
+npm run format             # prettier --write .          (format:check apenas confere)
 ```
+
+O `npm run check` é o comando único a rodar antes de commitar: se ele passa, o
+job de frontend do CI passa, porque são os mesmos passos na mesma ordem.
 
 Alterou `pyproject.toml`? O container precisa ser reconstruído
 (`docker compose up -d --build backend`) — as dependências são instaladas na
@@ -937,17 +1059,34 @@ imagem, no passo `uv sync --frozen` de `backend/Dockerfile:25`.
 `.github/workflows/ci.yml` tem **dois jobs**, ambos em `ubuntu-latest` a partir
 do checkout — o que é, por construção, a simulação de um clone limpo.
 
-**Job `backend`** (`:9-61`):
+**Job `backend`** (`:13-60`):
 
-1. sobe um serviço PostgreSQL 17 com healthcheck (`:15-28`);
-2. **a guarda de `float`** (`:48-50`) — roda **antes** de instalar qualquer coisa;
-3. `uv sync --frozen` (`:53`) — falha se `uv.lock` divergir;
-4. gera chaves de PII efêmeras (`:56-58`);
-5. `pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q` (`:61`) — a suíte
-   inteira mais o piso de 85% de cobertura.
+1. sobe um serviço PostgreSQL 17 com healthcheck (`:19-32`);
+2. **a guarda de `float`** (`:52-54`) — roda **antes** de instalar qualquer coisa;
+3. `uv sync --frozen` (`:56-57`) — falha se `uv.lock` divergir;
+4. `pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q` (`:59-60`) — a
+   suíte inteira mais o piso de 85% de cobertura.
 
-**Job `frontend`** (`:63-82`): `npm ci` (`:79`) e, num único passo (`:82`),
-`typecheck && lint && test -- --run && build`. Type error é falha de CI.
+**Job `frontend`** (`:62-109`): cada verificação é um **passo nomeado**, para
+que a aba do CI diga o que quebrou sem ninguém abrir o log:
+
+1. `npm ci` (`:81-82`) — falha se `package-lock.json` divergir;
+2. **Typecheck** (`:84-85`) — `tsc -b`; type error é falha de CI;
+3. **Lint** (`:87-88`) — `eslint . --max-warnings 0`, type-aware, com as
+   fronteiras de camada;
+4. **Format check** (`:90-91`) — `prettier --check .`;
+5. **a guarda de dinheiro** (`:93-95`) — espelho da do backend: nem
+   `src/lib/money.ts` nem o diálogo do extrato podem conter `Number(`,
+   `parseFloat`, `parseInt`, `toLocaleString` ou `Intl.NumberFormat`;
+6. **Tests with coverage floor** (`:97-98`) — a suíte mais o piso de cobertura
+   declarado em `frontend/vite.config.ts:44`;
+7. **Build** (`:100-101`) — o `vite build` de produção;
+8. o `lcov.info` sobe como artefato (`:103-109`), inclusive quando a suíte
+   falha.
+
+O job roda com `TZ: America/Sao_Paulo` (`:69-71`): os testes de data comparam
+com o relógio local, então o CI usa o fuso de produção. A versão do Node vem de
+`frontend/.nvmrc` (`:75-79`), a mesma da imagem Docker e do caminho híbrido.
 
 ### 7.5 Migrações: o que são e quando você precisa de uma
 
@@ -992,9 +1131,10 @@ tabela, o erro está no seu código.**
 
 Isso é operacional: a tabela vive replicada em `test_pricing.py:29-142` e em
 `__fixtures__/bills.ts`, e qualquer divergência entre os três quebra a suíte.
-Mudar um número exige mudar os dois arquivos **e** a especificação — nessa
-ordem, e nunca em silêncio. O comentário em
-`__fixtures__/bills.ts:5-7` diz exatamente isso.
+Mudar um número exige mudar os dois arquivos **e** a tabela — nessa ordem, e
+nunca em silêncio. O comentário em
+`frontend/src/features/reservations/__fixtures__/bills.ts:1-2` diz exatamente
+isso.
 
 Na prática, o roteiro quando um teste fica vermelho depois de uma mudança sua:
 

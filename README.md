@@ -193,18 +193,23 @@ Três notas honestas sobre esse caminho:
 
 ## 3. Verificação: as suítes de teste
 
-Retrato do commit `b690433`: **192 testes de backend** (unitários puros do motor
+Retrato de 03/09/2026: **191 testes de backend** (unitários puros do motor
 financeiro, testes de banco com PostgreSQL real e testes de API ponta a ponta) e
-**43 testes de frontend** em 13 arquivos. O número sobe conforme testes entram —
+**174 testes de frontend** em 32 arquivos. O número sobe conforme testes entram —
 os comandos abaixo é que valem como verdade, não a contagem.
 
 ```bash
 # backend — comando canônico, com o piso de cobertura
 docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q
 
-# frontend
-cd frontend && npm run test -- --run && npm run lint && npm run typecheck && npm run build
+# frontend — o script único, na mesma ordem em que o CI o executa passo a passo
+cd frontend && npm run check
 ```
+
+`npm run check` é `typecheck && lint && format:check && test:coverage && build`.
+Os cinco também rodam soltos quando você quer só um (`npm run lint`,
+`npm run test -- --run`, `npm run format` para corrigir a formatação em vez de
+apenas conferi-la).
 
 Sem a stack de pé, o mesmo pelo caminho híbrido: `cd backend && uv run pytest -q`
 (precisa do `db` no ar e das variáveis exportadas, como na seção 2).
@@ -221,10 +226,17 @@ Duas garantias que valem mencionar porque são incomuns:
 
 O CI (`.github/workflows/ci.yml`) roda os dois jobs em `ubuntu-latest` a partir
 do checkout — que é, por construção, a simulação contínua do clone limpo do
-avaliador. Ele inclui uma guarda contra `float` em código de dinheiro:
+avaliador. Cada verificação é um passo nomeado, para que a falha aponte o
+culpado sem abrir o log; duas delas são guardas de texto, uma por lado, contra
+dinheiro em ponto flutuante:
 
 ```bash
+# backend: nada em hotel/ ou accounts/ constrói um float
 ! grep -RnE "float\(" backend/hotel backend/accounts
+
+# frontend: o módulo que formata dinheiro e o extrato não convertem para número
+! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" \
+    src/lib/money.ts src/features/reservations/CheckoutStatementDialog.tsx
 ```
 
 ---
@@ -468,10 +480,16 @@ hotel-management/
 │   ├── ai/                     # diferencial opcional (5.4), zero acoplamento
 │   └── tests/{unit,db,api}/
 └── frontend/src/
-    ├── app/                    # router, providers, ProtectedRoute, dashboard
-    ├── lib/                    # apiClient (Bearer + refresh-once), money, pii, errors
-    ├── components/ui/          # primitivos Tailwind mínimos
+    ├── app/                    # casca: App, providers, router, AppLayout, DashboardPage
+    ├── lib/                    # sem UI: apiClient (Bearer + refresh-once), errors,
+    │                           #   errorLogger, schemas/forms/normalize (zod), money,
+    │                           #   pii, dates, useInvalidateServerState
+    ├── components/
+    │   ├── ErrorBoundary/      # boundary + fallback "Algo deu errado", com retry
+    │   ├── icons/              # AlertIcon, CloseIcon, RefreshIcon, SpinnerIcon
+    │   └── ui/                 # primitivos Tailwind mínimos, expostos por barrel
     └── features/{auth,guests,reservations,ai}/
+                                # api · hooks · schemas · types · componentes + testes
 ```
 
 **O estilo tem nome.** Isto é um monólito Django modular com **camada de
@@ -506,6 +524,38 @@ escolhas de estrutura:
    frontend prova é consumo fiel do contrato, apresentação da consequência da
    regra e condução do protocolo (409 → alerta → reenvio com `allow_early`).
 
+### O frontend: erros, formulários e contrato
+
+**Cada falha tem um lugar na tela, e só um.** Erro de validação de campo vai ao
+**campo culpado** (`aria-invalid` + mensagem, com a dica de formato ainda
+visível ao lado). O `409 EARLY_CHECKIN` abre o **diálogo** de alerta com a hora
+do servidor e o botão de confirmar (D4). Erro de mutation que nenhuma tela
+apresenta vira **toast** — nunca um boundary, que apagaria o formulário e o que
+o atendente digitou. Erro de render, e `5xx` na **primeira** carga de uma query,
+caem no **ErrorBoundary** ("Algo deu errado", com "Tentar novamente" e
+"Recarregar"); o boundary da tabela é local, então uma quebra nela mantém o
+header, o "Novo hóspede" e os diálogos vivos. `4xx` e backend fora do ar seguem
+inline, com retry, porque recarregar a aplicação não traz o servidor de volta.
+E a **sessão expirada** é anunciada pelo interceptor de 401, não pela tela que
+por acaso pediu a requisição: toast "Sua sessão expirou. Entre novamente.",
+cache limpo e volta ao login. A tabela desse roteamento está em
+`frontend/src/lib/queryClient.ts:9-22`.
+
+**Formulários.** Login, cadastro de hóspede e criação de reserva usam
+**react-hook-form + zod**, com um schema por feature
+(`frontend/src/features/<x>/schemas.ts`) que **espelha as regras do servidor** —
+documento com ≥ 4 alfanuméricos e telefone com ≥ 8 dígitos (D9), entrada não
+anterior a hoje e mínimo de 1 noite (D11/D13) — para o balcão errar antes da
+rede. Espelhar não é confiar: o servidor continua **autoritativo**, e o
+`400 VALIDATION_ERROR` que ele devolver é remapeado campo a campo; chave que o
+formulário não declara (`non_field_errors`, `detail`) aparece no alerta de topo
+em vez de sumir em silêncio.
+
+**Contrato validado em runtime.** Toda resposta da API passa por um schema zod
+antes de chegar à tela, e dinheiro só é aceito como string decimal de duas casas
+(`frontend/src/lib/schemas.ts`). Um desvio de contrato vira `CONTRACT_ERROR`
+visível — nunca um total plausível e errado na conta do hóspede.
+
 ### Como isto cresce (e o que foi recusado)
 
 Escalar em carga, aqui, é operação e não arquitetura: um PostgreSQL de nó único
@@ -535,10 +585,21 @@ por isso a tarifa virou parâmetro, e por isso a linha da tabela acima existe.
 
 Segurança, em uma linha cada: JWT com permissão global fechada
 (`IsAuthenticated`) e exceções explícitas; documento e telefone em claro
-normalizado, busca por fragmento, PII fora de log; CSP estrita com isenção
-pontual só na página do Swagger; headers de nosniff, referrer-policy e
-clickjacking; imagens Docker rodando como usuário **non-root**; assets do
-Swagger servidos localmente (funciona offline).
+normalizado, busca por fragmento, PII fora de log; CSP estrita **nas respostas
+do Django**, montada por middleware do backend, com isenção pontual só na página
+do Swagger; headers de nosniff, referrer-policy e clickjacking; imagens Docker
+rodando como usuário **non-root**; assets do Swagger servidos localmente
+(funciona offline).
+
+E o trade-off que fica em aberto, dito com o nome certo: os tokens vivem em
+`localStorage` (`frontend/src/lib/session.ts`), logo um XSS na aplicação os lê.
+O que limita o dano é o access de 60 min, o refresh de 12 h e a ausência de
+script de terceiro na página — **não** uma CSP, porque quem serve o documento
+HTML da aplicação é o Vite, e o cabeçalho de CSP vem do middleware do Django,
+que não serve essa página. As duas alternativas custam mais do que valem aqui:
+cookie `HttpOnly` + CSRF exigiria endpoint que a API não expõe, e servir a
+aplicação por nginx com CSP própria trocaria o caminho canônico do Compose. Fica
+registrado como evolução, não escondido como defeito.
 
 ---
 
@@ -560,3 +621,21 @@ Em conflito entre "mais feature" e "mais qualidade", venceu a qualidade.
 
 Desenvolvido com agentes de codificação sob revisão humana; todo commit passou
 pela suíte completa.
+
+O que está configurado — e é exatamente o que o CI cobra, para que "passa na
+minha máquina" e "passa no CI" signifiquem a mesma coisa:
+
+| Ferramenta | Configuração | Papel |
+|---|---|---|
+| **Ruff** | `backend/pyproject.toml` | lint e formatação do Python |
+| **Prettier** | `frontend/.prettierrc` | formatação única do frontend (sem `;`, aspas simples, 100 colunas), com `prettier-plugin-tailwindcss` ordenando as classes utilitárias. `npm run format:check` é passo do CI |
+| **ESLint 9**, flat config | `frontend/eslint.config.js` | `typescript-eslint` **type-aware** (`strictTypeChecked`), `jsx-a11y`, `react-hooks`, `simple-import-sort`, `testing-library`/`jest-dom` nos testes — e `no-restricted-imports` por pasta impondo as camadas: `lib` não importa `components` nem `features`, `components` não importa `features`, nenhuma feature alcança `app`. Roda com `--max-warnings 0` |
+| **TypeScript** | `frontend/tsconfig{,.app,.test,.node}.json` | três programas por `references` (aplicação, testes, `vite.config.ts`), para que `node` e os globais de teste não tipem código de produção. `strict` + `noUncheckedIndexedAccess`; `npm run typecheck` é `tsc -b` |
+| **Vitest** + cobertura v8 | `frontend/vite.config.ts` | `mockReset`/`restoreMocks` globais (nenhum teste herda dublê do vizinho) e **piso de cobertura** que falha o CI ao regredir |
+| **`.editorconfig`** e `.vscode/` | raiz do repositório | fim de linha, indentação e format-on-save iguais para quem clonar; as extensões sugeridas cobrem os dois lados |
+| **Node fixado** | `frontend/.nvmrc` (24) e `engines` no `package.json` | a versão da imagem, do CI e do caminho híbrido é uma só |
+
+Um comando cobre o frontend inteiro (`npm run check`, seção
+[3](#3-verificação-as-suítes-de-teste)); o job de frontend do CI repete os
+mesmos passos, um por um e nomeados, mais a guarda de dinheiro e o upload do
+relatório de cobertura.
