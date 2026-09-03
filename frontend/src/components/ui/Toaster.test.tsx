@@ -1,11 +1,15 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { act } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { AppProviders } from '@/app/providers'
 import { checkIn, checkOut } from '@/features/reservations/api'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ApiError } from '@/lib/errors'
+import { toastStore } from '@/lib/toast'
+
+import { Toaster } from './Toaster'
 
 vi.mock('@/features/reservations/api')
 
@@ -81,3 +85,44 @@ describe('handler global de erros', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 })
+
+describe('Toaster', () => {
+  it('pausa o descarte automatico enquanto o ponteiro esta sobre o aviso', async () => {
+    vi.useFakeTimers()
+    try {
+      render(<Toaster />)
+      act(() => {
+        toastStore.push('error', 'Falha ao registrar o check-in.')
+      })
+
+      const card = cardOf('Falha ao registrar o check-in.')
+      fireEvent.mouseOver(card)
+      await advanceTimers(30_000)
+      expect(screen.getByText('Falha ao registrar o check-in.')).toBeInTheDocument()
+
+      fireEvent.mouseOut(card)
+      await advanceTimers(8_000)
+      expect(screen.queryByText('Falha ao registrar o check-in.')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('anuncia so o aviso novo: a regiao live nao e atomica', () => {
+    render(<Toaster />)
+    expect(screen.getByRole('status')).toHaveAttribute('aria-atomic', 'false')
+  })
+})
+
+function cardOf(message: string): HTMLElement {
+  // eslint-disable-next-line testing-library/no-node-access -- o cartao nao tem nome acessivel proprio: quem carrega o hover e o container da mensagem.
+  const card = screen.getByText(message).parentElement
+  if (!card) throw new Error('aviso sem cartao')
+  return card
+}
+
+async function advanceTimers(ms: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms)
+  })
+}

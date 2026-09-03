@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 export interface DialogProps {
   open: boolean
@@ -98,7 +99,10 @@ export function Dialog({
 
   if (!open) return null
 
-  return (
+  // O portal existe porque a ação que abre o dialog mora numa célula da tabela,
+  // dentro de um `overflow-x-auto`: renderizado ali, o painel era recortado. O
+  // trap de foco não depende da posição na árvore, só do painel e do documento.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
       {/*
         Clique no overlay fecha um `dialog`, mas não um `alertdialog`: este
@@ -134,6 +138,7 @@ export function Dialog({
         <div className="mt-4">{children}</div>
         {footer ? <div className="mt-6 flex justify-end gap-2">{footer}</div> : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

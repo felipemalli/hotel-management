@@ -22,6 +22,13 @@ function DialogFixture({ onClose = vi.fn() }: { onClose?: () => void }) {
   )
 }
 
+function overlayOf(role: 'dialog' | 'alertdialog'): HTMLElement {
+  // eslint-disable-next-line testing-library/no-node-access -- o overlay e `aria-hidden`, logo nao tem papel nem nome: o irmao do painel e o unico caminho ate ele.
+  const overlay = screen.getByRole(role).previousElementSibling
+  if (!(overlay instanceof HTMLElement)) throw new Error('painel sem overlay irmao')
+  return overlay
+}
+
 describe('Dialog', () => {
   it('leva o foco para o painel ao abrir', () => {
     render(<DialogFixture />)
@@ -53,6 +60,40 @@ describe('Dialog', () => {
     render(<DialogFixture onClose={onClose} />)
 
     await user.keyboard('{Escape}')
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('renderiza fora da arvore do pai: a celula da tabela nao recorta o painel', () => {
+    const { container } = render(
+      <div className="overflow-x-auto">
+        <DialogFixture />
+      </div>,
+    )
+
+    const dialog = screen.getByRole('dialog')
+    expect(container).not.toContainElement(dialog)
+    expect(document.body).toContainElement(dialog)
+  })
+
+  it('fecha um dialog no clique do overlay, mas nao um alertdialog', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const { rerender } = render(
+      <Dialog open title="Extrato de checkout" onClose={onClose}>
+        <button type="button">Imprimir</button>
+      </Dialog>,
+    )
+
+    await user.click(overlayOf('dialog'))
+    expect(onClose).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <Dialog open role="alertdialog" title="Confirmar cancelamento" onClose={onClose}>
+        <button type="button">Cancelar reserva</button>
+      </Dialog>,
+    )
+
+    await user.click(overlayOf('alertdialog'))
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
