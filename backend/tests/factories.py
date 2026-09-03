@@ -56,7 +56,12 @@ class GuestFactory(factory.django.DjangoModelFactory):
     full_name = factory.Sequence(lambda n: f"Hospede Teste {n}")
     # 11 digitos unicos: `Guest.save()` normaliza a partir daqui.
     document = factory.Sequence(lambda n: f"{n:011d}")
-    phone = factory.Sequence(lambda n: f"(21) 9{n:04d}-{n:04d}")
+    # Com DDI: a fabrica escreve pelo ORM, que nao valida o telefone (a
+    # autoridade e `create_guest`). Um literal sem `+55` aqui produziria uma
+    # base de teste que a API nao aceitaria criar -- fixture mentindo sobre o
+    # sistema.
+    phone = factory.Sequence(lambda n: f"+55 21 9{n:04d}{n:04d}")
+    nationality = "BR"
 
 
 class ReservationFactory(factory.django.DjangoModelFactory):

@@ -16,10 +16,11 @@ pytestmark = pytest.mark.django_db
 ANA = {
     "full_name": "Ana Souza",
     "document": "123.456.789-01",
-    "phone": "(21) 98888-7777",
+    "phone": "+55 21 98888-7777",
+    "nationality": "BR",
 }
 ANA_STORED_DOCUMENT = "12345678901"
-ANA_STORED_PHONE = "21988887777"
+ANA_STORED_PHONE = "5521988887777"
 
 
 def test_create_guest_persists_normalized_pii(auth_client):
@@ -30,7 +31,14 @@ def test_create_guest_persists_normalized_pii(auth_client):
     assert response.data["full_name"] == "Ana Souza"
     assert response.data["document"] == ANA_STORED_DOCUMENT
     assert response.data["phone"] == ANA_STORED_PHONE
-    assert set(response.data) == {"id", "full_name", "document", "phone", "created_at"}
+    assert set(response.data) == {
+        "id",
+        "full_name",
+        "document",
+        "phone",
+        "nationality",
+        "created_at",
+    }
 
     guest = Guest.objects.get(pk=response.data["id"])
     assert guest.document == ANA_STORED_DOCUMENT
@@ -39,7 +47,9 @@ def test_create_guest_persists_normalized_pii(auth_client):
 
 def test_list_and_detail_return_the_stored_value(auth_client):
     """SPEC 2.1: listagem e detalhe devolvem o valor gravado (normalizado)."""
-    guest = GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777")
+    guest = GuestFactory(
+        full_name="Ana Souza", document="123.456.789-01", phone="+55 21 98888-7777"
+    )
 
     listed = auth_client.get("/api/guests/").data
     assert listed["count"] == 1
@@ -66,11 +76,16 @@ def test_duplicate_document_returns_409(auth_client):
 
 def test_duplicate_phone_is_allowed(auth_client):
     """D12: telefone NAO e unico -- familiares compartilham a linha."""
-    GuestFactory(full_name="Ana Souza", document="11111111111", phone="(21) 98888-7777")
+    GuestFactory(full_name="Ana Souza", document="11111111111", phone="+55 21 98888-7777")
 
     response = auth_client.post(
         "/api/guests/",
-        {"full_name": "Bruno Souza", "document": "22222222222", "phone": "(21) 98888-7777"},
+        {
+            "full_name": "Bruno Souza",
+            "document": "22222222222",
+            "phone": "+55 21 98888-7777",
+            "nationality": "BR",
+        },
         format="json",
     )
 
@@ -80,7 +95,7 @@ def test_duplicate_phone_is_allowed(auth_client):
 @pytest.mark.parametrize(
     ("payload", "field"),
     [
-        ({"document": "1.2", "phone": "(21) 98888-7777"}, "document"),
+        ({"document": "1.2", "phone": "+55 21 98888-7777"}, "document"),
         ({"document": "12345678901", "phone": "(21) 9"}, "phone"),
     ],
 )
@@ -101,13 +116,13 @@ def test_missing_minimum_fields_returns_validation_error(auth_client):
 
     assert response.status_code == 400
     assert response.data["code"] == "VALIDATION_ERROR"
-    assert set(response.data["extra"]) == {"full_name", "document", "phone"}
+    assert set(response.data["extra"]) == {"full_name", "document", "phone", "nationality"}
 
 
 def test_search_by_name_fragment_and_pii_fragment(auth_client):
     """RF3: nome, documento e telefone por fragmento (D5)."""
-    GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777")
-    GuestFactory(full_name="Bruno Lima", document="98765432100", phone="(11) 97777-6666")
+    GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="+55 21 98888-7777")
+    GuestFactory(full_name="Bruno Lima", document="98765432100", phone="+55 11 97777-6666")
 
     def names(term: str) -> list[str]:
         results = auth_client.get("/api/guests/", {"search": term}).data["results"]
@@ -115,7 +130,7 @@ def test_search_by_name_fragment_and_pii_fragment(auth_client):
 
     assert names("sou") == ["Ana Souza"]
     assert names("12345678901") == ["Ana Souza"]  # documento sem mascara
-    assert names("(21) 98888-7777") == ["Ana Souza"]  # telefone com mascara
+    assert names("+55 21 98888-7777") == ["Ana Souza"]  # telefone com mascara
     assert names("789") == ["Ana Souza"]  # fragmento de documento acha (D5)
 
 
@@ -129,7 +144,9 @@ def test_guest_not_found_returns_envelope(auth_client):
 def test_in_hotel_endpoint_shape(auth_client):
     """RF4: aba "no hotel" -- valor gravado, com `active_reservation` unico (SPEC 4.3)."""
     today = timezone.localdate()
-    inside = GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777")
+    inside = GuestFactory(
+        full_name="Ana Souza", document="123.456.789-01", phone="+55 21 98888-7777"
+    )
     reservation = ReservationFactory(
         guest=inside,
         checkin_date=today - timedelta(days=1),
@@ -150,6 +167,7 @@ def test_in_hotel_endpoint_shape(auth_client):
         "full_name",
         "document",
         "phone",
+        "nationality",
         "created_at",
         "active_reservation",
     }
@@ -168,7 +186,9 @@ def test_in_hotel_endpoint_shape(auth_client):
 def test_pending_checkin_endpoint_shape(auth_client):
     """RF5: aba de pendentes e plural e inclui reserva vencida (D14)."""
     today = timezone.localdate()
-    guest = GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777")
+    guest = GuestFactory(
+        full_name="Ana Souza", document="123.456.789-01", phone="+55 21 98888-7777"
+    )
     overdue = ReservationFactory(
         guest=guest, checkin_date=today - timedelta(days=3), checkout_date=today - timedelta(days=1)
     )
@@ -207,7 +227,7 @@ def test_create_guest_rejects_oversized_pii(auth_client, field, value):
     payload = {
         "full_name": "Fabio Lopes",
         "document": "999.888.777-66",
-        "phone": "(11) 91234-5678",
+        "phone": "+55 11 91234-5678",
         field: value,
     }
 
@@ -216,3 +236,81 @@ def test_create_guest_rejects_oversized_pii(auth_client, field, value):
     assert response.status_code == 400
     assert response.data["code"] == "VALIDATION_ERROR"
     assert field in response.data["extra"]
+
+
+# -- telefone internacional e nacionalidade (D9 estendida) --------------------
+
+
+@pytest.mark.parametrize(
+    "phone",
+    ["(21) 98888-7777", "11933334444", "21988887777"],
+    ids=["masked_without_ddi", "sao_paulo_mobile", "digits_without_ddi"],
+)
+def test_create_guest_without_country_code_returns_400(auth_client, phone):
+    """Os dois ultimos sao a razao da regra, nao capricho de formato.
+
+    `11933334444` e um celular de Sao Paulo; sem o `+`, a biblioteca o leria
+    como `+1 193...` (EUA) e gravaria um numero que nao existe. O 400 acontece
+    ANTES de qualquer escrita.
+    """
+    response = auth_client.post(
+        "/api/guests/",
+        {**ANA, "document": "55544433322", "phone": phone},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["code"] == "VALIDATION_ERROR"
+    assert "phone" in response.data["extra"]
+    assert not Guest.objects.filter(document="55544433322").exists()
+
+
+def test_foreign_phone_is_accepted(auth_client):
+    response = auth_client.post(
+        "/api/guests/",
+        {
+            "full_name": "Mary Poppins",
+            "document": "P1234567",
+            "phone": "+44 20 7946 0958",
+            "nationality": "GB",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["phone"] == "442079460958"
+    assert response.data["nationality"] == "GB"
+
+
+def test_create_guest_requires_nationality(auth_client):
+    payload = {key: value for key, value in ANA.items() if key != "nationality"}
+
+    response = auth_client.post("/api/guests/", payload, format="json")
+
+    assert response.status_code == 400
+    assert "nationality" in response.data["extra"]
+
+
+@pytest.mark.parametrize("nationality", ["ZZ", "BRA", "b"], ids=["unassigned", "alpha3", "single"])
+def test_create_guest_rejects_a_nationality_outside_iso_alpha2(auth_client, nationality):
+    response = auth_client.post(
+        "/api/guests/", {**ANA, "nationality": nationality}, format="json"
+    )
+
+    assert response.status_code == 400
+    assert "nationality" in response.data["extra"]
+
+
+def test_search_still_finds_a_fragment_of_the_stored_phone(auth_client):
+    """RF3 sobrevive ao E.164: `98888` acha, mesmo com o DDI na coluna.
+
+    Foi por isso que `normalize_phone` continuou existindo ao lado de
+    `to_e164_digits`: a busca aceita fragmento, e fragmento nunca e telefone
+    valido.
+    """
+    auth_client.post("/api/guests/", ANA, format="json")
+
+    for term in ["98888", "5521988887777", "+55 21 98888-7777", "(21) 98888"]:
+        results = auth_client.get("/api/guests/", {"search": term}).data["results"]
+
+        assert [item["full_name"] for item in results] == ["Ana Souza"], term

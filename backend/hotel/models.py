@@ -18,6 +18,7 @@ from django.db.models.functions import Upper
 from hotel.normalization import (
     DOCUMENT_MAX_LENGTH,
     PHONE_MAX_LENGTH,
+    normalize_country,
     normalize_document,
     normalize_phone,
 )
@@ -53,11 +54,22 @@ class GuestManager(models.Manager):
 
 
 class Guest(models.Model):
-    """Hospede. Nome, documento e telefone em claro e buscaveis por fragmento (D5)."""
+    """Hospede. Nome, documento e telefone em claro e buscaveis por fragmento (D5).
+
+    `phone` guarda digitos E.164 SEM o `+` (D9): a presenca do DDI e garantida
+    na ENTRADA por `services.guests.create_guest`, porque o `+` nao persiste e
+    a coluna nao distingue "5521988887777" de um numero local de 13 digitos.
+    """
 
     full_name = models.CharField(max_length=140)
     document = models.CharField(max_length=DOCUMENT_MAX_LENGTH)
     phone = models.CharField(max_length=PHONE_MAX_LENGTH)
+    # Sem `default` no model: default silencioso faria todo hospede estrangeiro
+    # nascer brasileiro no primeiro caminho de escrita que esquecesse o campo.
+    # A migration usa um default one-off (`preserve_default=False`) so para
+    # preencher linha existente. Sem CHECK regex: nao ha corrida a proteger, e a
+    # autoridade da lista ISO e o servico.
+    nationality = models.CharField(max_length=2)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -91,9 +103,10 @@ class Guest(models.Model):
         return self.full_name
 
     def save(self, *args, **kwargs):
-        """Normaliza documento e telefone por tipo em qualquer escrita (D9)."""
+        """Normaliza documento, telefone e nacionalidade em qualquer escrita (D9)."""
         self.document = normalize_document(self.document)
         self.phone = normalize_phone(self.phone)
+        self.nationality = normalize_country(self.nationality)
         super().save(*args, **kwargs)
 
 

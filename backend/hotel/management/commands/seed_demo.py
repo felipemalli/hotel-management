@@ -59,7 +59,7 @@ class Command(BaseCommand):
         self._ensure_admin()
 
         # 1. Ana Souza - reserva PENDING de hoje: povoa a aba "pendentes".
-        ana = self._ensure_guest("Ana Souza", "123.456.789-01", "(21) 98888-7777")
+        ana = self._ensure_guest("Ana Souza", "123.456.789-01", "+55 21 98888-7777", "BR")
         self._ensure_reservation(
             ana,
             checkin=today,
@@ -69,7 +69,7 @@ class Command(BaseCommand):
         )
 
         # 2. Bruno Lima - check-in feito ontem: povoa a aba "no hotel".
-        bruno = self._ensure_guest("Bruno Lima", "987.654.321-00", "(11) 97777-6666")
+        bruno = self._ensure_guest("Bruno Lima", "987.654.321-00", "+55 11 97777-6666", "BR")
         yesterday = today - timedelta(days=1)
         bruno_reservation = self._ensure_reservation(
             bruno,
@@ -90,7 +90,7 @@ class Command(BaseCommand):
         # 3. Carla Nunes - estadia sexta->domingo estritamente passada, com vaga
         #    e saida 12:01: extrato pronto com diaria de fim de semana (180,00)
         #    e multa de checkout tardio (90,00).
-        carla = self._ensure_guest("Carla Nunes", "AB123456", "(31) 96666-5555")
+        carla = self._ensure_guest("Carla Nunes", "AB123456", "+55 31 96666-5555", "PT")
         sunday = last_past_sunday(today)
         friday = sunday - timedelta(days=2)
         carla_reservation = self._ensure_reservation(
@@ -112,7 +112,7 @@ class Command(BaseCommand):
             )
 
         # 4. Davi Rocha - sem reserva: demonstra a busca por nome.
-        self._ensure_guest("Davi Rocha", "321.654.987-00", "(41) 95555-4444")
+        self._ensure_guest("Davi Rocha", "321.654.987-00", "+55 41 95555-4444", "BR")
 
         self.stdout.write(self.style.SUCCESS("Seed de demonstracao aplicado."))
         self.stdout.write(
@@ -162,7 +162,9 @@ class Command(BaseCommand):
             admin.save(update_fields=["password"])
             self.stdout.write(f"  admin criado: {ADMIN_USERNAME}")
 
-    def _ensure_guest(self, full_name: str, document: str, phone: str) -> Guest:
+    def _ensure_guest(
+        self, full_name: str, document: str, phone: str, nationality: str
+    ) -> Guest:
         """Cadastra pelo servico; a idempotencia e a leitura previa por documento.
 
         `get_or_create` gravava a linha direto no ORM, passando por cima de
@@ -175,7 +177,7 @@ class Command(BaseCommand):
             return existing
 
         guest = guest_services.create_guest(
-            full_name=full_name, document=document, phone=phone
+            full_name=full_name, document=document, phone=phone, nationality=nationality
         )
         self.stdout.write(f"  hospede criado: {full_name}")
         return guest

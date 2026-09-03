@@ -287,6 +287,7 @@ dependencies = [
     { name = "drf-spectacular", extra = ["sidecar"] },
     { name = "gunicorn" },
     { name = "httpx" },
+    { name = "phonenumberslite" },
     { name = "psycopg", extra = ["binary"] },
     { name = "redis" },
     { name = "whitenoise" },
@@ -311,6 +312,7 @@ requires-dist = [
     { name = "drf-spectacular", extras = ["sidecar"] },
     { name = "gunicorn" },
     { name = "httpx" },
+    { name = "phonenumberslite", specifier = ">=9.0.38" },
     { name = "psycopg", extras = ["binary"] },
     { name = "redis", specifier = ">=8.1.0" },
     { name = "whitenoise" },
@@ -415,6 +417,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz", hash = "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79", size = 313412, upload-time = "2026-08-04T18:15:28.737Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c", size = 129956, upload-time = "2026-08-04T18:15:27.159Z" },
+]
+
+[[package]]
+name = "phonenumberslite"
+version = "9.0.38"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/70/958aeb1e6c6f110bc0587eeb2993e059bcb6bdee5f3a78902aaefeb64db6/phonenumberslite-9.0.38.tar.gz", hash = "sha256:ee3441c0fa6e0a8a5282cf8b10fdd0bde05bb8f0fe9dd60efbfe688364819089", size = 292927, upload-time = "2026-08-28T09:48:34.938Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ed/74/487e0399e3ebbbd8ba1ad6ba553d422fb05684d1993ceff058fdc76de17c/phonenumberslite-9.0.38-py2.py3-none-any.whl", hash = "sha256:a089149e963c6373fc0db41b2b103e7d12a6788ef186c4d5c205837ff5f1e32a", size = 473165, upload-time = "2026-08-28T09:48:33.55Z" },
 ]
 
 [[package]]

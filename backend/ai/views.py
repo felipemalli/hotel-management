@@ -120,6 +120,10 @@ def ai_status(_request: Request) -> Response:
             value={
                 "full_name": "Ana Souza",
                 "document": "123.456.789-01",
+                # Devolvido COMO ESTA no texto: a extracao nao infere DDI
+                # (inferir pais e regra de negocio, e erraria calado no
+                # hospede estrangeiro). O atendente completa o `+55` no
+                # formulario, e `POST /api/guests/` exige o codigo do pais.
                 "phone": "(21) 98888-7777",
             },
             response_only=True,

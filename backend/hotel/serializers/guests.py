@@ -30,17 +30,20 @@ class GuestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Guest
-        fields = ["id", "full_name", "document", "phone", "created_at"]
+        fields = ["id", "full_name", "document", "phone", "nationality", "created_at"]
         read_only_fields = fields
 
 
 class GuestCreateSerializer(serializers.ModelSerializer):
     """Forma do cadastro (SPEC 4.3). Os 3 campos minimos do briefing sao obrigatorios.
 
-    Formato de documento e telefone (D9) e forma, e fica aqui. Unicidade do
-    documento (D12) depende do estado do banco e e regra de negocio: mora em
-    `services.guests.create_guest` (SPEC 3.4), que traduz a violacao da
-    constraint nomeada em `409 DUPLICATE_DOCUMENT`.
+    Comprimento de documento e telefone (D9) e forma, e fica aqui. O que
+    depende de conhecimento de mundo NAO fica: a validade do telefone
+    internacional (lista de DDIs e planos de numeracao) e a lista ISO de
+    nacionalidades vivem em `services.guests.create_guest` (SPEC 3.4), junto
+    com a unicidade de documento (D12) -- tudo isso tem de valer para o seed e
+    para o shell, nao so para quem entra por HTTP. `nationality` aqui e so
+    "exatamente 2 caracteres".
 
     `document` e `phone` sao declarados explicitamente para carregar
     `allow_blank=False` e o maximo de entrada de D9 -- e para que o duplicado
@@ -52,6 +55,13 @@ class GuestCreateSerializer(serializers.ModelSerializer):
         max_length=DOCUMENT_MAX_LENGTH,
         trim_whitespace=True,
     )
+    nationality = serializers.CharField(
+        allow_blank=False,
+        min_length=2,
+        max_length=2,
+        trim_whitespace=True,
+        help_text="Código ISO 3166-1 alpha-2, ex.: `BR`.",
+    )
     phone = serializers.CharField(
         allow_blank=False,
         max_length=PHONE_MAX_LENGTH,
@@ -60,7 +70,7 @@ class GuestCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Guest
-        fields = ["full_name", "document", "phone"]
+        fields = ["full_name", "document", "phone", "nationality"]
         extra_kwargs = {
             "full_name": {"allow_blank": False, "trim_whitespace": True},
         }

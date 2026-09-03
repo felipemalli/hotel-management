@@ -48,7 +48,7 @@ def test_search_document_by_fragment():
 
 def test_search_phone_by_fragment():
     """D5: fragmento de telefone acha, com ou sem mascara no termo."""
-    ana = GuestFactory(full_name="Ana Souza", phone="(21) 98888-7777")
+    ana = GuestFactory(full_name="Ana Souza", phone="+55 21 98888-7777")
 
     assert set(selectors.search_guests("98888")) == {ana}
     assert set(selectors.search_guests("888-7777")) == {ana}
@@ -56,10 +56,10 @@ def test_search_phone_by_fragment():
 
 def test_search_phone_any_format():
     """RF3: telefone acha por valor exato em qualquer formatacao (D9)."""
-    ana = GuestFactory(full_name="Ana Souza", phone="(21) 98888-7777")
-    GuestFactory(full_name="Bruno Lima", phone="(11) 97777-6666")
+    ana = GuestFactory(full_name="Ana Souza", phone="+55 21 98888-7777")
+    GuestFactory(full_name="Bruno Lima", phone="+55 11 97777-6666")
 
-    for term in ["(21) 98888-7777", "21988887777", "21 98888 7777"]:
+    for term in ["+55 21 98888-7777", "5521988887777", "21 98888 7777", "98888"]:
         assert set(selectors.search_guests(term)) == {ana}, term
 
 

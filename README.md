@@ -18,6 +18,7 @@ que o briefing não pede fica de fora de propósito (§ [8](#8-escopo-deliberada
 | Swagger (contrato navegável) | <http://localhost:8000/api/docs/> |
 | Admin do Django | <http://localhost:8000/admin/> |
 | Credenciais do seed | `atendente` / `atendente123` · `admin` / `admin123` |
+| Atenção | O esquema mudou: rode `docker compose down -v` antes de subir sobre um volume antigo. |
 
 **Índice**
 
@@ -281,7 +282,7 @@ Estas decisões são **normativas**. Todo código e teste deriva delas.
 | D6 | Cobrança usa datas agendadas ou reais? | **Reais** (`checked_in_at` / `checked_out_at`). Datas agendadas servem à reserva e às listagens; o dinheiro segue o fato. |
 | D7 | Check-in fora da data agendada | Não validamos correspondência com a data agendada (fora de escopo). D6 garante que a cobrança permanece correta. |
 | D8 | Cancelamento | Enum inclui `CANCELLED`; transição `PENDING → CANCELLED` exposta via endpoint. Nenhum outro estado cancela. |
-| D9 | Documento sem dígito / passaporte | Normalização de **armazenamento** é **por tipo**: documento = alfanumérico maiúsculo (`re.sub(r"[^A-Z0-9]", "", v.upper())`), telefone = dígitos. A coluna guarda o valor normalizado; a máscara digitada não persiste. Validação: documento ≥ 4 alfanuméricos; telefone ≥ 8 dígitos. |
+| D9 | Documento sem dígito / passaporte / telefone internacional | Normalização de **armazenamento** é **por tipo**: documento = alfanumérico maiúsculo (`re.sub(r"[^A-Z0-9]", "", v.upper())`), telefone = dígitos **E.164 sem o `+`** (`5521988887777`). A coluna guarda o valor normalizado; a máscara digitada não persiste. Validação: documento ≥ 4 alfanuméricos; telefone **exige o `+` e o código do país na entrada**, validado por `phonenumberslite` (`is_valid_number`). A presença do DDI é garantida na **entrada** — o `+` não persiste e o banco não distingue. Nacionalidade obrigatória em ISO 3166-1 alpha-2. |
 | D10 | Vaga no dia da saída em checkout tardio | **Não** se cobra vaga do dia de saída: a taxa de vaga acompanha as diárias (intervalo semiaberto de D1) e a única consequência do atraso é a multa de D3 — o briefing enumera a penalidade de forma exaustiva. |
 | D11 | Reserva com data no passado | Criação exige `checkin_date >= data local de hoje` (`400 VALIDATION_ERROR`). O passado entra no sistema pelos fatos (check-in/checkout reais), nunca pelo agendamento. |
 | D12 | Hóspede duplicado | `document` é único (`409 DUPLICATE_DOCUMENT` no segundo cadastro). Como a coluna já está normalizada (D9), a unicidade é tolerante a máscara. Telefone **não** é único (familiares compartilham). |
@@ -309,6 +310,10 @@ Para cada decisão: a leitura alternativa em uma frase testável, um caso concre
 **D8 — cancelamento só de PENDING.** Alternativa: "CHECKED_IN também cancela (estorno)." Divergência: cancelar após uma noite dormida exigiria política de estorno inexistente no briefing. Venceu a adotada: dinheiro monotônico, extrato único.
 
 **D9 — normalização alfanumérica do documento.** Alternativa: "normalizar documento por dígitos." Divergência: passaportes `AB123456` e `CD123456` colidiriam na coluna única → `409 DUPLICATE_DOCUMENT` indevido no segundo. Venceu a adotada: preserva a unicidade real; telefone segue por dígitos porque só a máscara varia.
+
+**D9 (emenda) — o telefone exige `+` e código do país na entrada.** Alternativa: "aceitar o número como vier e inferir o país." Divergência: `11933334444` é um celular de São Paulo; sem o `+`, `phonenumbers` o lê como `+1 193…` (EUA) — e `31…` vira Holanda, `41…` vira Suíça. Adotada: `400` no campo `phone`, e o atendente completa o DDI. Alternativa: o número entra no banco com o país errado, passa a busca e a unicidade sem levantar nada, e nunca mais volta ao dono. Por isso a checagem é `is_valid_number` (plano de numeração do país) e não `is_possible_number` (só comprimento) — a segunda aceitaria os três casos acima. A regra mora em `services.guests.create_guest`, não no serializer, pelo mesmo motivo de D11/D13: tem de valer para o seed e para o shell. Consequência declarada: a IA de preenchimento **não** infere DDI — inferir país a partir de um número solto é regra de negócio dentro de um prompt, acertaria o Brasil na maioria dos casos e erraria calado no hóspede estrangeiro.
+
+**D9 (emenda) — nacionalidade obrigatória, ISO 3166-1 alpha-2.** Alternativa: `django-countries`/`pycountry`. Divergência: o que o sistema precisa é recusar `ZZ`, não traduzir nomes de país para 40 idiomas nem servir um `<select>` — isso é do frontend, que já tem a lista. Adotada: um `frozenset` de 249 strings estáveis em `normalization.py`, zero dependência. O model **não** tem `default`: default silencioso faria todo hóspede estrangeiro nascer brasileiro no primeiro caminho de escrita que esquecesse o campo (o `"BR"` da migração é one-off, `preserve_default=False`).
 
 **D10 — sem vaga no dia da saída.** Alternativa: "checkout tardio cobra também a vaga do dia da saída." Divergência: T7 iria de **R$ 425,00** para R$ 445,00 (+ dom 20,00). Venceu a adotada: a consequência do atraso está enumerada exaustivamente no briefing (os 50%); cobrar vaga extra é regra inventada — e alteraria a §3.3, já conferida.
 
@@ -356,7 +361,8 @@ fora dele, exporte com `set -a && . ../.env && set +a`, como na seção 2.
 ### 5.3 PII e busca
 
 `documento` e `telefone` ficam em claro, **já normalizados** (D9): a coluna
-guarda `12345678901` e `21988887777`, não a máscara digitada. A busca
+guarda `12345678901` e `5521988887777`, não a máscara digitada — o telefone em
+dígitos E.164, sem o `+`. A busca
 (`?search=`) acha por **fragmento** nos três campos — nome, documento e
 telefone — via `icontains` e índice trigram. Termo com máscara (`789-01`,
 `(21) 98888`) é normalizado antes do predicado, então casa o valor gravado.
@@ -554,7 +560,7 @@ cache limpo e volta ao login. A tabela desse roteamento está em
 **Formulários.** Login, cadastro de hóspede e criação de reserva usam
 **react-hook-form + zod**, com um schema por feature
 (`frontend/src/features/<x>/schemas.ts`) que **espelha as regras do servidor** —
-documento com ≥ 4 alfanuméricos e telefone com ≥ 8 dígitos (D9), entrada não
+documento com ≥ 4 alfanuméricos e telefone internacional válido (D9), entrada não
 anterior a hoje e mínimo de 1 noite (D11/D13) — para o balcão errar antes da
 rede. Espelhar não é confiar: o servidor continua **autoritativo**, e o
 `400 VALIDATION_ERROR` que ele devolver é remapeado campo a campo; chave que o

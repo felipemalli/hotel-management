@@ -96,6 +96,23 @@ def test_seed_writes_through_the_services():
     assert min(created_reservations) < timezone.localdate()
 
 
+def test_seed_guests_have_country_code():
+    """O seed passa por `create_guest`, logo obedece a mesma regra da API.
+
+    Um seed com telefone sem DDI seria um seed que a propria API recusaria
+    reproduzir -- e, como ele roda na cadeia de subida do compose, a demo
+    subiria com dado que o sistema declara invalido.
+    """
+    run_seed()
+
+    phones = list(Guest.objects.values_list("phone", flat=True))
+    assert phones, "o seed nao criou hospede nenhum"
+    assert all(phone.startswith("55") and phone.isdigit() for phone in phones), phones
+    # O `+` nao persiste: a coluna e digito puro (D9).
+    assert not any("+" in phone for phone in phones)
+    assert set(Guest.objects.values_list("nationality", flat=True)) == {"BR", "PT"}
+
+
 def test_seed_is_idempotent():
     run_seed()
     guests, reservations = Guest.objects.count(), Reservation.objects.count()
@@ -134,6 +151,7 @@ def test_seed_never_logs_pii():
 
     assert "123.456.789-01" not in output
     assert "98888-7777" not in output
+    assert "5521988887777" not in output
 
 
 def test_seed_demotes_an_existing_privileged_attendant():

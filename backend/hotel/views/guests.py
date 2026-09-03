@@ -57,6 +57,12 @@ from hotel.views.openapi import DUPLICATE_DOCUMENT_RESPONSE, GUESTS_TAG
     ),
     create=extend_schema(
         summary="Cadastra hóspede",
+        description=(
+            "O telefone exige o código do país com `+` (D9): sem ele, os dígitos "
+            "seriam interpretados como de outro país em silêncio. A coluna guarda "
+            "apenas dígitos E.164 (`5521988887777`), e a busca por fragmento "
+            "continua achando `98888`. `nationality` é ISO 3166-1 alpha-2."
+        ),
         request=GuestCreateSerializer,
         responses={
             201: GuestSerializer,
@@ -69,7 +75,8 @@ from hotel.views.openapi import DUPLICATE_DOCUMENT_RESPONSE, GUESTS_TAG
                 value={
                     "full_name": "Ana Souza",
                     "document": "123.456.789-01",
-                    "phone": "(21) 98888-7777",
+                    "phone": "+55 (21) 98888-7777",
+                    "nationality": "BR",
                 },
                 request_only=True,
             )

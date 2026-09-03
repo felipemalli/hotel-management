@@ -120,24 +120,33 @@ def test_create_reservation_requires_one_night(actor):
 
 def test_create_guest_persists_normalized_pii():
     guest = guests_service.create_guest(
-        full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777"
+        full_name="Ana Souza",
+        document="123.456.789-01",
+        phone="+55 21 98888-7777",
+        nationality="BR",
     )
 
     stored = Guest.objects.get(pk=guest.pk)
     assert stored.full_name == "Ana Souza"
     assert stored.document == "12345678901"
-    assert stored.phone == "21988887777"
+    assert stored.phone == "5521988887777"
 
 
 def test_create_guest_rejects_duplicate_document_in_any_format():
     """D12 + D9: mesma identidade civil, mascara diferente, mesma coluna."""
     guests_service.create_guest(
-        full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777"
+        full_name="Ana Souza",
+        document="123.456.789-01",
+        phone="+55 21 98888-7777",
+        nationality="BR",
     )
 
     with pytest.raises(guests_service.DuplicateDocumentError) as excinfo:
         guests_service.create_guest(
-            full_name="Outra Pessoa", document="12345678901", phone="(21) 97777-6666"
+            full_name="Outra Pessoa",
+            document="12345678901",
+            phone="+55 21 97777-6666",
+            nationality="BR",
         )
 
     assert excinfo.value.code == "DUPLICATE_DOCUMENT"
@@ -160,7 +169,10 @@ def test_create_guest_translates_the_constraint_when_the_read_guard_loses_the_ra
 
     with pytest.raises(guests_service.DuplicateDocumentError):
         guests_service.create_guest(
-            full_name="Homonimo", document=existing.document, phone="(21) 90000-0000"
+            full_name="Homonimo",
+            document=existing.document,
+            phone="+55 21 90000-0000",
+            nationality="BR",
         )
 
     assert Guest.objects.count() == 1
@@ -180,11 +192,17 @@ def test_create_guest_leaves_an_outer_transaction_usable_after_the_race(monkeypa
     with transaction.atomic():
         with pytest.raises(guests_service.DuplicateDocumentError):
             guests_service.create_guest(
-                full_name="Homonimo", document=existing.document, phone="(21) 90000-0000"
+                full_name="Homonimo",
+                document=existing.document,
+                phone="+55 21 90000-0000",
+                nationality="BR",
             )
         # A transacao segue utilizavel: o cadastro seguinte entra.
         survivor = guests_service.create_guest(
-            full_name="Proximo da Fila", document="98765432100", phone="(21) 91111-2222"
+            full_name="Proximo da Fila",
+            document="98765432100",
+            phone="+55 21 91111-2222",
+            nationality="BR",
         )
 
     assert Guest.objects.filter(pk=survivor.pk).exists()
@@ -203,7 +221,10 @@ def test_constraint_name_is_extracted_from_integrity_error():
 
     with pytest.raises(IntegrityError) as excinfo, transaction.atomic():
         Guest.objects.create(
-            full_name="Homonimo", document=existing.document, phone="(21) 90000-0000"
+            full_name="Homonimo",
+            document=existing.document,
+            phone="+55 21 90000-0000",
+            nationality="BR",
         )
 
     assert errors.constraint_name(excinfo.value) == GUEST_DOCUMENT_UNIQUE
@@ -224,8 +245,69 @@ def test_duplicate_document_translation_uses_named_constraint(monkeypatch):
 
     with pytest.raises(IntegrityError), transaction.atomic():
         guests_service.create_guest(
-            full_name="Homonimo", document=existing.document, phone="(21) 90000-0000"
+            full_name="Homonimo",
+            document=existing.document,
+            phone="+55 21 90000-0000",
+            nationality="BR",
         )
+
+
+def test_create_guest_requires_a_country_code(actor):
+    """A regra mora no SERVICO, entao vale para o seed e o shell tambem (D9).
+
+    Se ela vivesse no serializer, `manage.py shell` e qualquer importador
+    gravariam telefone sem DDI numa coluna que promete E.164 -- e o valor
+    passaria a busca e a unicidade sem levantar nada.
+    """
+    with pytest.raises(service.DomainValidationError) as excinfo:
+        guests_service.create_guest(
+            full_name="Sem DDI",
+            document="55544433322",
+            phone="(21) 98888-7777",
+            nationality="BR",
+        )
+
+    assert excinfo.value.code == "VALIDATION_ERROR"
+    assert excinfo.value.status_code == 400
+    assert "phone" in excinfo.value.extra
+    assert not Guest.objects.exists()
+
+
+def test_create_guest_stores_foreign_phone_as_e164_digits(actor):
+    guest = guests_service.create_guest(
+        full_name="Mary Poppins",
+        document="P1234567",
+        phone="+44 20 7946 0958",
+        nationality="GB",
+    )
+
+    stored = Guest.objects.get(pk=guest.pk)
+    assert stored.phone == "442079460958"
+    assert stored.nationality == "GB"
+
+
+def test_create_guest_rejects_unknown_nationality(actor):
+    with pytest.raises(service.DomainValidationError) as excinfo:
+        guests_service.create_guest(
+            full_name="Pais Inexistente",
+            document="99988877766",
+            phone="+55 21 98888-7777",
+            nationality="ZZ",
+        )
+
+    assert "nationality" in excinfo.value.extra
+    assert not Guest.objects.exists()
+
+
+def test_create_guest_upcases_the_nationality(actor):
+    guest = guests_service.create_guest(
+        full_name="Minusculo",
+        document="12312312312",
+        phone="+55 21 98888-7777",
+        nationality="br",
+    )
+
+    assert Guest.objects.get(pk=guest.pk).nationality == "BR"
 
 
 # -- ator das transicoes ------------------------------------------------------

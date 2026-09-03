@@ -39,9 +39,17 @@ SYSTEM_PROMPT = (
     'exatamente com estas três chaves: {"full_name": "", "document": "", "phone": ""}.\n'
     "Regras:\n"
     "- preserve a formatação original de documento e telefone (pontos, parênteses, hífens);\n"
+    "- devolva o telefone EXATAMENTE como aparece no texto: não acrescente código de "
+    "país, não complete DDD, não reformate;\n"
     "- não invente dados: se o texto não trouxer um dos campos, devolva string vazia nele;\n"
     "- não devolva nenhuma outra chave, nem texto fora do JSON."
 )
+# Por que o prompt e explicito em NAO inferir DDI: o formulario exige telefone
+# com codigo de pais, e seria tentador pedir ao modelo que o complete. Inferir
+# pais a partir de um numero solto e regra de negocio -- e o modelo acertaria o
+# Brasil na maioria dos casos e erraria calado no hospede estrangeiro, gravando
+# um numero que nao existe. O atendente ve o numero como foi dito e completa o
+# DDI; a validacao fica com `services.guests.create_guest`.
 
 
 def extract_guest_fields(text: str) -> dict[str, Any]:
