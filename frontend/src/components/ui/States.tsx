@@ -1,10 +1,5 @@
 import { Button } from './Button'
 
-/**
- * Estados de UI obrigatorios da SPEC 5.3/F1: loading (skeleton), vazio e erro
- * com retry. Componentes separados para que cada tabela declare so o que usa.
- */
-
 export function TableSkeleton({ rows = 4, columns = 4 }: { rows?: number; columns?: number }) {
   return (
     <div

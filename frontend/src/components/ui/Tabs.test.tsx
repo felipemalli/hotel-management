@@ -8,12 +8,6 @@ import { GUEST_TABS, type GuestTab } from '@/features/guests/GuestTable'
 import { tabPanelId } from './tabIds'
 import { Tabs } from './Tabs'
 
-/**
- * Acabamento de teclado das abas (Workstream E) sobre as tres listagens da
- * SPEC 5.3/F1. As abas reais sao importadas de `GUEST_TABS` para o teste nao
- * inventar um conjunto que a app nao tem.
- */
-
 function TabsFixture() {
   const [value, setValue] = useState<GuestTab>('todos')
   return (
@@ -29,7 +23,7 @@ function TabsFixture() {
 }
 
 describe('Tabs', () => {
-  it('expoe as tres listagens da SPEC 5.3/F1 com a ativa detectavel', () => {
+  it('expoe as tres listagens com a aba ativa detectavel por ARIA', () => {
     render(<TabsFixture />)
 
     expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
@@ -59,7 +53,6 @@ describe('Tabs', () => {
     await user.keyboard('{End}')
     expect(screen.getByRole('tab', { name: 'Check-in pendente' })).toHaveFocus()
 
-    // Circular: da ultima, a seta direita volta para a primeira.
     await user.keyboard('{ArrowRight}')
     expect(screen.getByRole('tab', { name: 'Todos' })).toHaveFocus()
 

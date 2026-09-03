@@ -1,11 +1,5 @@
 import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
 
-/**
- * Primitivos de tabela (SPEC 5.1). Wrappers finos de proposito: a semantica
- * HTML (`table`/`thead`/`th scope`) fica intacta para leitor de tela e para os
- * queries por `role` dos testes.
- */
-
 export function Table({ children, caption }: { children: ReactNode; caption?: string }) {
   return (
     <div className="overflow-x-auto rounded-lg ring-1 ring-slate-200">

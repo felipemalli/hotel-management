@@ -1,11 +1,5 @@
 import type { ReactNode } from 'react'
 
-/**
- * Faixa de mensagem **ancorada no contexto** — dentro do formulario, ao lado do
- * que ela explica. Falha de mutation sem campo culpado nao vem por aqui: vai
- * para o toast global (`Toaster`, SPEC 8.2/E).
- */
-
 export type AlertTone = 'error' | 'warning' | 'success' | 'info'
 
 const TONES: Record<AlertTone, string> = {
@@ -15,10 +9,6 @@ const TONES: Record<AlertTone, string> = {
   info: 'bg-slate-50 text-slate-700 ring-slate-200',
 }
 
-/**
- * `alert` interrompe a leitura em curso; `status` espera a pausa. Falha e
- * aviso merecem a interrupcao, confirmacao e informacao nao.
- */
 const ROLES: Record<AlertTone, 'alert' | 'status'> = {
   error: 'alert',
   warning: 'alert',

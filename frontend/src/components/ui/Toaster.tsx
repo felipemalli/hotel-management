@@ -2,18 +2,6 @@ import { useEffect, useSyncExternalStore } from 'react'
 
 import { type Toast, toastStore, type ToastTone } from '@/lib/toast'
 
-/**
- * Superficie do handler global de erros (SPEC 8.2/E).
- *
- * Uma unica regiao `aria-live` no canto da tela, montada uma vez pelos
- * providers. `role="status"` + `aria-live="polite"` em vez de `alert`: o aviso
- * e anunciado sem interromper o que o leitor de tela esta lendo, e o texto
- * segue visivel ate o atendente fechar ou o timer expirar.
- *
- * O erro nunca desaparece sozinho **antes** de dar tempo de ler: 8 s, e sempre
- * com botao de fechar (WCAG 2.2.1 — o usuario mantem o controle).
- */
-
 const AUTO_DISMISS_MS = 8_000
 
 const TONES: Record<ToastTone, string> = {

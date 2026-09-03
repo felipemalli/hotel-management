@@ -9,16 +9,6 @@ import { ApiError } from '@/lib/errors'
 
 vi.mock('@/features/reservations/api')
 
-/**
- * Handler global de erros (SPEC 8.2/E) e o ramo de fallback do fluxo F2
- * (SPEC 5.3: "qualquer outro erro segue o handler global").
- *
- * O teste monta `AppProviders` de proposito: o que se prova nao e o componente
- * `Toaster` isolado, e sim a ligacao entre o `MutationCache` do `queryClient` e
- * a regiao `aria-live` — quem falha e uma mutation qualquer, sem `onError`
- * proprio para erro inesperado.
- */
-
 function renderActions() {
   return render(
     <AppProviders>
@@ -45,7 +35,6 @@ describe('handler global de erros', () => {
     const region = await screen.findByRole('status')
     expect(region).toHaveTextContent('Transição inválida: CHECKED_OUT -> CHECKED_OUT.')
 
-    // O aviso fica sob controle do atendente (WCAG 2.2.1): fecha no botao.
     await user.click(screen.getByRole('button', { name: 'Fechar aviso' }))
     await waitFor(() =>
       expect(screen.getByRole('status')).not.toHaveTextContent('Transição inválida'),
@@ -70,7 +59,7 @@ describe('handler global de erros', () => {
     )
   })
 
-  it('nao transforma o 409 EARLY_CHECKIN em toast: ele e o alerta da RN4', async () => {
+  it('nao transforma o 409 EARLY_CHECKIN em toast: ele abre o alertdialog', async () => {
     const user = userEvent.setup()
     vi.mocked(checkIn).mockRejectedValue(
       new ApiError({

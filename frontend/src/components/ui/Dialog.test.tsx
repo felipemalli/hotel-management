@@ -5,11 +5,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { Dialog } from './Dialog'
 
-/**
- * Acabamento de acessibilidade do modal (Workstream E): o que sustenta o
- * `aria-modal="true"` dos fluxos F2 e F3 — foco entra, circula, e volta.
- */
-
 function DialogFixture({ onClose = vi.fn() }: { onClose?: () => void }) {
   return (
     <>
@@ -43,11 +38,9 @@ describe('Dialog', () => {
     await user.tab()
     expect(screen.getByRole('button', { name: 'Fechar' })).toHaveFocus()
 
-    // Do ultimo controle o Tab volta ao primeiro, nunca para a tela atras.
     await user.tab()
     expect(screen.getByRole('button', { name: 'Imprimir' })).toHaveFocus()
 
-    // E Shift+Tab fecha o ciclo no sentido oposto.
     await user.tab({ shift: true })
     expect(screen.getByRole('button', { name: 'Fechar' })).toHaveFocus()
 
@@ -90,15 +83,9 @@ describe('Dialog', () => {
   })
 })
 
-/**
- * O pai re-renderiza (um refetch de listagem, por exemplo) e passa um
- * `onClose` novo, porque na pratica ele e uma arrow inline. Se o efeito de
- * foco depender dessa identidade, ele roda de novo e joga o cursor de volta
- * ao painel — no meio da digitacao do atendente.
- *
- * O re-render entra por `rerender`, nao por clique: clicar move o foco por
- * conta propria e mascararia justamente o que se quer medir.
- */
+// O re-render entra por `rerender`, e não por clique: clicar move o foco por
+// conta própria e mascararia justamente o que se quer medir — que o efeito de
+// foco do Dialog não reage a um `onClose` de identidade nova.
 function FormInDialog() {
   return (
     <Dialog open title="Novo hóspede" onClose={vi.fn()}>
@@ -118,7 +105,6 @@ describe('Dialog e o re-render do pai', () => {
     await user.keyboard('Ana')
     expect(input).toHaveFocus()
 
-    // Cada render de `FormInDialog` cria um `onClose` de identidade nova.
     rerender(<FormInDialog />)
 
     expect(screen.getByLabelText('Nome')).toHaveFocus()

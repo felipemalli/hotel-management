@@ -1,10 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
-/**
- * Botao unico do sistema (SPEC 5.1: primitivos minimos em Tailwind).
- * Foco visivel em todas as variantes — acessibilidade de teclado no balcao.
- */
-
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
 export type ButtonSize = 'md' | 'sm'
 

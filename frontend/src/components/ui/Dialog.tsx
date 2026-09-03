@@ -1,19 +1,5 @@
 import { type ReactNode, useEffect, useId, useRef } from 'react'
 
-/**
- * Modal minimo (SPEC 5.1) usado pelos fluxos F2 (alerta de check-in) e F3
- * (extrato de checkout).
- *
- * Acessibilidade deliberada, nao decorativa: `role="dialog"` + `aria-modal`,
- * titulo ligado por `aria-labelledby`, Escape fecha, foco entra no painel ao
- * abrir e volta ao elemento anterior ao fechar. Sem portal: a arvore da app e
- * unica e o overlay e `fixed`, o que mantem o componente trivial de testar.
- *
- * O foco fica **preso** no painel enquanto o modal esta aberto. Sem isso,
- * `aria-modal="true"` mente: o leitor de tela anuncia um dialogo modal e a
- * tecla Tab sai dele para a tabela atras do overlay, onde o clique nem chega.
- */
-
 export interface DialogProps {
   open: boolean
   title: string
@@ -21,7 +7,6 @@ export interface DialogProps {
   onClose: () => void
   children?: ReactNode
   footer?: ReactNode
-  /** Alerta de check-in usa `alertdialog`: exige decisao antes de seguir. */
   role?: 'dialog' | 'alertdialog'
   size?: 'sm' | 'md' | 'lg'
 }
@@ -32,7 +17,6 @@ const SIZES = {
   lg: 'max-w-2xl',
 } as const
 
-/** Ordem de foco do painel, ignorando o que esta desabilitado ou fora de fluxo. */
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
@@ -55,11 +39,9 @@ export function Dialog({
   const panelRef = useRef<HTMLDivElement | null>(null)
   const previouslyFocused = useRef<Element | null>(null)
 
-  // Foco: UMA vez por abertura. Nao pode depender de `onClose`, que na pratica
-  // e uma arrow inline e troca de identidade a cada render do pai — o efeito
-  // reexecutava e jogava o cursor de volta ao painel no meio da digitacao, e
-  // `previouslyFocused` era sobrescrito com o proprio campo, de modo que ao
-  // fechar o foco voltava para um no ja removido em vez do botao de origem.
+  // O efeito de foco depende só de `open`. Depender de `onClose` — na prática
+  // uma arrow inline, de identidade nova a cada render do pai — reexecutava o
+  // efeito e roubava o cursor do campo em digitação.
   useEffect(() => {
     if (!open) return
 
@@ -72,7 +54,6 @@ export function Dialog({
     }
   }, [open])
 
-  // Teclado: este SIM depende de `onClose`, e reassinar o listener e barato.
   useEffect(() => {
     if (!open) return
 
@@ -89,7 +70,7 @@ export function Dialog({
       if (!panel) return
 
       const stops = focusableIn(panel)
-      // Painel sem nada focavel: o proprio painel e o unico ponto de parada.
+      // Painel sem nada focável: o próprio painel é o único ponto de parada.
       if (stops.length === 0) {
         event.preventDefault()
         panel.focus()
@@ -120,10 +101,9 @@ export function Dialog({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
       {/*
-        Clique no overlay fecha um `dialog`, mas nao um `alertdialog`: este
-        ultimo existe para exigir uma decisao (F2), e clique fora e gesto
-        ambiguo demais para valer como "cancelar". Escape e o botao Cancelar
-        seguem disponiveis.
+        Clique no overlay fecha um `dialog`, mas não um `alertdialog`: este
+        último existe para exigir uma decisão, e clique fora é gesto ambíguo
+        demais para valer como "cancelar". Escape e o botão seguem disponíveis.
       */}
       <div
         className="absolute inset-0 bg-slate-900/50"

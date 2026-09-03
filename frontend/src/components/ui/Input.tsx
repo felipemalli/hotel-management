@@ -1,12 +1,5 @@
 import { type InputHTMLAttributes, useId } from 'react'
 
-/**
- * Campo de texto com label e mensagem de erro acopladas.
- *
- * O erro e ligado por `aria-describedby` e `aria-invalid`: leitor de tela
- * anuncia a causa, e o teste consulta o campo pelo label acessivel.
- */
-
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string
   error?: string

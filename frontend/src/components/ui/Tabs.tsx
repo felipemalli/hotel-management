@@ -2,21 +2,6 @@ import { type KeyboardEvent, type ReactNode, useRef } from 'react'
 
 import { tabId, tabPanelId } from './tabIds'
 
-/**
- * Abas acessiveis (SPEC 5.3/F1: Todos | No hotel | Check-in pendente).
- *
- * `role="tablist"` + `aria-selected`: a aba ativa e programaticamente
- * detectavel, nao apenas colorida. Navegacao pelo padrao ARIA de tabs, que e o
- * que o atendente de balcao encontra ao usar o teclado:
- *
- * - **roving tabindex** — um unico Tab entra e sai do grupo de abas, em vez de
- *   parar em cada uma delas antes de chegar na tabela;
- * - setas esquerda/direita trocam de aba, `Home`/`End` vao para as pontas.
- *
- * Os ids sao deterministicos (`tabId`/`tabPanelId`) para que o painel possa
- * declarar `aria-labelledby` sem que a tabela precise conhecer este componente.
- */
-
 export interface TabItem<T extends string> {
   id: T
   label: string
@@ -62,7 +47,6 @@ export function Tabs<T extends string>({ items, value, onChange, label }: TabsPr
   }
 
   return (
-    // Roving tabindex: quem recebe foco e o tab selecionado, e o tablist so delega as setas.
     // eslint-disable-next-line jsx-a11y/interactive-supports-focus -- foco mora nos filhos
     <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="flex flex-wrap gap-1">
       {items.map((item) => {
@@ -91,8 +75,6 @@ export function Tabs<T extends string>({ items, value, onChange, label }: TabsPr
           >
             {item.label}
             {item.badge !== undefined ? (
-              // Contagem: contraste proprio em vez de opacidade sobre o fundo
-              // da aba, que derrubava a leitura na aba nao selecionada.
               <span
                 className={`ml-1.5 text-xs font-normal ${selected ? 'text-slate-300' : 'text-slate-500'}`}
               >
