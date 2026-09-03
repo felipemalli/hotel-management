@@ -34,7 +34,6 @@ from hotel.serializers import (
     CheckInRequestSerializer,
     ErrorEnvelopeSerializer,
     GuestCreateSerializer,
-    GuestDetailSerializer,
     GuestInHotelSerializer,
     GuestPendingCheckinSerializer,
     GuestSerializer,
@@ -81,14 +80,13 @@ INVALID_STATUS_EXAMPLE = OpenApiExample(
     list=extend_schema(
         summary="Lista e busca hóspedes",
         description=(
-            "PII **sempre mascarada** (SPEC 2.2). `search` acha nome por fragmento "
-            "(trigram) e documento/telefone por valor exato em qualquer formatação "
-            "(blind index, D5)."
+            "`search` acha nome, documento e telefone por fragmento (trigram, D5). "
+            "Documento e telefone aceitam máscara no termo (D9)."
         ),
         parameters=[
             OpenApiParameter(
                 name="search",
-                description="Nome (fragmento), documento ou telefone (valor exato).",
+                description="Nome, documento ou telefone, por fragmento.",
                 required=False,
                 type=str,
             )
@@ -96,9 +94,9 @@ INVALID_STATUS_EXAMPLE = OpenApiExample(
         responses={200: GuestSerializer(many=True)},
     ),
     retrieve=extend_schema(
-        summary="Detalhe do hóspede (PII completa)",
-        description="Único endpoint que devolve documento e telefone sem máscara (SPEC 2.2).",
-        responses={200: GuestDetailSerializer, 404: ErrorEnvelopeSerializer},
+        summary="Detalhe do hóspede",
+        description="Devolve o valor gravado (documento e telefone já normalizados, SPEC 2.1).",
+        responses={200: GuestSerializer, 404: ErrorEnvelopeSerializer},
     ),
     create=extend_schema(
         summary="Cadastra hóspede",
@@ -137,8 +135,6 @@ class GuestViewSet(
         return Guest.objects.all()
 
     def get_serializer_class(self):
-        if self.action == "retrieve":
-            return GuestDetailSerializer
         if self.action == "create":
             return GuestCreateSerializer
         if self.action == "in_hotel":
@@ -151,7 +147,6 @@ class GuestViewSet(
         serializer = GuestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         guest = guests_service.create_guest(**serializer.validated_data)
-        # Resposta mascarada, como toda listagem (SPEC 4.3).
         return Response(GuestSerializer(guest).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(

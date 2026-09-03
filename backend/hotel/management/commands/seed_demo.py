@@ -7,9 +7,9 @@ Regras que este comando respeita e que valem revisao:
   `timezone.localdate()`, logo o cenario e valido em qualquer dia de execucao.
 * Nunca escreve `status` direto: as transicoes passam pelos services com
   relogio injetado (SPEC 0.3), os mesmos que a API usa.
-* Idempotente: `get_or_create` por `document_hash`; reexecucao nao duplica
-  hospede nem re-transiciona reserva.
-* Nao registra PII em log (SPEC 2.2): imprime nome e status, nunca documento
+* Idempotente: `get_or_create` por `document` (ja normalizado); reexecucao
+  nao duplica hospede nem re-transiciona reserva.
+* Nao registra PII em log (SPEC 2.1): imprime nome e status, nunca documento
   ou telefone.
 """
 
@@ -22,8 +22,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from hotel.crypto import blind_index, normalize_document
 from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.normalization import normalize_document
 from hotel.services import reservations as reservation_services
 
 ATTENDANT_USERNAME = "atendente"
@@ -125,8 +125,8 @@ class Command(BaseCommand):
 
     def _ensure_guest(self, full_name: str, document: str, phone: str) -> Guest:
         guest, created = Guest.objects.get_or_create(
-            document_hash=blind_index(normalize_document(document)),
-            defaults={"full_name": full_name, "document": document, "phone": phone},
+            document=normalize_document(document),
+            defaults={"full_name": full_name, "phone": phone},
         )
         if created:
             self.stdout.write(f"  hospede criado: {full_name}")

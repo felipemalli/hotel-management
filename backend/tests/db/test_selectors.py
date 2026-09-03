@@ -1,5 +1,5 @@
 """
-Camada de leitura (SPEC 4.3, 6.1). Precisa de PG (trigram + hashes).
+Camada de leitura (SPEC 4.3, 6.1). Precisa de PG (trigram).
 
 Os nomes desta suite sao normativos: matriz de rastreabilidade SPEC 6.3
 (RF3, RF4, RF5).
@@ -38,11 +38,20 @@ def test_search_document_any_format():
         assert set(selectors.search_guests(term)) == {ana}, term
 
 
-def test_search_document_does_not_match_a_fragment():
-    """Trade-off assumido em D5: cifra em repouso custa a busca parcial de PII."""
-    GuestFactory(full_name="Ana Souza", document="123.456.789-01")
+def test_search_document_by_fragment():
+    """D5: fragmento de documento acha -- cifra nao esta mais no caminho."""
+    ana = GuestFactory(full_name="Ana Souza", document="123.456.789-01")
 
-    assert list(selectors.search_guests("789")) == []
+    assert set(selectors.search_guests("789")) == {ana}
+    assert set(selectors.search_guests("789-01")) == {ana}
+
+
+def test_search_phone_by_fragment():
+    """D5: fragmento de telefone acha, com ou sem mascara no termo."""
+    ana = GuestFactory(full_name="Ana Souza", phone="(21) 98888-7777")
+
+    assert set(selectors.search_guests("98888")) == {ana}
+    assert set(selectors.search_guests("888-7777")) == {ana}
 
 
 def test_search_phone_any_format():
@@ -70,7 +79,7 @@ def test_search_without_term_lists_everyone():
 
 
 def test_search_term_without_alphanumerics_matches_nothing():
-    """Termo so de separadores nao gera blind index de valor vazio."""
+    """Termo so de separadores nao gera predicado de documento/telefone vazio."""
     GuestFactory(full_name="Ana Souza", document="123.456.789-01")
 
     assert list(selectors.search_guests("()-.")) == []

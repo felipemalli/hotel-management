@@ -6,25 +6,22 @@ Fronteira de I/O e nada mais. Nenhum calculo de dinheiro acontece aqui
 de `Decimal` -- e o `DecimalField` do DRF garante a saida como **string**
 decimal (`"120.00"`), nunca como numero de ponto flutuante.
 
-Mascaramento (SPEC 2.2) e decidido por endpoint, nao por flag de runtime:
-`GuestSerializer` (listagens e abas) SEMPRE mascara; `GuestDetailSerializer`
-(detalhe) devolve o valor completo.
+Listagens e detalhe devolvem o valor gravado (normalizado, SPEC 2.1). A
+formatacao para exibicao (mascara de CPF/telefone) e do frontend.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from hotel.crypto import (
+from hotel.normalization import (
     DOCUMENT_MAX_LENGTH,
     DOCUMENT_MIN_LENGTH,
     PHONE_MAX_LENGTH,
     PHONE_MIN_LENGTH,
-    mask_pii,
     normalize_document,
     normalize_phone,
 )
@@ -55,30 +52,7 @@ class ErrorEnvelopeSerializer(serializers.Serializer):
 
 
 class GuestSerializer(serializers.ModelSerializer):
-    """Listagens e abas: PII **sempre** mascarada (SPEC 2.2)."""
-
-    document = serializers.SerializerMethodField()
-    phone = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Guest
-        fields = ["id", "full_name", "document", "phone", "created_at"]
-
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_document(self, guest: Guest) -> str:
-        return mask_pii(guest.document)
-
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_phone(self, guest: Guest) -> str:
-        return mask_pii(guest.phone)
-
-
-class GuestDetailSerializer(serializers.ModelSerializer):
-    """Detalhe: valor completo -- o atendente confere o documento no balcao.
-
-    Minimizacao (SPEC 2.2): o dado pleno so trafega quando explicitamente
-    solicitado por id.
-    """
+    """Listagens, detalhe e abas: valor gravado, ja normalizado (SPEC 2.1)."""
 
     class Meta:
         model = Guest
@@ -92,19 +66,28 @@ class GuestCreateSerializer(serializers.ModelSerializer):
     Formato de documento e telefone (D9) e forma, e fica aqui. Unicidade do
     documento (D12) depende do estado do banco e e regra de negocio: mora em
     `services.guests.create_guest` (SPEC 3.4).
+
+    `document` e `phone` sao declarados explicitamente: o ModelSerializer
+    herdaria UniqueValidator de `unique=True` e o duplicado sairia como
+    `400 VALIDATION_ERROR` -- e ainda comparando o valor nao normalizado.
     """
+
+    document = serializers.CharField(
+        allow_blank=False,
+        max_length=DOCUMENT_MAX_LENGTH,
+        trim_whitespace=True,
+    )
+    phone = serializers.CharField(
+        allow_blank=False,
+        max_length=PHONE_MAX_LENGTH,
+        trim_whitespace=True,
+    )
 
     class Meta:
         model = Guest
         fields = ["full_name", "document", "phone"]
         extra_kwargs = {
             "full_name": {"allow_blank": False, "trim_whitespace": True},
-            # `EncryptedCharField` e um TextField (o ciphertext nao cabe em
-            # CharField), entao o ModelSerializer herda `max_length=None` e
-            # aceitaria um documento de megabytes. O minimo ja era validado;
-            # o maximo faltava.
-            "document": {"allow_blank": False, "max_length": DOCUMENT_MAX_LENGTH},
-            "phone": {"allow_blank": False, "max_length": PHONE_MAX_LENGTH},
         }
 
     def validate_document(self, value: str) -> str:
@@ -231,7 +214,7 @@ class CheckInRequestSerializer(serializers.Serializer):
 
 
 class GuestMinimalSerializer(serializers.ModelSerializer):
-    """Identificacao do hospede no extrato -- sem PII (SPEC 2.2)."""
+    """Identificacao do hospede no extrato -- sem documento/telefone (SPEC 2.1)."""
 
     class Meta:
         model = Guest

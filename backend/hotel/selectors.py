@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from django.db.models import Prefetch, Q, QuerySet
 
-from hotel.crypto import blind_index, normalize_document, normalize_phone
 from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.normalization import normalize_document, normalize_phone
 
 # Atributos preenchidos pelos prefetches abaixo, consumidos pelos
 # serializers das abas "no hotel" e "pendentes" (SPEC 4.3).
@@ -19,11 +19,10 @@ PENDING_RESERVATIONS_ATTR = "pending_reservations"
 
 
 def search_guests(term: str | None = None) -> QuerySet[Guest]:
-    """Nome por fragmento; documento e telefone por valor exato (SPEC 4.3, D5).
+    """Nome, documento e telefone por fragmento (SPEC 4.3, D5).
 
-    O fragmento so vale para `full_name`, que nao e cifrado. Documento e
-    telefone acham por igualdade sobre o blind index -- logo, em qualquer
-    formatacao, mas nunca por pedaco do valor.
+    Documento e telefone sao normalizados antes do `icontains`, entao o termo
+    aceita mascara (`789-01`, `(21) 98888`) e ainda assim casa o valor gravado.
     """
     queryset = Guest.objects.all()
     term = (term or "").strip()
@@ -34,11 +33,11 @@ def search_guests(term: str | None = None) -> QuerySet[Guest]:
 
     document = normalize_document(term)
     if document:
-        predicate |= Q(document_hash=blind_index(document))
+        predicate |= Q(document__icontains=document)
 
     phone = normalize_phone(term)
     if phone:
-        predicate |= Q(phone_hash=blind_index(phone))
+        predicate |= Q(phone__icontains=phone)
 
     return queryset.filter(predicate)
 

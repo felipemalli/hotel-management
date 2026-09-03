@@ -52,11 +52,6 @@ jobs:
       - name: Instalar dependencias travadas
         run: uv sync --frozen
 
-      - name: Gerar chaves de PII efemeras para os testes
-        run: |
-          echo "FIELD_ENCRYPTION_KEY=$(uv run python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" >> "$GITHUB_ENV"
-          echo "HASH_PEPPER=$(python3 -c 'import secrets; print(secrets.token_hex(32))')" >> "$GITHUB_ENV"
-
       - name: Suite backend com cobertura
         run: uv run pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q
 

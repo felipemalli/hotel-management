@@ -3,7 +3,7 @@ Modelos do dominio (SPEC 1.2-1.5).
 
 Models enxutos (SPEC 0.3): nenhum calculo de dinheiro aqui -- isso e de
 `services/pricing.py`. A unica logica que sobrevive no model e a
-sincronizacao dos blind indexes, que precisa valer para qualquer caminho de
+normalizacao de documento/telefone, que precisa valer para qualquer caminho de
 escrita (API, seed, admin, shell).
 """
 
@@ -14,8 +14,12 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models.functions import Upper
 
-from hotel.crypto import blind_index, normalize_document, normalize_phone
-from hotel.fields import EncryptedCharField
+from hotel.normalization import (
+    DOCUMENT_MAX_LENGTH,
+    PHONE_MAX_LENGTH,
+    normalize_document,
+    normalize_phone,
+)
 
 
 class ReservationStatus(models.TextChoices):
@@ -29,28 +33,25 @@ class GuestManager(models.Manager):
     """Recusa as escritas que passam por cima do `save()` do modelo.
 
     `bulk_create` e `QuerySet.update()` nao chamam `save()`, e e o `save()` que
-    mantem `document_hash`/`phone_hash` em sincronia com a PII cifrada (SPEC
-    2.1). Sem este guarda, o hospede era gravado com hash vazio: invisivel para
-    a busca exata e para a unicidade de documento, sem erro nenhum. Mesma
-    disciplina do `get_lookup` de `EncryptedCharField` -- falhar alto e melhor
-    que gravar dado silenciosamente quebrado.
+    normaliza `document`/`phone` (SPEC 2.1, D9). Sem este guarda, o hospede era
+    gravado com a mascara digitada: a unicidade de documento e a busca por
+    fragmento falhariam em silencio. Falhar alto e melhor que gravar dado
+    silenciosamente quebrado.
     """
 
     def bulk_create(self, *args, **kwargs):
         raise NotImplementedError(
-            "Guest.objects.bulk_create nao mantem document_hash/phone_hash "
+            "Guest.objects.bulk_create nao normaliza document/phone "
             "(SPEC 2.1). Crie um por um com save(), ou use os services."
         )
 
 
 class Guest(models.Model):
-    """Hospede. `full_name` em claro (busca parcial trigram); PII cifrada (D5)."""
+    """Hospede. Nome, documento e telefone em claro e buscaveis por fragmento (D5)."""
 
     full_name = models.CharField(max_length=140)
-    document = EncryptedCharField()
-    document_hash = models.CharField(max_length=64, unique=True, editable=False)
-    phone = EncryptedCharField()
-    phone_hash = models.CharField(max_length=64, db_index=True, editable=False)
+    document = models.CharField(max_length=DOCUMENT_MAX_LENGTH, unique=True)
+    phone = models.CharField(max_length=PHONE_MAX_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -59,28 +60,30 @@ class Guest(models.Model):
     class Meta:
         ordering = ["full_name", "id"]
         indexes = [
-            # Indice FUNCIONAL: casa o SQL real do icontains no PG,
-            # `UPPER("full_name"::text) LIKE UPPER(%s)` (SPEC 1.4, V4+V5).
+            # Indices FUNCIONAIS: casam o SQL real do icontains no PG,
+            # `UPPER("coluna"::text) LIKE UPPER(%s)` (SPEC 1.4, V4+V5).
             GinIndex(
                 OpClass(Upper("full_name"), name="gin_trgm_ops"),
                 name="guest_name_trgm_upper",
+            ),
+            GinIndex(
+                OpClass(Upper("document"), name="gin_trgm_ops"),
+                name="guest_document_trgm_upper",
+            ),
+            GinIndex(
+                OpClass(Upper("phone"), name="gin_trgm_ops"),
+                name="guest_phone_trgm_upper",
             ),
         ]
 
     def __str__(self) -> str:
         return self.full_name
 
-    def save(self, *args, update_fields=None, **kwargs):
-        """Mantem `document_hash`/`phone_hash` sincronizados com o valor claro (SPEC 2.1)."""
-        self.document_hash = blind_index(normalize_document(self.document))
-        self.phone_hash = blind_index(normalize_phone(self.phone))
-        if update_fields is not None:
-            update_fields = set(update_fields)
-            if "document" in update_fields:
-                update_fields.add("document_hash")
-            if "phone" in update_fields:
-                update_fields.add("phone_hash")
-        super().save(*args, update_fields=update_fields, **kwargs)
+    def save(self, *args, **kwargs):
+        """Normaliza documento e telefone por tipo em qualquer escrita (D9)."""
+        self.document = normalize_document(self.document)
+        self.phone = normalize_phone(self.phone)
+        super().save(*args, **kwargs)
 
 
 class Reservation(models.Model):

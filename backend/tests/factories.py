@@ -47,7 +47,7 @@ class GuestFactory(factory.django.DjangoModelFactory):
         model = Guest
 
     full_name = factory.Sequence(lambda n: f"Hospede Teste {n}")
-    # 11 digitos unicos: `Guest.save()` derruba os hashes a partir daqui.
+    # 11 digitos unicos: `Guest.save()` normaliza a partir daqui.
     document = factory.Sequence(lambda n: f"{n:011d}")
     phone = factory.Sequence(lambda n: f"(21) 9{n:04d}-{n:04d}")
 

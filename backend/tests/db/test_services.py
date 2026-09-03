@@ -101,20 +101,19 @@ def test_create_reservation_requires_one_night():
     assert not Reservation.objects.exists()
 
 
-def test_create_guest_persists_and_derives_blind_indexes():
+def test_create_guest_persists_normalized_pii():
     guest = guests_service.create_guest(
         full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777"
     )
 
     stored = Guest.objects.get(pk=guest.pk)
     assert stored.full_name == "Ana Souza"
-    # SPEC 2.1: o hash e derivado no `save()`, qualquer que seja o caminho.
-    assert stored.document_hash
-    assert stored.phone_hash
+    assert stored.document == "12345678901"
+    assert stored.phone == "21988887777"
 
 
 def test_create_guest_rejects_duplicate_document_in_any_format():
-    """D12 + D9: mesma identidade civil, mascara diferente, mesmo blind index."""
+    """D12 + D9: mesma identidade civil, mascara diferente, mesma coluna."""
     guests_service.create_guest(
         full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777"
     )

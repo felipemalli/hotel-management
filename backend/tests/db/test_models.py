@@ -1,59 +1,53 @@
 """
-Modelos, cifra em repouso e constraints (SPEC 1.5, 2.1, 6.1). Precisa de PG.
+Modelos, normalizacao em escrita e constraints (SPEC 1.5, 2.1, 6.1). Precisa de PG.
 """
 
 from datetime import timedelta
 
 import pytest
-from cryptography.fernet import Fernet
-from django.core.exceptions import FieldError
-from django.core.management import call_command
 from django.db import IntegrityError, connection, transaction
 
-from hotel.crypto import blind_index, normalize_document, normalize_phone
 from hotel.models import Guest, ReservationStatus
+from hotel.normalization import normalize_document, normalize_phone
 from tests.factories import GuestFactory, ReservationFactory, local_datetime
 
 pytestmark = pytest.mark.django_db
 
 
-def test_guest_save_syncs_blind_indexes():
+def test_guest_save_normalizes_pii():
     guest = GuestFactory(document="123.456.789-01", phone="(21) 98888-7777")
 
-    assert guest.document_hash == blind_index(normalize_document("123.456.789-01"))
-    assert guest.phone_hash == blind_index(normalize_phone("(21) 98888-7777"))
+    assert guest.document == normalize_document("123.456.789-01")
+    assert guest.phone == normalize_phone("(21) 98888-7777")
 
 
-def test_blind_index_is_idempotent_across_formats():
+def test_normalization_is_idempotent_across_formats():
     """Cadastrado com mascara, encontrado sem ela -- e vice-versa (D9)."""
     GuestFactory(document="123.456.789-01", phone="(21) 98888-7777")
 
-    assert Guest.objects.filter(
-        document_hash=blind_index(normalize_document("12345678901"))
-    ).exists()
-    assert Guest.objects.filter(phone_hash=blind_index(normalize_phone("21988887777"))).exists()
+    assert Guest.objects.filter(document=normalize_document("12345678901")).exists()
+    assert Guest.objects.filter(phone=normalize_phone("21988887777")).exists()
 
 
-def test_save_with_update_fields_also_writes_the_derived_hash():
-    """Trocar o documento sem levar o hash junto deixaria a busca mentindo."""
+def test_save_with_update_fields_also_normalizes():
+    """Trocar o documento com mascara tem de gravar o valor normalizado."""
     guest = GuestFactory(document="111.111.111-11")
 
     guest.document = "222.222.222-22"
     guest.save(update_fields=["document"])
 
     stored = Guest.objects.get(pk=guest.pk)
-    assert stored.document == "222.222.222-22"
-    assert stored.document_hash == blind_index(normalize_document("22222222222"))
+    assert stored.document == "22222222222"
 
     guest.phone = "(31) 91111-2222"
     guest.save(update_fields=["phone"])
 
     stored.refresh_from_db()
-    assert stored.phone_hash == blind_index(normalize_phone("31911112222"))
+    assert stored.phone == "31911112222"
 
 
-def test_pii_is_ciphertext_at_rest():
-    """Leitura crua da coluna nao devolve o valor claro (SPEC 2.1)."""
+def test_pii_is_plaintext_at_rest():
+    """Leitura crua da coluna devolve o valor normalizado (SPEC 2.1)."""
     guest = GuestFactory(document="123.456.789-01", phone="(21) 98888-7777")
 
     with connection.cursor() as cursor:
@@ -63,17 +57,11 @@ def test_pii_is_ciphertext_at_rest():
         )
         stored_document, stored_phone = cursor.fetchone()
 
-    assert stored_document != "123.456.789-01"
-    assert stored_phone != "(21) 98888-7777"
-    assert "123" not in stored_document
-    assert "7777" not in stored_phone
-    # E o ORM continua devolvendo o valor claro para o atendente.
-    reloaded = Guest.objects.get(pk=guest.pk)
-    assert reloaded.document == "123.456.789-01"
-    assert reloaded.phone == "(21) 98888-7777"
+    assert stored_document == "12345678901"
+    assert stored_phone == "21988887777"
 
 
-def test_document_hash_is_unique():
+def test_document_is_unique_across_formats():
     """D12: o segundo cadastro do mesmo documento nao existe."""
     GuestFactory(document="123.456.789-01")
 
@@ -86,7 +74,7 @@ def test_phone_is_not_unique():
     GuestFactory(document="111.111.111-11", phone="(21) 98888-7777")
     GuestFactory(document="222.222.222-22", phone="(21) 98888-7777")
 
-    assert Guest.objects.filter(phone_hash=blind_index(normalize_phone("21988887777"))).count() == 2
+    assert Guest.objects.filter(phone=normalize_phone("21988887777")).count() == 2
 
 
 def test_checkout_date_must_be_after_checkin_date():
@@ -150,21 +138,29 @@ def test_reservation_defaults_are_pending_and_unpriced():
     assert reservation.late_fee is None
 
 
-def test_icontains_uses_the_functional_trigram_index():
+@pytest.mark.parametrize(
+    "column, index_name, pattern",
+    [
+        ("full_name", "guest_name_trgm_upper", "%ana%"),
+        ("document", "guest_document_trgm_upper", "%789%"),
+        ("phone", "guest_phone_trgm_upper", "%98888%"),
+    ],
+)
+def test_icontains_uses_the_functional_trigram_index(column, index_name, pattern):
     """Regressao do spike V4/V5 (SPEC 1.4): o indice funcional casa o SQL do icontains."""
-    GuestFactory(full_name="Ana Souza")
-    GuestFactory(full_name="Mariana Costa")
+    GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777")
+    GuestFactory(full_name="Mariana Costa", document="987.654.321-00", phone="(11) 97777-6666")
 
     with connection.cursor() as cursor:
         # SET LOCAL: some com o rollback da transacao do teste.
         cursor.execute("SET LOCAL enable_seqscan = off")
         cursor.execute(
-            'EXPLAIN SELECT id FROM hotel_guest WHERE UPPER("full_name"::text) LIKE UPPER(%s)',
-            ["%ana%"],
+            f'EXPLAIN SELECT id FROM hotel_guest WHERE UPPER("{column}"::text) LIKE UPPER(%s)',
+            [pattern],
         )
         plan = "\n".join(row[0] for row in cursor.fetchall())
 
-    assert "guest_name_trgm_upper" in plan, plan
+    assert index_name in plan, plan
 
 
 def test_str_is_readable():
@@ -182,90 +178,15 @@ def test_local_datetime_helper_is_aware():
     assert moment.utcoffset() is not None
 
 
-def test_lookup_on_encrypted_field_is_refused():
-    """Falhar alto e melhor que devolver vazio em silencio.
-
-    `get_prep_value` cifra o valor procurado e o Fernet nao e deterministico,
-    entao `filter(document=...)` casava zero linhas SEM erro -- indistinguivel
-    de "nao existe". A busca legitima e pelo blind index.
-    """
-    GuestFactory(document="123.456.789-01")
-
-    with pytest.raises(FieldError, match="blind_index"):
-        Guest.objects.filter(document="123.456.789-01").exists()
-
-    # O caminho correto continua funcionando.
-    assert Guest.objects.filter(
-        document_hash=blind_index(normalize_document("12345678901"))
-    ).exists()
-
-
 def test_bulk_create_is_refused_instead_of_writing_a_broken_row():
-    """`bulk_create` nao chama `save()`, e e o `save()` que mantem os hashes.
+    """`bulk_create` nao chama `save()`, e e o `save()` que normaliza.
 
-    Antes o hospede nascia com `document_hash` vazio: invisivel para a busca
-    exata e para a unicidade de documento, sem erro nenhum. Agora o manager
-    recusa, pela mesma razao que `EncryptedCharField.get_lookup` recusa.
+    Antes o hospede nascia com a mascara digitada: invisivel para a busca
+    por fragmento normalizado e para a unicidade de documento, sem erro nenhum.
     """
-    with pytest.raises(NotImplementedError, match="document_hash"):
+    with pytest.raises(NotImplementedError, match="document/phone"):
         Guest.objects.bulk_create(
             [Guest(full_name="Elena Prado", document="555.666.777-88", phone="(11) 90000-1111")]
         )
 
     assert not Guest.objects.filter(full_name="Elena Prado").exists()
-
-
-# -- rotacao de chave e de pepper (SPEC 2.1) ---------------------------------
-
-
-def test_multifernet_reads_ciphertext_written_with_a_previous_key(settings):
-    """Girar a chave nao pode cegar a base: a antiga continua decifrando."""
-    old_key, new_key = Fernet.generate_key().decode(), Fernet.generate_key().decode()
-
-    settings.FIELD_ENCRYPTION_KEY = old_key
-    guest = GuestFactory(document="123.456.789-01", phone="(21) 98888-7777")
-
-    # Chave nova na frente, antiga ainda aceita: a leitura sobrevive a virada.
-    settings.FIELD_ENCRYPTION_KEY = f"{new_key},{old_key}"
-    assert Guest.objects.get(pk=guest.pk).document == "123.456.789-01"
-
-
-def test_rotate_pii_moves_rows_to_the_current_key(settings):
-    """Depois do comando, a chave antiga pode ser aposentada."""
-    old_key, new_key = Fernet.generate_key().decode(), Fernet.generate_key().decode()
-
-    settings.FIELD_ENCRYPTION_KEY = old_key
-    guest = GuestFactory(document="123.456.789-01", phone="(21) 98888-7777")
-
-    settings.FIELD_ENCRYPTION_KEY = f"{new_key},{old_key}"
-    call_command("rotate_pii")
-
-    # So a chave nova: se a linha nao tivesse sido re-cifrada, isto estouraria
-    # `InvalidToken` -- que e exatamente o 500 que a rotacao ingenua causaria.
-    settings.FIELD_ENCRYPTION_KEY = new_key
-    assert Guest.objects.get(pk=guest.pk).document == "123.456.789-01"
-
-
-def test_rotate_pii_rederives_the_blind_indexes_after_a_pepper_change(settings):
-    """Trocar o HASH_PEPPER invalida a busca exata; o comando a reconstroi.
-
-    Este e o modo de falha silencioso da SPEC 2.1: sem re-derivar, a busca por
-    documento passa a devolver zero resultados com `200 OK` e a unicidade
-    passa a proteger o valor errado.
-    """
-    guest = GuestFactory(document="123.456.789-01", phone="(21) 98888-7777")
-
-    settings.HASH_PEPPER = "pepper-novo-da-rotacao"
-    # Com o pepper novo e o hash antigo, o hospede esta inencontravel.
-    assert not Guest.objects.filter(
-        document_hash=blind_index(normalize_document("123.456.789-01"))
-    ).exists()
-
-    call_command("rotate_pii")
-
-    assert (
-        Guest.objects.get(
-            document_hash=blind_index(normalize_document("123.456.789-01"))
-        ).pk
-        == guest.pk
-    )

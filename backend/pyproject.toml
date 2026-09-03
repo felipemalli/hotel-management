@@ -9,7 +9,6 @@ dependencies = [
     "djangorestframework-simplejwt",
     "drf-spectacular[sidecar]",
     "psycopg[binary]",
-    "cryptography",
     "django-csp>=4",
     "whitenoise",
     "httpx",

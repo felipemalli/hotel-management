@@ -146,13 +146,7 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 
-# -- Criptografia de PII (SPEC 2.1) -------------------------------------------
-# Consumido pelo Workstream B (hotel/fields.py, hotel/crypto.py).
-
-FIELD_ENCRYPTION_KEY = env("FIELD_ENCRYPTION_KEY")
-HASH_PEPPER = env("HASH_PEPPER")
-
-# -- Cache -------------------------------------------------------------------
+# -- Estáticos ----------------------------------------------------------------
 # O throttling do DRF guarda o historico de chamadas no cache. Com varios
 # workers do gunicorn, `LocMemCache` e por PROCESSO: o historico se divide e o
 # limite nunca e atingido -- throttling decorativo. A SPEC 0.1 tira Redis do

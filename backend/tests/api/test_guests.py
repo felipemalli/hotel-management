@@ -1,5 +1,5 @@
 """
-Hospedes na borda HTTP (SPEC 4.3, 2.2). Nomes normativos da matriz SPEC 6.3
+Hospedes na borda HTTP (SPEC 4.3, 2.1). Nomes normativos da matriz SPEC 6.3
 (RF1, RF3, RF4, RF5).
 """
 
@@ -8,7 +8,6 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from hotel.crypto import blind_index, normalize_document, normalize_phone
 from hotel.models import Guest, ReservationStatus
 from tests.factories import GuestFactory, ReservationFactory
 
@@ -19,45 +18,41 @@ ANA = {
     "document": "123.456.789-01",
     "phone": "(21) 98888-7777",
 }
-ANA_MASKED_DOCUMENT = "•••.•••.•89-01"
-ANA_MASKED_PHONE = "(••) •••••-7777"
+ANA_STORED_DOCUMENT = "12345678901"
+ANA_STORED_PHONE = "21988887777"
 
 
-def test_create_guest_persists_and_masks(auth_client):
-    """RF1: os 3 campos minimos persistem e a resposta ja sai mascarada (SPEC 4.3)."""
+def test_create_guest_persists_normalized_pii(auth_client):
+    """RF1: os 3 campos minimos persistem normalizados (SPEC 4.3, D9)."""
     response = auth_client.post("/api/guests/", ANA, format="json")
 
     assert response.status_code == 201
     assert response.data["full_name"] == "Ana Souza"
-    assert response.data["document"] == ANA_MASKED_DOCUMENT
-    assert response.data["phone"] == ANA_MASKED_PHONE
+    assert response.data["document"] == ANA_STORED_DOCUMENT
+    assert response.data["phone"] == ANA_STORED_PHONE
     assert set(response.data) == {"id", "full_name", "document", "phone", "created_at"}
 
     guest = Guest.objects.get(pk=response.data["id"])
-    # O valor claro sobrevive com a mascara de formatacao original (SPEC 1.2)...
-    assert guest.document == ANA["document"]
-    assert guest.phone == ANA["phone"]
-    # ...e os blind indexes ficam sincronizados (SPEC 2.1).
-    assert guest.document_hash == blind_index(normalize_document(ANA["document"]))
-    assert guest.phone_hash == blind_index(normalize_phone(ANA["phone"]))
+    assert guest.document == ANA_STORED_DOCUMENT
+    assert guest.phone == ANA_STORED_PHONE
 
 
-def test_list_masks_pii_but_detail_returns_full_value(auth_client):
-    """SPEC 2.2: listagem sempre mascarada; detalhe por id devolve o valor pleno."""
+def test_list_and_detail_return_the_stored_value(auth_client):
+    """SPEC 2.1: listagem e detalhe devolvem o valor gravado (normalizado)."""
     guest = GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777")
 
     listed = auth_client.get("/api/guests/").data
     assert listed["count"] == 1
-    assert listed["results"][0]["document"] == ANA_MASKED_DOCUMENT
-    assert listed["results"][0]["phone"] == ANA_MASKED_PHONE
+    assert listed["results"][0]["document"] == ANA_STORED_DOCUMENT
+    assert listed["results"][0]["phone"] == ANA_STORED_PHONE
 
     detail = auth_client.get(f"/api/guests/{guest.pk}/").data
-    assert detail["document"] == "123.456.789-01"
-    assert detail["phone"] == "(21) 98888-7777"
+    assert detail["document"] == ANA_STORED_DOCUMENT
+    assert detail["phone"] == ANA_STORED_PHONE
 
 
 def test_duplicate_document_returns_409(auth_client):
-    """D12: `document_hash` unico -- o segundo cadastro e conflito, nao payload invalido."""
+    """D12: `document` unico -- o segundo cadastro e conflito, nao payload invalido."""
     assert auth_client.post("/api/guests/", ANA, format="json").status_code == 201
 
     # Outra formatacao do MESMO documento: a normalizacao de D9 iguala os dois.
@@ -109,8 +104,8 @@ def test_missing_minimum_fields_returns_validation_error(auth_client):
     assert set(response.data["extra"]) == {"full_name", "document", "phone"}
 
 
-def test_search_by_name_fragment_and_exact_pii(auth_client):
-    """RF3: nome por fragmento; documento e telefone por valor exato (D5)."""
+def test_search_by_name_fragment_and_pii_fragment(auth_client):
+    """RF3: nome, documento e telefone por fragmento (D5)."""
     GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777")
     GuestFactory(full_name="Bruno Lima", document="98765432100", phone="(11) 97777-6666")
 
@@ -121,7 +116,7 @@ def test_search_by_name_fragment_and_exact_pii(auth_client):
     assert names("sou") == ["Ana Souza"]
     assert names("12345678901") == ["Ana Souza"]  # documento sem mascara
     assert names("(21) 98888-7777") == ["Ana Souza"]  # telefone com mascara
-    assert names("789") == []  # fragmento de documento NAO acha (D5)
+    assert names("789") == ["Ana Souza"]  # fragmento de documento acha (D5)
 
 
 def test_guest_not_found_returns_envelope(auth_client):
@@ -132,7 +127,7 @@ def test_guest_not_found_returns_envelope(auth_client):
 
 
 def test_in_hotel_endpoint_shape(auth_client):
-    """RF4: aba "no hotel" -- mascarada, com `active_reservation` unico (SPEC 4.3)."""
+    """RF4: aba "no hotel" -- valor gravado, com `active_reservation` unico (SPEC 4.3)."""
     today = timezone.localdate()
     inside = GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777")
     reservation = ReservationFactory(
@@ -158,7 +153,7 @@ def test_in_hotel_endpoint_shape(auth_client):
         "created_at",
         "active_reservation",
     }
-    assert row["document"] == ANA_MASKED_DOCUMENT
+    assert row["document"] == ANA_STORED_DOCUMENT
     assert row["active_reservation"] == {
         "id": reservation.pk,
         "checkin_date": str(reservation.checkin_date),
@@ -187,22 +182,8 @@ def test_pending_checkin_endpoint_shape(auth_client):
     assert response.status_code == 200
     assert response.data["count"] == 1
     row = response.data["results"][0]
-    assert row["document"] == ANA_MASKED_DOCUMENT
+    assert row["document"] == ANA_STORED_DOCUMENT
     assert [item["id"] for item in row["pending_reservations"]] == [overdue.pk, upcoming.pk]
-
-
-def test_tabs_never_leak_unmasked_pii(auth_client):
-    """SPEC 2.2: nenhuma listagem, em nenhuma aba, devolve PII em claro."""
-    guest = GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="(21) 98888-7777")
-    ReservationFactory(guest=guest, checked_in=True)
-
-    for path in ("/api/guests/", "/api/guests/in-hotel/"):
-        rows = auth_client.get(path).data["results"]
-        assert rows, path
-        for row in rows:
-            assert "•" in row["document"], path
-            assert row["document"] != "123.456.789-01", path
-            assert row["phone"] != "(21) 98888-7777", path
 
 
 def test_guest_status_reflects_reservation_states(auth_client):
@@ -222,11 +203,7 @@ def test_guest_status_reflects_reservation_states(auth_client):
     ],
 )
 def test_create_guest_rejects_oversized_pii(auth_client, field, value):
-    """`EncryptedCharField` e TextField: sem `max_length` o payload era ilimitado.
-
-    O minimo ja era validado (SPEC 4.3); o maximo faltava, e um documento de
-    megabytes seria cifrado e gravado sem reclamacao.
-    """
+    """Documento e telefone tem max_length; payload absurdo e recusado."""
     payload = {
         "full_name": "Fabio Lopes",
         "document": "999.888.777-66",
