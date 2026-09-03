@@ -1,1 +1,11 @@
 @import 'tailwindcss';
+
+/* A pilha de sobreposição tem nome para parar de crescer por incremento: o
+   toast fica acima do dialog porque confirma a ação que o dialog disparou. */
+@utility z-dialog {
+  z-index: 50;
+}
+
+@utility z-toast {
+  z-index: 60;
+}

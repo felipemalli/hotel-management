@@ -65,7 +65,7 @@ export function Tabs<T extends string>({ items, value, onChange, label }: TabsPr
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(item.id)}
             className={[
-              'rounded-md px-3 py-1.5 text-sm font-medium transition',
+              'rounded-md px-3 py-1.5 text-sm font-medium transition motion-reduce:transition-none',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900',
               selected
                 ? 'bg-slate-900 text-white'

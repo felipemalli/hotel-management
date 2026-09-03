@@ -115,7 +115,7 @@ export function Dialog({
   // dentro de um `overflow-x-auto`: renderizado ali, o painel era recortado. O
   // trap de foco não depende da posição na árvore, só do painel e do documento.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
+    <div className="fixed inset-0 z-dialog flex items-start justify-center overflow-y-auto p-4 sm:items-center">
       {/*
         Clique no overlay fecha um `dialog`, mas não um `alertdialog`: este
         último existe para exigir uma decisão, e clique fora é gesto ambíguo
