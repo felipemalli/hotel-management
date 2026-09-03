@@ -3,17 +3,23 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
 
-import { GUEST_TABS, type GuestTab } from '@/features/guests/GuestTable'
-
 import { tabPanelId } from './tabIds'
 import { Tabs } from './Tabs'
 
+const TABS = [
+  { id: 'todos', label: 'Todos' },
+  { id: 'in-hotel', label: 'No hotel' },
+  { id: 'pending-checkin', label: 'Check-in pendente' },
+] as const
+
+type TabId = (typeof TABS)[number]['id']
+
 function TabsFixture() {
-  const [value, setValue] = useState<GuestTab>('todos')
+  const [value, setValue] = useState<TabId>('todos')
   return (
     <>
       <button type="button">Antes das abas</button>
-      <Tabs items={GUEST_TABS} value={value} onChange={setValue} label="Listagens de hóspedes" />
+      <Tabs items={TABS} value={value} onChange={setValue} label="Listagens de hóspedes" />
       <div id={tabPanelId(value)} role="tabpanel">
         Painel de {value}
       </div>

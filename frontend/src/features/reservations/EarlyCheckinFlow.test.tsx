@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { DashboardPage } from '@/app/DashboardPage'
+import { ANA, inHotel, pendingCheckin } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
-import type { GuestInHotel, GuestPendingCheckin } from '@/features/guests/types'
 import { checkIn } from '@/features/reservations/api'
 import { ApiError } from '@/lib/errors'
 import { elementAt, page } from '@/test/fixtures'
@@ -16,8 +16,8 @@ import type { Reservation } from './types'
 vi.mock('@/features/guests/api')
 vi.mock('@/features/reservations/api')
 
-const RESERVATION_ID = 1
-const GUEST_NAME = 'Ana Souza'
+const RESERVATION_ID = ANA.id
+const GUEST_NAME = ANA.full_name
 const SERVER_TIME = '13:45'
 
 function earlyCheckinError(): ApiError {
@@ -103,37 +103,8 @@ describe('EarlyCheckinFlow', () => {
 
     let checkedIn = false
 
-    const anaPending: GuestPendingCheckin = {
-      id: 1,
-      full_name: GUEST_NAME,
-      document: '12345678901',
-      phone: '21988887777',
-      created_at: '2026-09-01T08:00:00-03:00',
-      pending_reservations: [
-        {
-          id: RESERVATION_ID,
-          checkin_date: '2026-09-01',
-          checkout_date: '2026-09-03',
-          has_vehicle: true,
-          checked_in_at: null,
-        },
-      ],
-    }
-
-    const anaInHotel: GuestInHotel = {
-      id: 1,
-      full_name: GUEST_NAME,
-      document: '12345678901',
-      phone: '21988887777',
-      created_at: '2026-09-01T08:00:00-03:00',
-      active_reservation: {
-        id: RESERVATION_ID,
-        checkin_date: '2026-09-01',
-        checkout_date: '2026-09-03',
-        has_vehicle: true,
-        checked_in_at: '2026-09-01T14:02:00-03:00',
-      },
-    }
+    const anaPending = pendingCheckin(ANA)
+    const anaInHotel = inHotel(ANA)
 
     vi.mocked(fetchGuests).mockResolvedValue(page([anaPending]))
     vi.mocked(fetchGuestsPendingCheckin).mockImplementation(async () =>

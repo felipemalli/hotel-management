@@ -9,54 +9,20 @@ import { ApiError } from '@/lib/errors'
 import { elementAt, page } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
+import { ANA, BRUNO, DAVI, inHotel, pendingCheckin } from './__fixtures__/guests'
 import { DEBOUNCE_MS, GuestTable } from './GuestTable'
-import type { Guest, GuestInHotel, GuestPendingCheckin } from './types'
+import type { Guest } from './types'
 
 vi.mock('@/features/guests/api')
 
-const ANA: Guest = {
-  id: 1,
-  full_name: 'Ana Souza',
-  document: '12345678901',
-  phone: '21988887777',
-  created_at: '2026-09-01T08:00:00-03:00',
-}
+const BRUNO_IN_HOTEL = inHotel(BRUNO, {
+  checkin_date: '2026-08-31',
+  checkout_date: '2026-09-02',
+  has_vehicle: false,
+  checked_in_at: '2026-08-31T15:00:00-03:00',
+})
 
-const DAVI: Guest = {
-  id: 4,
-  full_name: 'Davi Rocha',
-  document: '44444444400',
-  phone: '21988884444',
-  created_at: '2026-09-01T08:03:00-03:00',
-}
-
-const BRUNO_IN_HOTEL: GuestInHotel = {
-  id: 2,
-  full_name: 'Bruno Lima',
-  document: '22222222100',
-  phone: '21988886666',
-  created_at: '2026-09-01T08:01:00-03:00',
-  active_reservation: {
-    id: 2,
-    checkin_date: '2026-08-31',
-    checkout_date: '2026-09-02',
-    has_vehicle: false,
-    checked_in_at: '2026-08-31T15:00:00-03:00',
-  },
-}
-
-const ANA_PENDING: GuestPendingCheckin = {
-  ...ANA,
-  pending_reservations: [
-    {
-      id: 1,
-      checkin_date: '2026-09-01',
-      checkout_date: '2026-09-03',
-      has_vehicle: true,
-      checked_in_at: null,
-    },
-  ],
-}
+const ANA_PENDING = pendingCheckin(ANA)
 
 describe('GuestTable', () => {
   beforeEach(() => {

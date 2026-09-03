@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { DashboardPage } from '@/app/DashboardPage'
+import { CARLA, inHotel } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
-import type { GuestInHotel } from '@/features/guests/types'
 import { checkOut } from '@/features/reservations/api'
 import { page } from '@/test/fixtures'
 import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
@@ -15,23 +15,15 @@ vi.mock('@/features/guests/api')
 vi.mock('@/features/reservations/api')
 
 const RESERVATION_ID = 7
-const GUEST_NAME = 'Carla Nunes'
+const GUEST_NAME = CARLA.full_name
 
-function carlaInHotel(): GuestInHotel {
-  return {
-    id: 3,
-    full_name: GUEST_NAME,
-    document: 'AB123456',
-    phone: '21988885555',
-    created_at: '2026-08-28T08:00:00-03:00',
-    active_reservation: {
-      id: RESERVATION_ID,
-      checkin_date: '2026-08-28',
-      checkout_date: '2026-08-30',
-      has_vehicle: true,
-      checked_in_at: '2026-08-28T15:00:00-03:00',
-    },
-  }
+function carlaInHotel() {
+  return inHotel(CARLA, {
+    id: RESERVATION_ID,
+    checkin_date: '2026-08-28',
+    checkout_date: '2026-08-30',
+    checked_in_at: '2026-08-28T15:00:00-03:00',
+  })
 }
 
 describe('CheckoutFlow', () => {

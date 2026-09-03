@@ -6,25 +6,17 @@ import { createGuest } from '@/features/guests/api'
 import { ApiError } from '@/lib/errors'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
+import { ANA } from './__fixtures__/guests'
 import { GuestForm } from './GuestForm'
-import type { Guest } from './types'
 
 vi.mock('@/features/guests/api')
 // O formulário carrega o slot de IA, que consulta o status da feature. Dublado
 // para que nenhum teste toque a rede: sem `enabled: true` o slot não renderiza.
 vi.mock('@/features/ai/api')
 
-const CREATED_GUEST: Guest = {
-  id: 1,
-  full_name: 'Ana Souza',
-  document: '12345678901',
-  phone: '21988887777',
-  created_at: '2026-09-01T10:00:00-03:00',
-}
-
 describe('GuestForm', () => {
   beforeEach(() => {
-    vi.mocked(createGuest).mockResolvedValue(CREATED_GUEST)
+    vi.mocked(createGuest).mockResolvedValue(ANA)
   })
 
   it('test_requires_name_document_phone', async () => {
@@ -52,7 +44,7 @@ describe('GuestForm', () => {
       phone: '(21) 98888-7777',
     })
 
-    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(CREATED_GUEST))
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(ANA))
   })
 
   it('exibe o DUPLICATE_DOCUMENT no campo Documento, o campo culpado', async () => {
