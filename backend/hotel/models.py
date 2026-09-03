@@ -9,6 +9,7 @@ escrita (API, seed, admin, shell).
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex, OpClass
 from django.db import models
 from django.db.models import F, Q
@@ -97,7 +98,12 @@ class Guest(models.Model):
 
 
 class Reservation(models.Model):
-    """Reserva. Datas agendadas + fatos reais; totais congelados no checkout."""
+    """Reserva. Datas agendadas + fatos reais; totais congelados no checkout.
+
+    Sem `updated_at`: todo `save()` dos services usa `update_fields`, entao um
+    `auto_now` nunca entraria na lista e a coluna mentiria para sempre. Os
+    `*_at` por transicao, com o ator ao lado, sao a linha do tempo real.
+    """
 
     guest = models.ForeignKey(
         Guest,
@@ -115,6 +121,41 @@ class Reservation(models.Model):
     # Fatos reais: e por eles que se cobra (D6), nunca pelas datas agendadas.
     checked_in_at = models.DateTimeField(null=True, blank=True)
     checked_out_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    # Quem fez cada transicao. A maquina de estados e linear e cada transicao
+    # ocorre no maximo uma vez, entao a coluna com o seu `*_at` ao lado E o
+    # historico: nao ha o que uma tabela de eventos acrescentaria enquanto
+    # nenhuma transicao for repetivel. `PROTECT` porque apagar o usuario
+    # apagaria a autoria de um lancamento financeiro; `null` porque a linha
+    # pode ter nascido antes da transicao (ou fora da API, pelo shell).
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reservations_created",
+        null=True,
+        blank=True,
+    )
+    checked_in_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reservations_checked_in",
+        null=True,
+        blank=True,
+    )
+    checked_out_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reservations_checked_out",
+        null=True,
+        blank=True,
+    )
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="reservations_cancelled",
+        null=True,
+        blank=True,
+    )
     # Congelados no checkout para auditoria; o extrato linha a linha e
     # recomputavel deterministicamente de checked_in_at/checked_out_at.
     total_daily = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

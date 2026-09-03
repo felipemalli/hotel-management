@@ -16,6 +16,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 
+from accounts.models import Role
 from hotel.models import Guest, Reservation, ReservationStatus
 from hotel.services import pricing
 
@@ -34,6 +35,12 @@ class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = get_user_model()
         django_get_or_create = ("username",)
+
+    class Params:
+        # `is_staff` fica FALSO tambem no admin do hotel: o papel e do produto,
+        # e `is_staff` significa "entra no /admin/" -- caminho de escrita que o
+        # dominio recusa. O teste que confunde os dois passa por acidente.
+        admin = factory.Trait(role=Role.ADMIN)
 
     username = factory.Sequence(lambda n: f"atendente{n}")
     # O hash entra no proprio INSERT. Com PostGenerationMethodCall e

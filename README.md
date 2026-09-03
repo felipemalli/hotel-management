@@ -17,7 +17,7 @@ que o briefing não pede fica de fora de propósito (§ [8](#8-escopo-deliberada
 | API | <http://localhost:8000/api/> |
 | Swagger (contrato navegável) | <http://localhost:8000/api/docs/> |
 | Admin do Django | <http://localhost:8000/admin/> |
-| Credenciais do seed | `atendente` / `atendente123` |
+| Credenciais do seed | `atendente` / `atendente123` · `admin` / `admin123` |
 
 **Índice**
 
@@ -81,8 +81,18 @@ seed mostra algo assim:
 
 ```
 Seed de demonstracao aplicado.
-Atendente: atendente / atendente123 | hospedes: 4 | reservas: 3
+Atendente: atendente / atendente123 | Admin: admin / admin123 | hospedes: 4 | reservas: 3
 ```
+
+As duas contas são credenciais de **demonstração**, e as duas são usuários
+comuns: `is_staff=False` nas duas, inclusive na de `admin`. O papel
+(`role=ATTENDANT` / `role=ADMIN`) é do produto e decide o acesso às rotas
+administrativas da API; `is_staff` decide o acesso ao `/admin/` do Django, que
+**não** é caminho de escrita deste domínio (não existe `hotel/admin.py`).
+Confundir os dois daria ao administrador do hotel uma porta que grava na base
+sem passar por nenhuma regra. Para o `/admin/`, rode `createsuperuser`.
+`GET /api/auth/me/` devolve `{id, username, role}`: é como o frontend sabe se
+deve oferecer o painel administrativo.
 
 ### 1.2 Verificação rápida (o mesmo que o CI faz)
 

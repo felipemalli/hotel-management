@@ -13,6 +13,7 @@ O relogio e injetado: `now` e sempre parametro explicito -- a view passa
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from django.db import transaction
 from django.utils import timezone
@@ -21,6 +22,9 @@ from hotel.models import Guest, Reservation, ReservationStatus
 from hotel.services import pricing
 from hotel.services.errors import DomainError, DomainValidationError
 from hotel.services.pricing import Bill
+
+if TYPE_CHECKING:  # pragma: no cover - apenas para anotacao
+    from django.contrib.auth.models import AbstractBaseUser
 
 # Transicoes validas (SPEC 1.5). Qualquer outra e rejeitada.
 ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
@@ -32,10 +36,18 @@ ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     ReservationStatus.CANCELLED: frozenset(),
 }
 
+# Toda coluna que uma transicao escreve entra aqui: e o que faz a instancia do
+# chamador ficar em dia com a linha sem um segundo SELECT. Lista manual de
+# proposito -- derivar de `update_fields` esconderia o esquecimento --, e
+# `test_sync_matches_refresh_from_db` e o alarme de quem esquecer.
 SYNCED_FIELDS = (
     "status",
     "checked_in_at",
     "checked_out_at",
+    "cancelled_at",
+    "checked_in_by_id",
+    "checked_out_by_id",
+    "cancelled_by_id",
     "total_daily",
     "total_parking",
     "late_fee",
@@ -70,6 +82,7 @@ def create_reservation(
     checkin_date: date,
     checkout_date: date,
     has_vehicle: bool = False,
+    actor: AbstractBaseUser,
     today: date,
 ) -> Reservation:
     """Agenda uma reserva (RF2). Nasce `PENDING`, sem dinheiro (SPEC 4.4).
@@ -77,6 +90,10 @@ def create_reservation(
     `today` e parametro, nao `timezone.localdate()` lido aqui dentro: D11 e uma
     regra de data local e o invariante SPEC 0.3 vale para a criacao como vale
     para o check-in -- quem materializa "hoje" e a view.
+
+    `actor` e obrigatorio como nas transicoes: quem abriu a reserva e parte do
+    registro. A coluna continua nulavel para a linha que nasceu fora da API (o
+    shell), nao para tornar o parametro opcional aqui.
     """
     if checkin_date < today:
         # D11: reserva e compromisso futuro. O passado entra no sistema pelos
@@ -97,11 +114,23 @@ def create_reservation(
             checkin_date=checkin_date,
             checkout_date=checkout_date,
             has_vehicle=has_vehicle,
+            created_by=actor,
         )
 
 
-def check_in(reservation: Reservation, *, now: datetime, allow_early: bool = False) -> Reservation:
-    """Efetiva o check-in. Antes das 14h locais exige `allow_early` (D4)."""
+def check_in(
+    reservation: Reservation,
+    *,
+    now: datetime,
+    actor: AbstractBaseUser,
+    allow_early: bool = False,
+) -> Reservation:
+    """Efetiva o check-in. Antes das 14h locais exige `allow_early` (D4).
+
+    `actor` e obrigatorio: a transicao grava quem a fez, e um default silencioso
+    (`None`) deixaria a linha do tempo com buracos justo onde ela e interessante
+    -- "quem hospedou este hospede as 2h da manha".
+    """
     with transaction.atomic():
         # Trava o HOSPEDE, nao apenas a reserva: a invariante "no maximo uma
         # estadia ativa" (SPEC 1.5, `resv_one_active_per_guest`) vale ENTRE
@@ -119,12 +148,13 @@ def check_in(reservation: Reservation, *, now: datetime, allow_early: bool = Fal
 
         locked.status = ReservationStatus.CHECKED_IN
         locked.checked_in_at = now
-        locked.save(update_fields=["status", "checked_in_at"])
+        locked.checked_in_by = actor
+        locked.save(update_fields=["status", "checked_in_at", "checked_in_by"])
 
     return _sync(reservation, locked)
 
 
-def check_out(reservation: Reservation, *, now: datetime) -> Bill:
+def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) -> Bill:
     """Efetiva o checkout, congela os totais e devolve o extrato (SPEC 4.4)."""
     with transaction.atomic():
         locked = _lock(reservation)
@@ -141,6 +171,7 @@ def check_out(reservation: Reservation, *, now: datetime) -> Bill:
 
         locked.status = ReservationStatus.CHECKED_OUT
         locked.checked_out_at = now
+        locked.checked_out_by = actor
         locked.total_daily = bill.subtotal_daily
         locked.total_parking = bill.subtotal_parking
         locked.late_fee = bill.late_fee
@@ -149,6 +180,7 @@ def check_out(reservation: Reservation, *, now: datetime) -> Bill:
             update_fields=[
                 "status",
                 "checked_out_at",
+                "checked_out_by",
                 "total_daily",
                 "total_parking",
                 "late_fee",
@@ -160,13 +192,15 @@ def check_out(reservation: Reservation, *, now: datetime) -> Bill:
     return bill
 
 
-def cancel(reservation: Reservation) -> Reservation:
+def cancel(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) -> Reservation:
     """`PENDING -> CANCELLED`. Nenhum outro estado cancela (D8)."""
     with transaction.atomic():
         locked = _lock(reservation)
         _assert_transition(locked, ReservationStatus.CANCELLED)
         locked.status = ReservationStatus.CANCELLED
-        locked.save(update_fields=["status"])
+        locked.cancelled_at = now
+        locked.cancelled_by = actor
+        locked.save(update_fields=["status", "cancelled_at", "cancelled_by"])
 
     return _sync(reservation, locked)
 

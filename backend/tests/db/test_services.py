@@ -14,7 +14,7 @@ from hotel.models import GUEST_DOCUMENT_UNIQUE, Guest, Reservation, ReservationS
 from hotel.services import errors
 from hotel.services import guests as guests_service
 from hotel.services import reservations as service
-from tests.factories import GuestFactory, ReservationFactory
+from tests.factories import GuestFactory, ReservationFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -35,6 +35,18 @@ def t7_reservation() -> Reservation:
     return ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
 
 
+@pytest.fixture
+def actor():
+    """O atendente que executa a acao.
+
+    `actor` e obrigatorio nas transicoes porque a coluna existe: cada uma grava
+    quem a fez. Como fixture, o ator do teste e um usuario de verdade -- um
+    dublê (`None`, ou um objeto qualquer) passaria pelo servico e estouraria na
+    FK, o que faria o teste falhar longe da causa.
+    """
+    return UserFactory(username="atendente-do-teste")
+
+
 # -- criacao (SPEC 3.4) -------------------------------------------------------
 #
 # O ganho da simetria esta aqui: D11 depende de "hoje", e enquanto a regra
@@ -42,11 +54,12 @@ def t7_reservation() -> Reservation:
 # subindo HTTP com freezegun. Com `today` injetado, a data e um argumento.
 
 
-def test_create_reservation_starts_pending_without_money():
+def test_create_reservation_starts_pending_without_money(actor):
     guest = GuestFactory()
 
     reservation = service.create_reservation(
         guest=guest,
+        actor=actor,
         checkin_date=MARCH_7,
         checkout_date=MARCH_9,
         has_vehicle=True,
@@ -59,10 +72,11 @@ def test_create_reservation_starts_pending_without_money():
     assert reservation.total_amount is None
 
 
-def test_create_reservation_accepts_today_as_checkin():
+def test_create_reservation_accepts_today_as_checkin(actor):
     """D11 recusa o passado, nao o proprio dia: `>= hoje`."""
     reservation = service.create_reservation(
         guest=GuestFactory(),
+        actor=actor,
         checkin_date=MARCH_7,
         checkout_date=MARCH_9,
         today=MARCH_7,
@@ -71,11 +85,12 @@ def test_create_reservation_accepts_today_as_checkin():
     assert reservation.status == ReservationStatus.PENDING
 
 
-def test_create_reservation_in_the_past_is_rejected():
+def test_create_reservation_in_the_past_is_rejected(actor):
     """D11, sem HTTP e sem freezegun -- `today` e parametro (SPEC 0.3/3.4)."""
     with pytest.raises(service.DomainValidationError) as excinfo:
         service.create_reservation(
             guest=GuestFactory(),
+            actor=actor,
             checkin_date=MARCH_7,
             checkout_date=MARCH_9,
             today=MARCH_9,  # "hoje" e depois do check-in agendado
@@ -88,11 +103,12 @@ def test_create_reservation_in_the_past_is_rejected():
     assert not Reservation.objects.exists()
 
 
-def test_create_reservation_requires_one_night():
+def test_create_reservation_requires_one_night(actor):
     """D13: agendamento de zero noites nao existe (day-use so como fato)."""
     with pytest.raises(service.DomainValidationError) as excinfo:
         service.create_reservation(
             guest=GuestFactory(),
+            actor=actor,
             checkin_date=MARCH_7,
             checkout_date=MARCH_7,
             today=MARCH_7,
@@ -212,14 +228,96 @@ def test_duplicate_document_translation_uses_named_constraint(monkeypatch):
         )
 
 
+# -- ator das transicoes ------------------------------------------------------
+
+
+def test_transitions_record_actor_and_timestamp(actor):
+    """Cada transicao grava QUEM a fez e QUANDO -- as colunas sao o historico.
+
+    A maquina de estados e linear e cada transicao ocorre no maximo uma vez,
+    entao a coluna com o seu `*_at` ao lado responde "quem fez este checkout?"
+    sem uma tabela de eventos. Este teste e o que impede a resposta de voltar a
+    ser "ninguem sabe".
+    """
+    reservation = service.create_reservation(
+        guest=GuestFactory(),
+        actor=actor,
+        checkin_date=MARCH_7,
+        checkout_date=MARCH_9,
+        has_vehicle=True,
+        today=MARCH_7,
+    )
+    assert reservation.created_by_id == actor.pk
+
+    service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
+    service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
+
+    stored = Reservation.objects.get(pk=reservation.pk)
+    assert stored.checked_in_by_id == actor.pk
+    assert stored.checked_out_by_id == actor.pk
+    assert stored.checked_in_at is not None
+    assert stored.checked_out_at is not None
+    # Nao houve cancelamento: a coluna correspondente fica vazia em vez de
+    # guardar um ator que nada fez.
+    assert stored.cancelled_by_id is None
+    assert stored.cancelled_at is None
+
+
+def test_cancel_records_actor_and_timestamp(actor):
+    reservation = t7_reservation()
+
+    service.cancel(reservation, now=local(MARCH_7, 10), actor=actor)
+
+    stored = Reservation.objects.get(pk=reservation.pk)
+    assert stored.status == ReservationStatus.CANCELLED
+    assert stored.cancelled_by_id == actor.pk
+    assert stored.cancelled_at == local(MARCH_7, 10)
+
+
+def test_sync_matches_refresh_from_db(actor):
+    """`SYNCED_FIELDS` e lista manual: este teste e o alarme de quem esquecer.
+
+    `_sync` poupa um SELECT copiando para a instancia do chamador o que a
+    transicao escreveu. Uma coluna nova escrita por transicao e ausente da
+    lista faz a view devolver o valor ANTIGO no corpo de um 200 -- resposta
+    errada, sem erro nenhum. Comparar campo a campo com o que o banco tem
+    fecha essa porta.
+    """
+    reservation = t7_reservation()
+    service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
+    service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
+
+    from_db = Reservation.objects.get(pk=reservation.pk)
+    synced = {field: getattr(reservation, field) for field in service.SYNCED_FIELDS}
+    expected = {field: getattr(from_db, field) for field in service.SYNCED_FIELDS}
+
+    assert synced == expected
+    # E a lista cobre TODA coluna que as transicoes escrevem: se uma escrita
+    # nova nao entrar em SYNCED_FIELDS, o conjunto abaixo denuncia.
+    written_by_transitions = {
+        "status",
+        "checked_in_at",
+        "checked_in_by_id",
+        "checked_out_at",
+        "checked_out_by_id",
+        "cancelled_at",
+        "cancelled_by_id",
+        "total_daily",
+        "total_parking",
+        "late_fee",
+        "total_amount",
+    }
+    assert set(service.SYNCED_FIELDS) == written_by_transitions
+
+
 # -- check-in ----------------------------------------------------------------
 
 
-def test_check_in_at_14_sets_status_and_timestamp():
+def test_check_in_at_14_sets_status_and_timestamp(actor):
     reservation = t7_reservation()
     now = local(MARCH_7, 14, 0, 0)
 
-    returned = service.check_in(reservation, now=now, allow_early=False)
+    returned = service.check_in(reservation, now=now, allow_early=False, actor=actor)
 
     assert returned is reservation
     assert reservation.status == ReservationStatus.CHECKED_IN
@@ -229,11 +327,13 @@ def test_check_in_at_14_sets_status_and_timestamp():
     assert stored.checked_in_at == now
 
 
-def test_check_in_before_14_raises_early_checkin_with_server_time():
+def test_check_in_before_14_raises_early_checkin_with_server_time(actor):
     reservation = t7_reservation()
 
     with pytest.raises(service.EarlyCheckinError) as exc:
-        service.check_in(reservation, now=local(MARCH_7, 13, 59, 59), allow_early=False)
+        service.check_in(
+            reservation, now=local(MARCH_7, 13, 59, 59), allow_early=False, actor=actor
+        )
 
     assert exc.value.code == "EARLY_CHECKIN"
     assert exc.value.detail == "Check-in permitido a partir das 14:00."
@@ -241,24 +341,24 @@ def test_check_in_before_14_raises_early_checkin_with_server_time():
     assert Reservation.objects.get(pk=reservation.pk).status == ReservationStatus.PENDING
 
 
-def test_check_in_before_14_with_override_succeeds():
+def test_check_in_before_14_with_override_succeeds(actor):
     """D4: o briefing pede alerta, nao bloqueio."""
     reservation = t7_reservation()
     now = local(MARCH_7, 13, 59, 59)
 
-    service.check_in(reservation, now=now, allow_early=True)
+    service.check_in(reservation, now=now, allow_early=True, actor=actor)
 
     assert reservation.status == ReservationStatus.CHECKED_IN
     assert reservation.checked_in_at == now
 
 
-def test_check_in_rule_is_evaluated_in_local_time():
+def test_check_in_rule_is_evaluated_in_local_time(actor):
     """SPEC 0.3: 16:30 UTC e 13:30 em Sao Paulo -- e cedo, mesmo parecendo tarde."""
     reservation = t7_reservation()
     now_utc = datetime(2025, 3, 7, 16, 30, tzinfo=UTC)
 
     with pytest.raises(service.EarlyCheckinError) as exc:
-        service.check_in(reservation, now=now_utc, allow_early=False)
+        service.check_in(reservation, now=now_utc, allow_early=False, actor=actor)
 
     assert exc.value.extra == {"server_time": "13:30"}
 
@@ -267,11 +367,11 @@ def test_check_in_rule_is_evaluated_in_local_time():
     "trait",
     ["checked_in", "checked_out", "cancelled"],
 )
-def test_check_in_rejects_non_pending(trait):
+def test_check_in_rejects_non_pending(trait, actor):
     reservation = _reservation_in_state(trait)
 
     with pytest.raises(service.InvalidStatusError) as exc:
-        service.check_in(reservation, now=local(MARCH_9, 15), allow_early=True)
+        service.check_in(reservation, now=local(MARCH_9, 15), allow_early=True, actor=actor)
 
     assert exc.value.code == "INVALID_STATUS"
 
@@ -279,12 +379,12 @@ def test_check_in_rejects_non_pending(trait):
 # -- checkout ----------------------------------------------------------------
 
 
-def test_check_out_freezes_totals_matching_T7():
+def test_check_out_freezes_totals_matching_T7(actor):
     """Caso T7 da SPEC 3.3 ponta a ponta, pelos fatos reais (D6)."""
     reservation = t7_reservation()
-    service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False)
+    service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False, actor=actor)
 
-    bill = service.check_out(reservation, now=local(MARCH_9, 12, 1))
+    bill = service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
 
     assert bill.subtotal_daily == Decimal("300.00")
     assert bill.subtotal_parking == Decimal("35.00")
@@ -302,82 +402,82 @@ def test_check_out_freezes_totals_matching_T7():
     assert stored.total_amount == Decimal("425.00")
 
 
-def test_check_out_charges_real_stay_not_scheduled_dates():
+def test_check_out_charges_real_stay_not_scheduled_dates(actor):
     """D6: agendado sex->dom, saida real na segunda -> a diaria de domingo entra."""
     reservation = t7_reservation()
-    service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False)
+    service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False, actor=actor)
 
-    bill = service.check_out(reservation, now=local(date(2025, 3, 10), 11, 0))
+    bill = service.check_out(reservation, now=local(date(2025, 3, 10), 11, 0), actor=actor)
 
     assert [line.date.day for line in bill.lines] == [7, 8, 9]
     assert bill.total == Decimal("535.00")  # caso T3
 
 
-def test_check_out_exactly_at_noon_is_exempt():
+def test_check_out_exactly_at_noon_is_exempt(actor):
     """T8/D3: `ate as 12h00min` inclui o limite."""
     reservation = ReservationFactory(
         checkin_date=date(2025, 3, 5), checkout_date=date(2025, 3, 7), has_vehicle=False
     )
-    service.check_in(reservation, now=local(date(2025, 3, 5), 18), allow_early=False)
+    service.check_in(reservation, now=local(date(2025, 3, 5), 18), allow_early=False, actor=actor)
 
-    bill = service.check_out(reservation, now=local(date(2025, 3, 7), 12, 0, 0))
+    bill = service.check_out(reservation, now=local(date(2025, 3, 7), 12, 0, 0), actor=actor)
 
     assert bill.late_fee_applied is False
     assert bill.total == Decimal("240.00")
 
 
-def test_check_out_twice_is_rejected():
+def test_check_out_twice_is_rejected(actor):
     reservation = t7_reservation()
-    service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False)
-    service.check_out(reservation, now=local(MARCH_9, 11))
+    service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False, actor=actor)
+    service.check_out(reservation, now=local(MARCH_9, 11), actor=actor)
 
     with pytest.raises(service.InvalidStatusError):
-        service.check_out(reservation, now=local(MARCH_9, 11, 30))
+        service.check_out(reservation, now=local(MARCH_9, 11, 30), actor=actor)
 
 
 @pytest.mark.parametrize("trait", ["pending", "cancelled"])
-def test_check_out_requires_checked_in(trait):
+def test_check_out_requires_checked_in(trait, actor):
     reservation = _reservation_in_state(trait)
 
     with pytest.raises(service.InvalidStatusError):
-        service.check_out(reservation, now=local(MARCH_9, 11))
+        service.check_out(reservation, now=local(MARCH_9, 11), actor=actor)
 
 
-def test_check_out_without_checkin_timestamp_is_rejected():
+def test_check_out_without_checkin_timestamp_is_rejected(actor):
     """Defesa contra linha inconsistente: CHECKED_IN sem `checked_in_at`."""
     reservation = ReservationFactory(checked_in=True)
     Reservation.objects.filter(pk=reservation.pk).update(checked_in_at=None)
 
     with pytest.raises(service.InvalidStatusError):
-        service.check_out(reservation, now=local(MARCH_9, 11))
+        service.check_out(reservation, now=local(MARCH_9, 11), actor=actor)
 
 
 # -- cancelamento e extrato --------------------------------------------------
 
 
-def test_cancel_pending_reservation():
+def test_cancel_pending_reservation(actor):
     reservation = ReservationFactory()
 
-    service.cancel(reservation)
+    service.cancel(reservation, now=local(MARCH_7, 10), actor=actor)
 
     assert reservation.status == ReservationStatus.CANCELLED
     assert Reservation.objects.get(pk=reservation.pk).status == ReservationStatus.CANCELLED
 
 
 @pytest.mark.parametrize("trait", ["checked_in", "checked_out", "cancelled"])
-def test_cancel_rejects_anything_but_pending(trait):
+def test_cancel_rejects_anything_but_pending(trait, actor):
     """D8: nenhum outro estado cancela -- dinheiro monotonico."""
     reservation = _reservation_in_state(trait)
 
     with pytest.raises(service.InvalidStatusError):
-        service.cancel(reservation)
+        service.cancel(reservation, now=local(MARCH_7, 10), actor=actor)
 
 
-def test_statement_recomputes_the_frozen_bill():
+def test_statement_recomputes_the_frozen_bill(actor):
     """SPEC 1.3: o extrato linha a linha e recomputavel, sem JSON no banco."""
     reservation = t7_reservation()
-    service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False)
-    frozen = service.check_out(reservation, now=local(MARCH_9, 12, 1))
+    service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False, actor=actor)
+    frozen = service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
 
     recomputed = service.statement(Reservation.objects.get(pk=reservation.pk))
 
@@ -409,7 +509,7 @@ def _reservation_in_state(trait: str) -> Reservation:
     return ReservationFactory(**{trait: True})
 
 
-def test_check_in_rejects_guest_with_an_active_stay():
+def test_check_in_rejects_guest_with_an_active_stay(actor):
     """Invariante entre linhas vira 409, nao IntegrityError.
 
     `resv_one_active_per_guest` (SPEC 1.5) e uma constraint ENTRE linhas. Sem
@@ -418,7 +518,7 @@ def test_check_in_rejects_guest_with_an_active_stay():
     duas reservas PENDING, check-in na segunda.
     """
     active = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
-    service.check_in(active, now=local(MARCH_7, 15))
+    service.check_in(active, now=local(MARCH_7, 15), actor=actor)
 
     second = ReservationFactory(
         guest=active.guest,
@@ -427,7 +527,7 @@ def test_check_in_rejects_guest_with_an_active_stay():
     )
 
     with pytest.raises(service.InvalidStatusError) as exc:
-        service.check_in(second, now=local(date(2025, 3, 10), 15))
+        service.check_in(second, now=local(date(2025, 3, 10), 15), actor=actor)
 
     assert exc.value.code == "INVALID_STATUS"
     assert exc.value.extra["active_reservation_id"] == active.pk
@@ -436,24 +536,24 @@ def test_check_in_rejects_guest_with_an_active_stay():
     assert second.checked_in_at is None
 
 
-def test_check_in_allowed_again_after_checkout():
+def test_check_in_allowed_again_after_checkout(actor):
     """A trava e a estadia ATIVA, nao o historico: apos o checkout, libera."""
     first = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
-    service.check_in(first, now=local(MARCH_7, 15))
-    service.check_out(first, now=local(MARCH_9, 11))
+    service.check_in(first, now=local(MARCH_7, 15), actor=actor)
+    service.check_out(first, now=local(MARCH_9, 11), actor=actor)
 
     second = ReservationFactory(
         guest=first.guest,
         checkin_date=date(2025, 3, 10),
         checkout_date=date(2025, 3, 12),
     )
-    service.check_in(second, now=local(date(2025, 3, 10), 15))
+    service.check_in(second, now=local(date(2025, 3, 10), 15), actor=actor)
 
     second.refresh_from_db()
     assert second.status == ReservationStatus.CHECKED_IN
 
 
-def test_check_out_converts_utc_to_local_before_counting_nights():
+def test_check_out_converts_utc_to_local_before_counting_nights(actor):
     """A conversao para hora local decide QUAIS diarias entram na conta.
 
     Sao Paulo e UTC-3, entao um check-in as 21:00 locais e 00:00 UTC do dia
@@ -470,8 +570,8 @@ def test_check_out_converts_utc_to_local_before_counting_nights():
     checkout_utc = datetime(2025, 3, 9, 14, 0, tzinfo=UTC)  # dom 09/03 11:00 local
 
     reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=False)
-    service.check_in(reservation, now=checkin_utc)
-    bill = service.check_out(reservation, now=checkout_utc)
+    service.check_in(reservation, now=checkin_utc, actor=actor)
+    bill = service.check_out(reservation, now=checkout_utc, actor=actor)
 
     assert [line.date for line in bill.lines] == [MARCH_7, date(2025, 3, 8)]
     assert bill.subtotal_daily == Decimal("300.00")
@@ -479,7 +579,7 @@ def test_check_out_converts_utc_to_local_before_counting_nights():
     assert bill.total == Decimal("300.00")
 
 
-def test_check_in_rule_reads_local_time_from_a_utc_timestamp():
+def test_check_in_rule_reads_local_time_from_a_utc_timestamp(actor):
     """23:00 locais liberam o check-in, embora sejam 02:00 UTC do dia seguinte.
 
     Complementa o teste de fronteira local: aqui a entrada e UTC, como na
@@ -489,7 +589,7 @@ def test_check_in_rule_reads_local_time_from_a_utc_timestamp():
     now_utc = datetime(2025, 3, 8, 2, 0, tzinfo=UTC)  # sex 07/03 23:00 local
     reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
 
-    service.check_in(reservation, now=now_utc, allow_early=False)
+    service.check_in(reservation, now=now_utc, allow_early=False, actor=actor)
 
     reservation.refresh_from_db()
     assert reservation.status == ReservationStatus.CHECKED_IN

@@ -134,6 +134,7 @@ class ReservationViewSet(
         serializer.is_valid(raise_exception=True)
         reservation = reservations_service.create_reservation(
             **serializer.validated_data,
+            actor=request.user,
             today=timezone.localdate(),  # relogio injetado (SPEC 0.3)
         )
         return Response(
@@ -178,6 +179,7 @@ class ReservationViewSet(
         reservations_service.check_in(
             reservation,
             now=timezone.now(),  # relogio injetado (SPEC 0.3)
+            actor=request.user,
             allow_early=payload.validated_data["allow_early"],
         )
         return Response(ReservationSerializer(reservation).data)
@@ -204,7 +206,9 @@ class ReservationViewSet(
     @action(detail=True, methods=["post"], url_path="checkout")
     def checkout(self, request: Request, pk: str | None = None) -> Response:
         reservation = self.get_object()
-        bill = reservations_service.check_out(reservation, now=timezone.now())
+        bill = reservations_service.check_out(
+            reservation, now=timezone.now(), actor=request.user
+        )
         return Response(StatementSerializer(build_statement(reservation, bill)).data)
 
     @extend_schema(
@@ -249,5 +253,5 @@ class ReservationViewSet(
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request: Request, pk: str | None = None) -> Response:
         reservation = self.get_object()
-        reservations_service.cancel(reservation)
+        reservations_service.cancel(reservation, now=timezone.now(), actor=request.user)
         return Response(ReservationSerializer(reservation).data)

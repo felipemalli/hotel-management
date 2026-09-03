@@ -12,7 +12,11 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import SimpleRouter
 
-from accounts.views import ThrottledTokenObtainPairView, ThrottledTokenRefreshView
+from accounts.views import (
+    CurrentUserView,
+    ThrottledTokenObtainPairView,
+    ThrottledTokenRefreshView,
+)
 from config.health import health
 from hotel.views import GuestViewSet, ReservationViewSet
 
@@ -27,6 +31,7 @@ urlpatterns = [
     # IsAuthenticated (SPEC 2.3) nao tranca a propria porta de entrada.
     path("api/auth/token/", ThrottledTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", ThrottledTokenRefreshView.as_view(), name="token_refresh"),
+    path("api/auth/me/", CurrentUserView.as_view(), name="current_user"),
     path("api/", include(router.urls)),
     # Feature opcional da SPEC 7. Esta linha e a unica amarra do app `ai/` ao
     # projeto: apaga-la (com o proprio pacote) e o corte limpo da SPEC 8.4/C1.

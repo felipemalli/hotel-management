@@ -3,13 +3,17 @@ Autenticacao JWT (SPEC 2.3, 4.2). Nomes normativos da matriz SPEC 6.3 (RF8).
 """
 
 import pytest
+from django.contrib.auth.models import AnonymousUser
+from rest_framework.test import APIRequestFactory
 
+from accounts.permissions import IsHotelAdmin
 from accounts.views import LoginRateThrottle
-from tests.factories import DEFAULT_PASSWORD
+from tests.factories import DEFAULT_PASSWORD, UserFactory
 
 pytestmark = pytest.mark.django_db
 
 PROTECTED_PATHS = [
+    "/api/auth/me/",
     "/api/guests/",
     "/api/guests/in-hotel/",
     "/api/guests/pending-checkin/",
@@ -147,3 +151,69 @@ def test_login_throttle_ignores_a_spoofed_forwarded_for(api_client, attendant, m
     ]
 
     assert codes == [401, 401, 401, 429]
+
+
+# -- identidade e papel -------------------------------------------------------
+
+
+def test_me_returns_role(auth_client, attendant):
+    """O access token carrega so `user_id`: o papel vem desta rota.
+
+    Sem ela o frontend teria de descobrir o papel por tentativa e erro (bater
+    numa rota de admin e ler o 403). Papel como claim no token seria pior:
+    claim nao expira quando o papel muda, so quando o token expira.
+    """
+    response = auth_client.get("/api/auth/me/")
+
+    assert response.status_code == 200
+    assert response.data == {
+        "id": attendant.pk,
+        "username": attendant.username,
+        "role": "ATTENDANT",
+    }
+
+
+def test_me_reports_the_admin_role(admin_client, hotel_admin):
+    response = admin_client.get("/api/auth/me/")
+
+    assert response.status_code == 200
+    assert response.data["role"] == "ADMIN"
+
+
+def test_me_requires_authentication(api_client):
+    response = api_client.get("/api/auth/me/")
+
+    assert response.status_code == 401
+    assert response.data["code"] == "NOT_AUTHENTICATED"
+
+
+@pytest.mark.parametrize(
+    "traits, expected",
+    [
+        ({}, False),
+        ({"admin": True}, True),
+        ({"is_superuser": True}, True),
+        ({"is_staff": True}, False),
+    ],
+    ids=["attendant", "role_admin", "superuser", "staff_only"],
+)
+def test_is_hotel_admin_accepts_role_or_superuser(traits, expected):
+    """`role == ADMIN` OU superusuario -- e `is_staff` nao conta.
+
+    O `or is_superuser` nao e cortesia: quem foi criado por `createsuperuser`
+    para o /admin/ nasce com o papel default e receberia 403 nas proprias rotas
+    administrativas da API. Ja `is_staff` sozinho e recusado de proposito: ele
+    significa "entra no /admin/", e o Django admin nao e caminho de escrita
+    deste dominio.
+    """
+    request = APIRequestFactory().get("/api/rooms/")
+    request.user = UserFactory(username=f"papel-{'-'.join(traits) or 'nenhum'}", **traits)
+
+    assert IsHotelAdmin().has_permission(request, None) is expected
+
+
+def test_is_hotel_admin_refuses_the_anonymous_user():
+    request = APIRequestFactory().get("/api/rooms/")
+    request.user = AnonymousUser()
+
+    assert IsHotelAdmin().has_permission(request, None) is False

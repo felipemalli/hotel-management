@@ -18,6 +18,7 @@ from django.core.management import call_command
 from django.utils import timezone
 from freezegun import freeze_time
 
+from accounts.models import Role
 from hotel import selectors
 from hotel.models import Guest, Reservation, ReservationStatus
 from hotel.services import guests as guests_service
@@ -105,6 +106,26 @@ def test_seed_is_idempotent():
     assert Guest.objects.count() == guests
     assert Reservation.objects.count() == reservations
     assert dict(Reservation.objects.values_list("pk", "status")) == statuses
+
+
+def test_seed_creates_admin_role_without_staff_flag():
+    """A credencial de demo do papel ADMIN nao entra no /admin/ do Django.
+
+    `is_staff` significa "entra no /admin/", e o Django admin gravaria no
+    dominio por fora dos services -- justo o que este projeto recusa (nao
+    existe `hotel/admin.py`). O papel do produto e a coluna `role`, e confundir
+    os dois daria ao admin do hotel um caminho de escrita sem regra nenhuma.
+    """
+    run_seed()
+
+    admin = get_user_model().objects.get(username="admin")
+    assert admin.role == Role.ADMIN
+    assert admin.is_staff is False
+    assert admin.is_superuser is False
+    assert admin.check_password("admin123")
+    # O atendente continua atendente: o seed nao promove ninguem por engano.
+    attendant = get_user_model().objects.get(username="atendente")
+    assert attendant.role == Role.ATTENDANT
 
 
 def test_seed_never_logs_pii():

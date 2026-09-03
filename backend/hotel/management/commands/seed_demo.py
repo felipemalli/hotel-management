@@ -23,6 +23,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from accounts.models import Role
 from hotel.models import Guest, Reservation, ReservationStatus
 from hotel.normalization import normalize_document
 from hotel.services import guests as guest_services
@@ -30,6 +31,8 @@ from hotel.services import reservations as reservation_services
 
 ATTENDANT_USERNAME = "atendente"
 ATTENDANT_PASSWORD = "atendente123"
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
 
 SUNDAY = 6
 
@@ -52,24 +55,34 @@ class Command(BaseCommand):
     def handle(self, *args, **options) -> None:
         today = timezone.localdate()
 
-        self._ensure_attendant()
+        attendant = self._ensure_attendant()
+        self._ensure_admin()
 
         # 1. Ana Souza - reserva PENDING de hoje: povoa a aba "pendentes".
         ana = self._ensure_guest("Ana Souza", "123.456.789-01", "(21) 98888-7777")
         self._ensure_reservation(
-            ana, checkin=today, checkout=today + timedelta(days=2), has_vehicle=True
+            ana,
+            checkin=today,
+            checkout=today + timedelta(days=2),
+            has_vehicle=True,
+            actor=attendant,
         )
 
         # 2. Bruno Lima - check-in feito ontem: povoa a aba "no hotel".
         bruno = self._ensure_guest("Bruno Lima", "987.654.321-00", "(11) 97777-6666")
         yesterday = today - timedelta(days=1)
         bruno_reservation = self._ensure_reservation(
-            bruno, checkin=yesterday, checkout=today + timedelta(days=1), has_vehicle=False
+            bruno,
+            checkin=yesterday,
+            checkout=today + timedelta(days=1),
+            has_vehicle=False,
+            actor=attendant,
         )
         if bruno_reservation.status == ReservationStatus.PENDING:
             reservation_services.check_in(
                 bruno_reservation,
                 now=local_dt(yesterday, time(15, 0)),
+                actor=attendant,
                 allow_early=False,
             )
             self.stdout.write("  check-in aplicado: Bruno Lima")
@@ -81,14 +94,17 @@ class Command(BaseCommand):
         sunday = last_past_sunday(today)
         friday = sunday - timedelta(days=2)
         carla_reservation = self._ensure_reservation(
-            carla, checkin=friday, checkout=sunday, has_vehicle=True
+            carla, checkin=friday, checkout=sunday, has_vehicle=True, actor=attendant
         )
         if carla_reservation.status == ReservationStatus.PENDING:
             reservation_services.check_in(
-                carla_reservation, now=local_dt(friday, time(15, 0)), allow_early=False
+                carla_reservation,
+                now=local_dt(friday, time(15, 0)),
+                actor=attendant,
+                allow_early=False,
             )
             bill = reservation_services.check_out(
-                carla_reservation, now=local_dt(sunday, time(12, 1))
+                carla_reservation, now=local_dt(sunday, time(12, 1)), actor=attendant
             )
             self.stdout.write(
                 f"  estadia encerrada: Carla Nunes - total R$ {bill.total} "
@@ -101,12 +117,13 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Seed de demonstracao aplicado."))
         self.stdout.write(
             f"Atendente: {ATTENDANT_USERNAME} / {ATTENDANT_PASSWORD} "
+            f"| Admin: {ADMIN_USERNAME} / {ADMIN_PASSWORD} "
             f"| hospedes: {Guest.objects.count()} | reservas: {Reservation.objects.count()}"
         )
 
     # -- auxiliares ----------------------------------------------------------
 
-    def _ensure_attendant(self) -> None:
+    def _ensure_attendant(self):
         user_model = get_user_model()
         # Usuario COMUM: a SPEC 1.1 diz que o atendente e um CustomUser comum,
         # sem papeis multiplos. Criar superusuario com senha conhecida a cada
@@ -124,6 +141,26 @@ class Command(BaseCommand):
             # senha publica -- e o /admin/ nao passa pelo throttle do DRF.
             user_model.objects.filter(pk=attendant.pk).update(is_staff=False, is_superuser=False)
             self.stdout.write("  atendente rebaixado para usuario comum (SPEC 1.1)")
+            attendant.refresh_from_db()
+        return attendant
+
+    def _ensure_admin(self) -> None:
+        """Credencial de demonstracao do papel ADMIN.
+
+        `is_staff=False` de proposito: o papel e do produto, e `is_staff`
+        significa "entra no /admin/". Um admin do hotel com acesso ao Django
+        admin poderia gravar no dominio por fora dos services, que e justo o
+        que este projeto recusa (nao existe `hotel/admin.py`).
+        """
+        user_model = get_user_model()
+        admin, created = user_model.objects.get_or_create(
+            username=ADMIN_USERNAME,
+            defaults={"role": Role.ADMIN, "is_staff": False, "is_superuser": False},
+        )
+        if created:
+            admin.set_password(ADMIN_PASSWORD)
+            admin.save(update_fields=["password"])
+            self.stdout.write(f"  admin criado: {ADMIN_USERNAME}")
 
     def _ensure_guest(self, full_name: str, document: str, phone: str) -> Guest:
         """Cadastra pelo servico; a idempotencia e a leitura previa por documento.
@@ -144,7 +181,7 @@ class Command(BaseCommand):
         return guest
 
     def _ensure_reservation(
-        self, guest: Guest, *, checkin: date, checkout: date, has_vehicle: bool
+        self, guest: Guest, *, checkin: date, checkout: date, has_vehicle: bool, actor
     ) -> Reservation:
         """Uma reserva por hospede do seed, criada uma unica vez.
 
@@ -170,6 +207,7 @@ class Command(BaseCommand):
             checkin_date=checkin,
             checkout_date=checkout,
             has_vehicle=has_vehicle,
+            actor=actor,
             # `today=checkin`, nao `localdate()`: as fichas de Bruno e Carla
             # sao estadias passadas, e D11 recusa agendamento no passado. O
             # relogio e parametro justamente para que o seed possa se situar no

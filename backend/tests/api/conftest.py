@@ -36,3 +36,22 @@ def attendant(db):
 def auth_client(api_client: APIClient, attendant) -> APIClient:
     api_client.force_authenticate(user=attendant)
     return api_client
+
+
+@pytest.fixture
+def hotel_admin(db):
+    """Usuario com `role=ADMIN` e `is_staff=False` -- o papel do produto."""
+    return UserFactory(username="admin-do-teste", admin=True)
+
+
+@pytest.fixture
+def admin_client(hotel_admin) -> APIClient:
+    """Cliente separado do `auth_client` de proposito.
+
+    Um unico cliente que troca de usuario no meio do teste esconderia o que a
+    rota administrativa precisa provar: que o MESMO pedido, so mudando quem o
+    faz, passa ou recebe 403.
+    """
+    client = APIClient()
+    client.force_authenticate(user=hotel_admin)
+    return client
