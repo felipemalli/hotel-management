@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 
-import { useInvalidateServerState } from '@/lib/queryKeys'
+import { useInvalidateServerState } from '@/lib/useInvalidateServerState'
 
 import { cancelReservation, checkIn, checkOut, createReservation } from './api'
 import type {

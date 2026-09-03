@@ -1,16 +1,16 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'
-import { GUESTS_ROOT, useInvalidateServerState } from '@/lib/queryKeys'
+import { GUESTS_ROOT } from '@/lib/queryKeys'
+import { useInvalidateServerState } from '@/lib/useInvalidateServerState'
 
 import { createGuest, fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from './api'
 import type { CreateGuestPayload, Guest } from './types'
 
 export const guestKeys = {
-  all: GUESTS_ROOT,
-  list: (search: string) => ['guests', { search }] as const,
-  inHotel: ['guests', 'in-hotel'] as const,
-  pendingCheckin: ['guests', 'pending-checkin'] as const,
+  list: (search: string) => [...GUESTS_ROOT, { search }] as const,
+  inHotel: [...GUESTS_ROOT, 'in-hotel'] as const,
+  pendingCheckin: [...GUESTS_ROOT, 'pending-checkin'] as const,
 }
 
 export interface QueryOptions {
