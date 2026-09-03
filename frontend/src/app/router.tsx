@@ -1,9 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { LoginPage } from '@/features/auth/LoginPage'
+import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 
 import { DashboardPage } from './DashboardPage'
-import { ProtectedRoute } from './ProtectedRoute'
 
 export function AppRoutes() {
   return (
