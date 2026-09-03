@@ -1,10 +1,10 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createReservation } from '@/features/reservations/api'
 import { addDaysISO, todayISO } from '@/lib/dates'
-import { renderWithProviders, resetGlobalStores } from '@/test/renderWithProviders'
+import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { ReservationForm } from './ReservationForm'
 import type { Reservation } from './types'
@@ -49,11 +49,6 @@ function setDate(label: string, value: string) {
 }
 
 describe('ReservationForm', () => {
-  beforeEach(() => {
-    resetGlobalStores()
-    vi.mocked(createReservation).mockReset()
-  })
-
   it('test_submits_dates_and_vehicle_flag', async () => {
     const user = userEvent.setup()
     const checkin = addDaysISO(todayISO(), 4)

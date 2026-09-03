@@ -3,6 +3,11 @@
 import '@testing-library/jest-dom/vitest'
 
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, beforeEach } from 'vitest'
 
+import { resetGlobalStores } from './renderWithProviders'
+
+// `session` e `toastStore` sao stores de modulo: sem isto, um caso herda a
+// sessao e os avisos do anterior.
+beforeEach(resetGlobalStores)
 afterEach(cleanup)

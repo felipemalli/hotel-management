@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchGuests } from '@/features/guests/api'
-import { resetGlobalStores, signInForTest } from '@/test/renderWithProviders'
+import { signInForTest } from '@/test/renderWithProviders'
 
 import { App } from './App'
 
@@ -17,7 +17,6 @@ vi.mock('@/features/guests/api')
  */
 describe('App', () => {
   beforeEach(() => {
-    resetGlobalStores()
     vi.mocked(fetchGuests).mockResolvedValue({
       count: 0,
       next: null,

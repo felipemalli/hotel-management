@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createGuest } from '@/features/guests/api'
 import { ApiError } from '@/lib/errors'
-import { renderWithProviders, resetGlobalStores } from '@/test/renderWithProviders'
+import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { GuestForm } from './GuestForm'
 import type { Guest } from './types'
@@ -38,8 +38,6 @@ const CREATED_GUEST: Guest = {
 
 describe('GuestForm', () => {
   beforeEach(() => {
-    resetGlobalStores()
-    vi.mocked(createGuest).mockReset()
     vi.mocked(createGuest).mockResolvedValue(CREATED_GUEST)
   })
 

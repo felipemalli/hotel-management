@@ -1,13 +1,13 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { DashboardPage } from '@/app/DashboardPage'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import type { GuestInHotel } from '@/features/guests/types'
 import { checkOut } from '@/features/reservations/api'
-import type { Paginated } from '@/lib/apiClient'
-import { renderWithProviders, resetGlobalStores, signInForTest } from '@/test/renderWithProviders'
+import { page } from '@/test/fixtures'
+import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
 
 import { T7_STATEMENT } from './__fixtures__/bills'
 
@@ -32,10 +32,6 @@ vi.mock('@/features/reservations/api')
 const RESERVATION_ID = 7
 const GUEST_NAME = 'Carla Nunes'
 
-function page<T>(results: T[]): Paginated<T> {
-  return { count: results.length, next: null, previous: null, results }
-}
-
 function carlaInHotel(): GuestInHotel {
   return {
     id: 3,
@@ -54,14 +50,6 @@ function carlaInHotel(): GuestInHotel {
 }
 
 describe('CheckoutFlow', () => {
-  beforeEach(() => {
-    resetGlobalStores()
-    vi.mocked(checkOut).mockReset()
-    vi.mocked(fetchGuests).mockReset()
-    vi.mocked(fetchGuestsInHotel).mockReset()
-    vi.mocked(fetchGuestsPendingCheckin).mockReset()
-  })
-
   it('test_checkout_statement_survives_the_row_leaving_in_hotel', async () => {
     const user = userEvent.setup()
     signInForTest()

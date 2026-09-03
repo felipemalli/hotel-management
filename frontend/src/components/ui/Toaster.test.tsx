@@ -1,13 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { act } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { AppProviders } from '@/app/providers'
 import { checkIn, checkOut } from '@/features/reservations/api'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ApiError } from '@/lib/errors'
-import { toastStore } from '@/lib/toast'
 
 vi.mock('@/features/reservations/api')
 
@@ -30,12 +28,6 @@ function renderActions() {
 }
 
 describe('handler global de erros', () => {
-  beforeEach(() => {
-    act(() => toastStore.clear())
-    vi.mocked(checkIn).mockReset()
-    vi.mocked(checkOut).mockReset()
-  })
-
   it('exibe em toast a falha inesperada de uma mutation', async () => {
     const user = userEvent.setup()
     vi.mocked(checkOut).mockRejectedValue(

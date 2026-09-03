@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchAiStatus, parseGuestText } from '@/features/ai/api'
 import { createGuest } from '@/features/guests/api'
 import { GuestForm } from '@/features/guests/GuestForm'
-import { renderWithProviders, resetGlobalStores } from '@/test/renderWithProviders'
+import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { AiFillGuest } from './AiFillGuest'
 
@@ -31,9 +31,6 @@ const FREE_TEXT = 'hóspede Ana Souza cpf 123.456.789-01 cel (21) 98888-7777'
 
 describe('AiFillGuest', () => {
   beforeEach(() => {
-    resetGlobalStores()
-    vi.mocked(fetchAiStatus).mockReset()
-    vi.mocked(parseGuestText).mockReset()
     vi.mocked(parseGuestText).mockResolvedValue(EXTRACTED)
   })
 

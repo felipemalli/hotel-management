@@ -1,12 +1,12 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 // O componente vive em `src/app/` (SPEC 5.1: router/providers/ProtectedRoute);
 // o arquivo de teste fica sob `features/auth/` porque e da SPEC 6.2 que ele
 // nasce, e o requisito provado e o RF8 (login) desta feature.
 import { ProtectedRoute } from '@/app/ProtectedRoute'
-import { resetGlobalStores, signInForTest } from '@/test/renderWithProviders'
+import { signInForTest } from '@/test/renderWithProviders'
 
 /**
  * SPEC 6.2 — `features/auth/ProtectedRoute.test.tsx`.
@@ -32,10 +32,6 @@ function renderProtectedApp() {
 }
 
 describe('ProtectedRoute', () => {
-  beforeEach(() => {
-    resetGlobalStores()
-  })
-
   it('test_redirects_anonymous_to_login', () => {
     // Sem sessao: a rota protegida nao renderiza, o login toma a tela.
     const view = renderProtectedApp()

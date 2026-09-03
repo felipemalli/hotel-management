@@ -6,8 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import type { Paginated } from '@/lib/apiClient'
 import { ApiError } from '@/lib/errors'
-import { elementAt } from '@/test/fixtures'
-import { renderWithProviders, resetGlobalStores } from '@/test/renderWithProviders'
+import { elementAt, page } from '@/test/fixtures'
+import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { DEBOUNCE_MS, GuestTable } from './GuestTable'
 import type { Guest, GuestInHotel, GuestPendingCheckin } from './types'
@@ -21,10 +21,6 @@ vi.mock('@/features/guests/api')
  * Valor gravado (normalizado) nos fixtures, como o contrato SPEC 4.3 devolve:
  * a tabela formata para exibicao via `lib/pii.ts`.
  */
-
-function page<T>(results: T[]): Paginated<T> {
-  return { count: results.length, next: null, previous: null, results }
-}
 
 const ANA: Guest = {
   id: 1,
@@ -72,10 +68,6 @@ const ANA_PENDING: GuestPendingCheckin = {
 
 describe('GuestTable', () => {
   beforeEach(() => {
-    resetGlobalStores()
-    vi.mocked(fetchGuests).mockReset()
-    vi.mocked(fetchGuestsInHotel).mockReset()
-    vi.mocked(fetchGuestsPendingCheckin).mockReset()
     vi.mocked(fetchGuests).mockResolvedValue(page([ANA, DAVI]))
     vi.mocked(fetchGuestsInHotel).mockResolvedValue(page([BRUNO_IN_HOTEL]))
     vi.mocked(fetchGuestsPendingCheckin).mockResolvedValue(page([ANA_PENDING]))

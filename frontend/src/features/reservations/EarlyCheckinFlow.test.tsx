@@ -1,15 +1,14 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { DashboardPage } from '@/app/DashboardPage'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import type { GuestInHotel, GuestPendingCheckin } from '@/features/guests/types'
 import { checkIn } from '@/features/reservations/api'
-import type { Paginated } from '@/lib/apiClient'
 import { ApiError } from '@/lib/errors'
-import { elementAt } from '@/test/fixtures'
-import { renderWithProviders, resetGlobalStores, signInForTest } from '@/test/renderWithProviders'
+import { elementAt, page } from '@/test/fixtures'
+import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
 
 import { ReservationActions } from './ReservationActions'
 import type { Reservation } from './types'
@@ -58,19 +57,7 @@ function checkedInReservation(): Reservation {
   }
 }
 
-function page<T>(results: T[]): Paginated<T> {
-  return { count: results.length, next: null, previous: null, results }
-}
-
 describe('EarlyCheckinFlow', () => {
-  beforeEach(() => {
-    resetGlobalStores()
-    vi.mocked(checkIn).mockReset()
-    vi.mocked(fetchGuests).mockReset()
-    vi.mocked(fetchGuestsInHotel).mockReset()
-    vi.mocked(fetchGuestsPendingCheckin).mockReset()
-  })
-
   it('test_409_opens_dialog_and_retry_allow_early', async () => {
     const user = userEvent.setup()
 
