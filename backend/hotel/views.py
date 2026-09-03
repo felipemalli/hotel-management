@@ -202,6 +202,10 @@ class GuestViewSet(
         ],
         responses={200: ReservationSerializer(many=True), 400: ErrorEnvelopeSerializer},
     ),
+    retrieve=extend_schema(
+        summary="Detalhe da reserva",
+        responses={200: ReservationSerializer, 404: ErrorEnvelopeSerializer},
+    ),
     create=extend_schema(
         summary="Cria reserva",
         description=(
@@ -226,6 +230,7 @@ class GuestViewSet(
 )
 class ReservationViewSet(
     mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
     viewsets.GenericViewSet,
 ):
@@ -372,6 +377,31 @@ class ReservationViewSet(
     def checkout(self, request: Request, pk: str | None = None) -> Response:
         reservation = self.get_object()
         bill = reservations_service.check_out(reservation, now=timezone.now())
+        return Response(StatementSerializer(build_statement(reservation, bill)).data)
+
+    @extend_schema(
+        summary="2ª via do extrato de uma reserva finalizada",
+        description=(
+            "RN6 exige o extrato **durante** o checkout, e o POST acima cumpre isso. "
+            "Esta rota cobre a operação de balcão: o atendente fechou o modal e o "
+            "hóspede quer o recibo de novo. Não guarda estado novo — recomputa dos "
+            "fatos congelados (SPEC 1.3), então o valor confere com `total_amount`. "
+            "Reserva que ainda não fez checkout responde `409 INVALID_STATUS`."
+        ),
+        responses={
+            200: StatementSerializer,
+            409: OpenApiResponse(
+                response=ErrorEnvelopeSerializer,
+                description="Reserva ainda não finalizada.",
+                examples=[INVALID_STATUS_EXAMPLE],
+            ),
+            404: ErrorEnvelopeSerializer,
+        },
+    )
+    @action(detail=True, methods=["get"], url_path="statement")
+    def statement(self, request: Request, pk: str | None = None) -> Response:
+        reservation = self.get_object()
+        bill = reservations_service.statement(reservation)
         return Response(StatementSerializer(build_statement(reservation, bill)).data)
 
     @extend_schema(

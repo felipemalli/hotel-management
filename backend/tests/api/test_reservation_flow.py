@@ -59,6 +59,14 @@ def cancel_url(reservation: Reservation) -> str:
     return f"/api/reservations/{reservation.pk}/cancel/"
 
 
+def detail_url(reservation: Reservation) -> str:
+    return f"/api/reservations/{reservation.pk}/"
+
+
+def statement_url(reservation: Reservation) -> str:
+    return f"/api/reservations/{reservation.pk}/statement/"
+
+
 # -- criacao ------------------------------------------------------------------
 
 
@@ -260,6 +268,53 @@ def test_checkout_statement_matches_T7(auth_client):
         "late_fee": {"applied": True, "base_rate": "180.00", "amount": "90.00"},
         "total": "425.00",
     }
+
+
+def test_statement_reissues_the_exact_checkout_receipt(auth_client):
+    """2a via: mesmo recibo do checkout, recomputado dos fatos (SPEC 1.3).
+
+    E o teste que protege a hipotese da SPEC 1.3 na pratica: se um dia a
+    tarifa mudar por baixo, este assert e o que acusa a divergencia entre o
+    extrato reemitido e o que o hospede pagou.
+    """
+    reservation = t7_reservation()
+
+    with freeze_time(local(MARCH_7, 15, 0)):
+        auth_client.post(checkin_url(reservation), {}, format="json")
+    with freeze_time(local(MARCH_9, 12, 1)):
+        checkout = auth_client.post(checkout_url(reservation), format="json")
+
+    reissued = auth_client.get(statement_url(reservation))
+
+    assert reissued.status_code == 200
+    assert reissued.data == checkout.data
+    assert reissued.data["total"] == "425.00"
+
+
+def test_statement_before_checkout_returns_invalid_status(auth_client):
+    """Extrato so existe depois do checkout -- 409 no envelope, nunca 404 HTML."""
+    reservation = ReservationFactory(checked_in=True)
+
+    response = auth_client.get(statement_url(reservation))
+
+    assert response.status_code == 409
+    assert response.data["code"] == "INVALID_STATUS"
+
+
+def test_reservation_detail_returns_the_full_object(auth_client):
+    # Datas fixas no calendario da SPEC 3.3: o trait `checked_out` usa `hoje`
+    # por default, e o total mudaria conforme o dia da semana em que a suite
+    # rodasse (sex 120 + sab 180 = 300,00 aqui, sem vaga e sem multa).
+    reservation = ReservationFactory(
+        checked_out=True, checkin_date=MARCH_7, checkout_date=MARCH_9
+    )
+
+    response = auth_client.get(detail_url(reservation))
+
+    assert response.status_code == 200
+    assert response.data["id"] == reservation.pk
+    assert response.data["status"] == ReservationStatus.CHECKED_OUT
+    assert response.data["total_amount"] == "300.00"
 
 
 def test_checkout_at_noon_has_no_late_fee(auth_client):
