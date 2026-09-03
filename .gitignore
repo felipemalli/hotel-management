@@ -1,10 +1,6 @@
 # --- Orquestracao: processo fora do historico (SPEC 8.5) ---
 .env
-EXECUCAO.md
-PROGRESSO.md
 CLAUDE.md
-PROMPT_ORQUESTRADOR.md
-SPEC.md
 /ai-plans
 
 # --- Python / backend ---
