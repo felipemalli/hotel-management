@@ -1,8 +1,3 @@
-/**
- * Autenticacao (SPEC 4.2: `POST /api/auth/token/`).
- * Unico endpoint publico consumido pela app — o resto exige Bearer.
- */
-
 import { apiClient, AUTH_PATHS } from '@/lib/apiClient'
 import type { TokenPair } from '@/lib/session'
 

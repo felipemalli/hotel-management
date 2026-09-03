@@ -8,19 +8,6 @@ import { errorMessage, fieldErrors, isApiErrorCode } from '@/lib/errors'
 import { useCreateGuest } from './hooks'
 import type { Guest } from './types'
 
-/**
- * Cadastro de hospede (RF1, SPEC 4.3).
- *
- * As tres informacoes minimas do briefing (nome, documento, telefone) sao
- * obrigatorias aqui. O **formato** (>= 4 alfanumericos no documento, >= 8
- * digitos no telefone -- D9) e validado no servidor de proposito: duplicar a
- * regra no cliente criaria duas fontes da verdade que divergem no dia em que
- * uma mudar. O que o cliente faz e exibir o erro por campo do
- * `VALIDATION_ERROR` (SPEC 4.1) no input certo — e o `DUPLICATE_DOCUMENT` de
- * D12 no campo Documento, que e o campo culpado. Falha sem campo (rede, 500)
- * sobe para o toast global da SPEC 8.2/E, sem duplicar a mensagem na tela.
- */
-
 const REQUIRED_MESSAGE = 'Campo obrigatório.'
 
 export interface GuestFormProps {
@@ -68,13 +55,6 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
 
   return (
     <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
-      {/*
-        Diferencial opcional da SPEC 7: `AiFillGuest` renderiza nada enquanto a
-        IA nao estiver habilitada, logo este e o formulario inteiro quando a
-        chave nao existe. Corte limpo da SPEC 8.4/C1: apagar estas tres linhas
-        (mais o import) e `src/features/ai/` — nada mais no frontend importa a
-        feature.
-      */}
       <AiFillGuest
         onFilled={(fields) => {
           if (fields.full_name) setFullName(fields.full_name)

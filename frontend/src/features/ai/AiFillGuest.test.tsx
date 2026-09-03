@@ -12,15 +12,6 @@ import { AiFillGuest } from './AiFillGuest'
 vi.mock('@/features/ai/api')
 vi.mock('@/features/guests/api')
 
-/**
- * Diferencial opcional (SPEC 7) — o portao de fallback visto do frontend.
- *
- * O caso que mais importa e o primeiro: **desligada, a feature nao existe na
- * tela**. Os outros dois provam que, ligada, ela faz exatamente o que o
- * contrato da SPEC 7.1 promete — extrair para o formulario, sem persistir
- * nada. Nenhum destes testes toca a rede.
- */
-
 const EXTRACTED = {
   full_name: 'Ana Souza',
   document: '123.456.789-01',
@@ -68,7 +59,6 @@ describe('AiFillGuest', () => {
     await waitFor(() => expect(screen.getByLabelText('Nome completo')).toHaveValue('Ana Souza'))
     expect(screen.getByLabelText('Documento')).toHaveValue('123.456.789-01')
     expect(screen.getByLabelText('Telefone')).toHaveValue('(21) 98888-7777')
-    // Human-in-the-loop: quem cadastra e o atendente, depois de revisar.
     expect(createGuest).not.toHaveBeenCalled()
   })
 })

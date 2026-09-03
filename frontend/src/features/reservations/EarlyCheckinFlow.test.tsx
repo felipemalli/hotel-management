@@ -16,20 +16,10 @@ import type { Reservation } from './types'
 vi.mock('@/features/guests/api')
 vi.mock('@/features/reservations/api')
 
-/**
- * SPEC 6.2 — `features/reservations/EarlyCheckinFlow.test.tsx`.
- *
- * A unidade que a SPEC 6.2 chama de "EarlyCheckinFlow" e o `ReservationActions`
- * conduzindo o protocolo de D4 com o `EarlyCheckinDialog`. Provas de RN4 e RF6
- * na matriz SPEC 6.3 — e a RN4 e o unico requisito cuja **prova primaria e a
- * do frontend**: o "alerta" que o briefing pede e este componente.
- */
-
 const RESERVATION_ID = 1
 const GUEST_NAME = 'Ana Souza'
 const SERVER_TIME = '13:45'
 
-/** Envelope literal da SPEC 4.4 (409 EARLY_CHECKIN). */
 function earlyCheckinError(): ApiError {
   return new ApiError({
     code: 'EARLY_CHECKIN',
@@ -61,7 +51,6 @@ describe('EarlyCheckinFlow', () => {
   it('test_409_opens_dialog_and_retry_allow_early', async () => {
     const user = userEvent.setup()
 
-    // O servidor so aceita com o override: e isso que D4 descreve.
     vi.mocked(checkIn).mockImplementation(async ({ allow_early }) => {
       if (!allow_early) throw earlyCheckinError()
       return checkedInReservation()
@@ -71,14 +60,12 @@ describe('EarlyCheckinFlow', () => {
       <ReservationActions reservationId={RESERVATION_ID} guestName={GUEST_NAME} state="PENDING" />,
     )
 
-    // 1. Primeira tentativa sai sem override, como manda o fluxo F2.
     await user.click(screen.getByRole('button', { name: 'Check-in' }))
     expect(checkIn).toHaveBeenNthCalledWith(1, {
       id: RESERVATION_ID,
       allow_early: false,
     })
 
-    // 2. O 409 abre o alerta da RN4 exibindo `extra.server_time`.
     const alert = await screen.findByRole('alertdialog', {
       name: 'Check-in antes das 14:00',
     })
@@ -87,12 +74,10 @@ describe('EarlyCheckinFlow', () => {
     )
     expect(alert).toHaveTextContent(GUEST_NAME)
 
-    // 3. Cancelar fecha o alerta sem efeito nenhum: nenhuma segunda chamada.
     await user.click(within(alert).getByRole('button', { name: 'Cancelar' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(checkIn).toHaveBeenCalledTimes(1)
 
-    // 4. Nova tentativa, novo 409, novo alerta.
     await user.click(screen.getByRole('button', { name: 'Check-in' }))
     const reopened = await screen.findByRole('alertdialog', {
       name: 'Check-in antes das 14:00',
@@ -102,7 +87,6 @@ describe('EarlyCheckinFlow', () => {
       allow_early: false,
     })
 
-    // 5. Confirmar reenvia com `allow_early: true` e o alerta sai de cena.
     await user.click(within(reopened).getByRole('button', { name: 'Confirmar mesmo assim' }))
 
     await waitFor(() => expect(checkIn).toHaveBeenCalledTimes(3))
@@ -117,9 +101,6 @@ describe('EarlyCheckinFlow', () => {
     const user = userEvent.setup()
     signInForTest()
 
-    // O servidor muda de estado com o check-in: a reserva sai de "pendente" e
-    // o hospede aparece em "no hotel". As listagens da SPEC 4.3 seguem esse
-    // fato, e e a invalidacao da SPEC 5.2 que traz a nova verdade para a tela.
     let checkedIn = false
 
     const anaPending: GuestPendingCheckin = {
@@ -168,25 +149,19 @@ describe('EarlyCheckinFlow', () => {
 
     renderWithProviders(<DashboardPage />)
 
-    // Aba de pendentes (RF5): a linha traz o botao de check-in (RF6).
     await user.click(screen.getByRole('tab', { name: /Check-in pendente/ }))
     await screen.findByText(GUEST_NAME)
 
     await user.click(screen.getByRole('button', { name: 'Check-in' }))
 
-    // Depois das 14h nao ha alerta: o caminho comum e 200 direto (D4).
     await waitFor(() => expect(checkIn).toHaveBeenCalledTimes(1))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 
-    // A invalidacao da SPEC 5.2 refaz as tres listagens de hospedes: a reserva
-    // deixa de estar pendente na tela, sem recarregar a pagina.
     await waitFor(() =>
       expect(vi.mocked(fetchGuestsPendingCheckin).mock.calls.length).toBeGreaterThan(1),
     )
     expect(await screen.findByText('Nenhuma reserva aguardando check-in')).toBeInTheDocument()
 
-    // E o novo status aparece: o hospede agora esta na aba "No hotel", com o
-    // `checked_in_at` que o contrato devolveu.
     await user.click(screen.getByRole('tab', { name: /No hotel/ }))
     const table = await screen.findByRole('table', { name: 'Hóspedes no hotel' })
     const row = elementAt(within(table).getAllByRole('row'), 1)
@@ -195,7 +170,7 @@ describe('EarlyCheckinFlow', () => {
     expect(within(row).getByRole('button', { name: 'Checkout' })).toBeInTheDocument()
   })
 
-  it('nao abre o alerta quando o erro nao e o 409 de D4', async () => {
+  it('nao abre o alerta quando o 409 nao e EARLY_CHECKIN', async () => {
     const user = userEvent.setup()
     vi.mocked(checkIn).mockRejectedValue(
       new ApiError({
@@ -213,7 +188,6 @@ describe('EarlyCheckinFlow', () => {
     await user.click(screen.getByRole('button', { name: 'Check-in' }))
 
     await waitFor(() => expect(checkIn).toHaveBeenCalledTimes(1))
-    // Segue para o handler global (toast), nunca para o alerta da RN4.
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })

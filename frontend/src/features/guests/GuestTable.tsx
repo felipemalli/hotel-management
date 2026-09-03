@@ -14,21 +14,6 @@ import { useDebouncedValue } from '@/lib/useDebouncedValue'
 import { useGuests, useGuestsInHotel, useGuestsPendingCheckin } from './hooks'
 import type { Guest, GuestInHotel, GuestPendingCheckin, ReservationSummary } from './types'
 
-/**
- * F1 (SPEC 5.3) — tabela com busca dinamica e abas.
- *
- * Cada aba e um endpoint distinto da SPEC 4.3 e, portanto, uma query key
- * distinta (SPEC 5.2). A aba inativa nao busca (`enabled`).
- *
- * A busca de fragmento (RF3) so existe na aba "Todos": o contrato nao expoe
- * `?search=` em `in-hotel`/`pending-checkin`, e filtrar no cliente seria
- * inventar um segundo criterio de busca fora do servidor.
- *
- * As acoes por linha entram por `renderActions` em vez de serem importadas
- * daqui: o estado do hospede vem do endpoint da aba, e essa inversao mantem a
- * tabela independente da feature de reservas.
- */
-
 export const DEBOUNCE_MS = 300
 
 export const GUEST_TABS = [
@@ -54,7 +39,6 @@ const EMPTY_MESSAGE: Record<GuestTab, string> = {
   'pending-checkin': 'Nenhuma reserva aguardando check-in',
 }
 
-/** O skeleton imita a largura real da aba, para a tabela nao "pular" ao chegar. */
 const SKELETON_COLUMNS: Record<GuestTab, number> = {
   todos: 5,
   'in-hotel': 7,
@@ -167,10 +151,6 @@ function InHotelTable({
   )
 }
 
-/**
- * Uma linha por reserva pendente, nao por hospede: um hospede pode ter varias
- * reservas futuras (SPEC 4.3) e cada uma tem suas proprias acoes.
- */
 function PendingTable({
   data,
   renderActions,
@@ -253,7 +233,6 @@ export function GuestTable({ renderActions }: GuestTableProps) {
         ) : null}
       </div>
 
-      {/* Painel nomeado pela aba ativa: `aria-controls` das abas aponta para ca. */}
       <div id={tabPanelId(tab)} role="tabpanel" aria-labelledby={tabId(tab)}>
         {query.isPending ? (
           <TableSkeleton columns={SKELETON_COLUMNS[tab]} />

@@ -10,20 +10,6 @@ import { fieldErrors } from '@/lib/errors'
 import { useCreateReservation } from './hooks'
 import type { Reservation } from './types'
 
-/**
- * Criacao de reserva (RF2, SPEC 4.4).
- *
- * O servidor e a autoridade sobre D11 (`checkin_date >= hoje`) e D13
- * (`checkout_date > checkin_date`) e devolve `400 VALIDATION_ERROR` por campo.
- * O cliente repete as duas checagens apenas como guarda de UX — sao
- * comparacoes de string ISO, e errar essas duas e o erro mais comum de balcao.
- * Divergencia entre as duas camadas nunca decide nada: o payload vai igual e a
- * resposta do servidor prevalece na tela.
- *
- * Erro por campo aparece no campo; falha sem campo sobe para o toast global
- * (SPEC 8.2/E).
- */
-
 const REQUIRED_MESSAGE = 'Campo obrigatório.'
 
 export interface ReservationFormProps {

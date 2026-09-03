@@ -1,20 +1,8 @@
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 
-/**
- * F2 (SPEC 5.3) — alerta de check-in antes das 14h.
- *
- * **Este componente e o "alerta" da RN4.** O briefing manda permitir o
- * check-in e emitir um alerta; a API responde `409 EARLY_CHECKIN` com
- * `extra.server_time` (D4) e quem decide e o atendente: confirmar reenvia com
- * `allow_early: true`, cancelar nao produz efeito nenhum.
- *
- * `alertdialog` e nao `dialog`: exige decisao antes de seguir.
- */
-
 export interface EarlyCheckinDialogProps {
   open: boolean
-  /** `extra.server_time` do envelope 409, no formato "HH:MM". */
   serverTime: string
   guestName: string
   pending?: boolean

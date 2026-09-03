@@ -5,20 +5,6 @@ import { Button } from '@/components/ui/Button'
 import { useAiStatus, useParseGuestText } from './hooks'
 import type { ParsedGuestFields } from './types'
 
-/**
- * Preenchimento do cadastro por IA (SPEC 7.1) — o unico ponto de contato da
- * feature com a UI.
- *
- * Portao de fallback (SPEC 7.2): enquanto `/api/ai/status/` nao responder
- * `enabled: true` este componente **renderiza nada**. Sem chave, sem backend
- * de IA, com a rota fora do ar — em todos os casos o formulario segue igual ao
- * que sempre foi, e nenhum estado de erro aparece para o atendente.
- *
- * Human-in-the-loop: a extracao apenas preenche os campos; quem salva e o
- * atendente, depois de revisar. Por isso o aviso de provedor externo fica
- * junto do botao que dispara o envio, e nao escondido na documentacao.
- */
-
 export interface AiFillGuestProps {
   onFilled: (fields: ParsedGuestFields) => void
 }

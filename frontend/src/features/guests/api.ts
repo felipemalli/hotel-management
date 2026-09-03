@@ -1,11 +1,3 @@
-/**
- * Endpoints de hospedes (SPEC 4.3).
- *
- * `in-hotel` e `pending-checkin` nao aceitam `?search=` no contrato: a busca
- * parcial vive na listagem geral (RF3), e as abas sao recortes por estado
- * (RF4/RF5).
- */
-
 import { apiClient, type Paginated } from '@/lib/apiClient'
 
 import type { CreateGuestPayload, Guest, GuestInHotel, GuestPendingCheckin } from './types'

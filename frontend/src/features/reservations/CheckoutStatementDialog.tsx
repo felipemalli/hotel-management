@@ -6,17 +6,6 @@ import { formatBRL } from '@/lib/money'
 
 import type { CheckoutStatement } from './types'
 
-/**
- * F3 (SPEC 5.3) — extrato de checkout, o requisito de exibicao da RN6.
- *
- * Uma linha por diaria (data, dia da semana, diaria, vaga), os subtotais, a
- * linha de multa **somente se** `late_fee.applied` (D3) e o total em destaque.
- *
- * Todo valor passa por `formatBRL`: string in, string out. Nenhuma soma,
- * nenhuma conversao numerica — os totais exibidos sao os que a API mandou
- * (SPEC 0.3). Se um subtotal parecer errado, o bug e do backend, nao daqui.
- */
-
 export interface CheckoutStatementDialogProps {
   open: boolean
   statement: CheckoutStatement

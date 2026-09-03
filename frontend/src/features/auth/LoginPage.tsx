@@ -8,10 +8,6 @@ import { errorMessage, fieldErrors, isApiErrorCode } from '@/lib/errors'
 
 import { useAuth } from './useAuth'
 
-/**
- * Login (RF8). Com sessao valida a rota redireciona para o dashboard — voltar
- * ao /login autenticado nao e um estado util.
- */
 export function LoginPage() {
   const { isAuthenticated, signIn } = useAuth()
   const [username, setUsername] = useState('')
@@ -31,8 +27,6 @@ export function LoginPage() {
       await signIn({ username, password })
     } catch (cause) {
       setFields(fieldErrors(cause))
-      // `NOT_AUTHENTICATED` no login e credencial errada, nao sessao expirada:
-      // o `detail` do simplejwt vem em ingles e nao serve ao balcao.
       setError(
         isApiErrorCode(cause, 'NOT_AUTHENTICATED')
           ? 'Usuário ou senha inválidos.'

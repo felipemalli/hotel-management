@@ -1,12 +1,3 @@
-/**
- * Queries e mutations de hospedes (SPEC 5.2).
- *
- * As chaves sao exatamente as da tabela da SPEC 5.2 — `["guests", {search}]`,
- * `["guests","in-hotel"]`, `["guests","pending-checkin"]` — e todas nascem sob
- * o prefixo `["guests"]`, o que faz `invalidateQueries({queryKey:["guests"]})`
- * alcancar as tres de uma vez.
- */
-
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'
@@ -22,7 +13,6 @@ export const guestKeys = {
   pendingCheckin: ['guests', 'pending-checkin'] as const,
 }
 
-/** `enabled` deixa a aba inativa sem requisicao: uma aba, uma chamada. */
 export interface QueryOptions {
   enabled?: boolean
 }

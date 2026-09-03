@@ -1,10 +1,3 @@
-/**
- * Queries e mutations de reservas (SPEC 5.2).
- *
- * Politica de invalidacao da SPEC 5.2 aplicada por `useInvalidateServerState`:
- * toda mutation invalida `["guests"]` **e** `["reservations"]`.
- */
-
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'

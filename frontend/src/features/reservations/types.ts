@@ -1,15 +1,9 @@
-/**
- * Tipos do contrato de reservas (SPEC 4.4).
- *
- * Todo campo monetario e `string` — nunca `number`. Isso nao e estilo: e o
- * invariante da SPEC 0.3 tipado. Um `number` aqui convidaria a soma no
- * cliente e a perda de precisao que o `Decimal` do backend existe para evitar.
- */
-
 export const RESERVATION_STATUSES = ['PENDING', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'] as const
 
 export type ReservationStatus = (typeof RESERVATION_STATUSES)[number]
 
+// Todo campo monetário é string decimal ("120.00"), nunca `number`: o valor
+// atravessa o frontend sem passar por ponto flutuante.
 export interface Reservation {
   id: number
   guest_id: number
@@ -19,7 +13,6 @@ export interface Reservation {
   status: ReservationStatus
   checked_in_at: string | null
   checked_out_at: string | null
-  /** Congelados no checkout (SPEC 1.3); `null` antes dele. */
   total_daily: string | null
   total_parking: string | null
   late_fee: string | null
@@ -34,7 +27,6 @@ export interface CreateReservationPayload {
   has_vehicle: boolean
 }
 
-/** Uma diaria do extrato (SPEC 4.4): a data cobrada, sua tarifa e a vaga. */
 export interface BillLine {
   date: string
   weekday: string
@@ -42,7 +34,6 @@ export interface BillLine {
   parking_fee: string
 }
 
-/** `base_rate` e `null` quando nao houve multa (D3). */
 export interface LateFee {
   applied: boolean
   base_rate: string | null
@@ -63,6 +54,5 @@ export interface CheckoutStatement {
 
 export interface CheckInPayload {
   id: number
-  /** D4: reenvio com `true` confirma o check-in antes das 14h. */
   allow_early: boolean
 }

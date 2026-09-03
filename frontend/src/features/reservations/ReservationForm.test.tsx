@@ -11,16 +11,8 @@ import type { Reservation } from './types'
 
 vi.mock('@/features/reservations/api')
 
-/**
- * SPEC 6.2 — `features/reservations/ReservationForm.test.tsx`.
- * Prova de RF2 na matriz SPEC 6.3: o formulario produz exatamente o payload
- * que o endpoint da SPEC 4.4 persiste.
- *
- * As datas sao derivadas de `todayISO()` em vez de literais porque D11 exige
- * `checkin_date >= hoje`: literal de data vira teste que apodrece. O formato
- * ISO — que **e** parte do contrato — e verificado por regex.
- */
-
+// As datas saem de `todayISO()` e nao de literais: a regra do servidor exige
+// entrada a partir de hoje, e literal de data vira teste que apodrece.
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 const GUEST = { id: 1, full_name: 'Ana Souza' }
@@ -43,7 +35,7 @@ function createdReservation(checkin: string, checkout: string): Reservation {
   }
 }
 
-/** `type="date"` nao se digita tecla a tecla: o browser entrega o valor inteiro. */
+// `type="date"` nao se digita tecla a tecla: o browser entrega o valor inteiro.
 function setDate(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } })
 }
@@ -71,7 +63,6 @@ describe('ReservationForm', () => {
       has_vehicle: true,
     })
 
-    // Formato do contrato SPEC 4.1: datas `YYYY-MM-DD`, nunca `Date` serializado.
     const payload = vi.mocked(createReservation).mock.lastCall?.[0]
     expect(payload?.checkin_date).toMatch(ISO_DATE)
     expect(payload?.checkout_date).toMatch(ISO_DATE)
@@ -99,7 +90,7 @@ describe('ReservationForm', () => {
     })
   })
 
-  it('barra o agendamento de menos de uma noite (D13) antes de chamar a API', async () => {
+  it('barra o agendamento de menos de uma noite antes de chamar a API', async () => {
     const user = userEvent.setup()
     const sameDay = addDaysISO(todayISO(), 2)
 
@@ -114,7 +105,7 @@ describe('ReservationForm', () => {
     ).toBeInTheDocument()
   })
 
-  it('barra entrada no passado (D11) antes de chamar a API', async () => {
+  it('barra entrada no passado antes de chamar a API', async () => {
     const user = userEvent.setup()
 
     renderWithProviders(<ReservationForm guest={GUEST} />)

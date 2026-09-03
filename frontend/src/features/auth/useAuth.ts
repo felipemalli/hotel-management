@@ -4,14 +4,6 @@ import { session } from '@/lib/session'
 
 import { type Credentials, login } from './api'
 
-/**
- * Sessao do atendente (SPEC 5.1).
- *
- * Sem Context e sem Redux: a fonte da verdade e o store observavel de
- * `lib/session`, lido por `useSyncExternalStore`. Isso importa porque a sessao
- * tambem cai de fora do React — o interceptor de 401 do `apiClient` limpa o
- * store quando o refresh falha, e toda a arvore precisa reagir a isso na hora.
- */
 export interface Auth {
   accessToken: string | null
   isAuthenticated: boolean

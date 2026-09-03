@@ -14,21 +14,6 @@ import { T7_STATEMENT } from './__fixtures__/bills'
 vi.mock('@/features/guests/api')
 vi.mock('@/features/reservations/api')
 
-/**
- * O checkout ponta a ponta — prova de RF7 e RN6 no fluxo, nao no render.
- *
- * `CheckoutStatementDialog.test.tsx` monta o dialogo com `open` fixo: prova que
- * ele desenha o extrato certo, nao que o atendente consegue ler o extrato na
- * aplicacao. Sao coisas diferentes, e a diferenca era um defeito real: o
- * extrato morava em `useState` dentro do `ReservationActions`, que e renderizado
- * DENTRO da linha da tabela. O checkout tira o hospede da aba "No hotel", a
- * invalidacao da SPEC 5.2 refaz a listagem, a linha desmonta e levava o dialogo
- * com ela. O total piscava e desaparecia — RN6, requisito literal do briefing,
- * reprovado na aplicacao real enquanto a suite ficava verde.
- *
- * Este teste falha se o estado do extrato voltar para dentro da linha.
- */
-
 const RESERVATION_ID = 7
 const GUEST_NAME = 'Carla Nunes'
 
@@ -54,7 +39,6 @@ describe('CheckoutFlow', () => {
     const user = userEvent.setup()
     signInForTest()
 
-    // O servidor segue o fato: apos o checkout o hospede sai de "no hotel".
     let checkedOut = false
 
     vi.mocked(fetchGuests).mockResolvedValue(page([]))
@@ -75,14 +59,11 @@ describe('CheckoutFlow', () => {
     await user.click(screen.getByRole('button', { name: 'Checkout' }))
     await waitFor(() => expect(checkOut).toHaveBeenCalledWith(RESERVATION_ID))
 
-    // 1. O extrato abre com os numeros do T7 (SPEC 3.3).
     const dialog = await screen.findByRole('dialog', { name: /Extrato/ })
     expect(dialog).toHaveTextContent('R$ 425,00')
 
-    // 2. A linha sai da aba: e exatamente isso que desmontava o dialogo antes.
     await screen.findByText('Nenhum hóspede no hotel')
 
-    // 3. E o extrato CONTINUA na tela, legivel, com o total.
     const stillThere = screen.getByRole('dialog', { name: /Extrato/ })
     expect(stillThere).toHaveTextContent('R$ 425,00')
     expect(stillThere).toHaveTextContent('R$ 90,00')

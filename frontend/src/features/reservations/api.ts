@@ -1,10 +1,3 @@
-/**
- * Endpoints de reservas (SPEC 4.4).
- *
- * `checkIn` envia `allow_early` sempre explicito: o override de D4 e uma
- * decisao do atendente, e default implicito esconderia essa decisao.
- */
-
 import { apiClient, type Paginated } from '@/lib/apiClient'
 
 import type {
