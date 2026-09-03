@@ -5,8 +5,9 @@ Regras que este comando respeita e que valem revisao:
 
 * Datas relativas (R4): nenhum literal de data. Tudo deriva de
   `timezone.localdate()`, logo o cenario e valido em qualquer dia de execucao.
-* Nunca escreve `status` direto: as transicoes passam pelos services com
-  relogio injetado (SPEC 0.3), os mesmos que a API usa.
+* Nunca escreve no ORM direto: criacao E transicoes passam pelos services
+  com relogio injetado (SPEC 0.3), os mesmos que a API usa. Isto e o que faz
+  do seed uma prova do dominio e nao um atalho em volta dele.
 * Idempotente: `get_or_create` por `document` (ja normalizado); reexecucao
   nao duplica hospede nem re-transiciona reserva.
 * Nao registra PII em log (SPEC 2.1): imprime nome e status, nunca documento
@@ -24,6 +25,7 @@ from django.utils import timezone
 
 from hotel.models import Guest, Reservation, ReservationStatus
 from hotel.normalization import normalize_document
+from hotel.services import guests as guest_services
 from hotel.services import reservations as reservation_services
 
 ATTENDANT_USERNAME = "atendente"
@@ -124,12 +126,21 @@ class Command(BaseCommand):
             self.stdout.write("  atendente rebaixado para usuario comum (SPEC 1.1)")
 
     def _ensure_guest(self, full_name: str, document: str, phone: str) -> Guest:
-        guest, created = Guest.objects.get_or_create(
-            document=normalize_document(document),
-            defaults={"full_name": full_name, "phone": phone},
+        """Cadastra pelo servico; a idempotencia e a leitura previa por documento.
+
+        `get_or_create` gravava a linha direto no ORM, passando por cima de
+        `services.guests.create_guest` -- justo a camada que o resto do sistema
+        afirma ser o unico caminho de escrita. A consulta por documento
+        normalizado (a mesma chave de D12) mantem a reexecucao inocua.
+        """
+        existing = Guest.objects.filter(document=normalize_document(document)).first()
+        if existing is not None:
+            return existing
+
+        guest = guest_services.create_guest(
+            full_name=full_name, document=document, phone=phone
         )
-        if created:
-            self.stdout.write(f"  hospede criado: {full_name}")
+        self.stdout.write(f"  hospede criado: {full_name}")
         return guest
 
     def _ensure_reservation(
@@ -154,11 +165,17 @@ class Command(BaseCommand):
         if existing is not None:
             return existing
 
-        reservation = Reservation.objects.create(
+        reservation = reservation_services.create_reservation(
             guest=guest,
             checkin_date=checkin,
             checkout_date=checkout,
             has_vehicle=has_vehicle,
+            # `today=checkin`, nao `localdate()`: as fichas de Bruno e Carla
+            # sao estadias passadas, e D11 recusa agendamento no passado. O
+            # relogio e parametro justamente para que o seed possa se situar no
+            # instante em que cada reserva foi feita, em vez de contornar a
+            # regra escrevendo no ORM.
+            today=checkin,
         )
         self.stdout.write(f"  reserva criada: {guest.full_name} {checkin} -> {checkout}")
         return reservation

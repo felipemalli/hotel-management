@@ -8,9 +8,10 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import pytest
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
-from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.models import GUEST_DOCUMENT_UNIQUE, Guest, Reservation, ReservationStatus
+from hotel.services import errors
 from hotel.services import guests as guests_service
 from hotel.services import reservations as service
 from tests.factories import GuestFactory, ReservationFactory
@@ -171,6 +172,44 @@ def test_create_guest_leaves_an_outer_transaction_usable_after_the_race(monkeypa
         )
 
     assert Guest.objects.filter(pk=survivor.pk).exists()
+
+
+def test_constraint_name_is_extracted_from_integrity_error():
+    """`constraint_name()` le o campo estruturado do driver, nao a mensagem.
+
+    A mensagem do `IntegrityError` varia com locale e versao do PostgreSQL, e
+    era por substring dela que a traducao de D12 decidia ("document" aparecia
+    tanto na unicidade quanto no nome de qualquer outra constraint da coluna).
+    O psycopg guarda o nome em `diag.constraint_name`, e e nesse nome que o
+    dominio pode se apoiar.
+    """
+    existing = GuestFactory()
+
+    with pytest.raises(IntegrityError) as excinfo, transaction.atomic():
+        Guest.objects.create(
+            full_name="Homonimo", document=existing.document, phone="(21) 90000-0000"
+        )
+
+    assert errors.constraint_name(excinfo.value) == GUEST_DOCUMENT_UNIQUE
+
+
+def test_duplicate_document_translation_uses_named_constraint(monkeypatch):
+    """Violacao de OUTRA constraint na mesma escrita sobe crua, nao vira 409.
+
+    Com a traducao por substring, qualquer `IntegrityError` cuja mensagem
+    mencionasse a palavra "document" saia como `DUPLICATE_DOCUMENT` -- inclusive
+    um erro que nada tem a ver com D12. Renomear a chave do mapa prova que a
+    decisao e pelo nome: sem entrada correspondente, o erro atravessa intacto
+    e o bug aparece em vez de virar um 409 mentiroso.
+    """
+    existing = GuestFactory()
+    monkeypatch.setattr(guests_service, "_assert_document_available", lambda document: None)
+    monkeypatch.setattr(guests_service, "GUEST_DOCUMENT_UNIQUE", "outra_constraint_qualquer")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        guests_service.create_guest(
+            full_name="Homonimo", document=existing.document, phone="(21) 90000-0000"
+        )
 
 
 # -- check-in ----------------------------------------------------------------

@@ -184,11 +184,18 @@ hotel/               # o domínio inteiro
 │   ├── pricing.py       # o motor financeiro, PURO (sem banco, sem relógio)
 │   ├── guests.py        # ESCRITA: cadastro de hóspede (unicidade de documento)
 │   └── reservations.py  # ESCRITA: check-in, checkout, cancelamento
-├── serializers.py   # a fronteira de entrada/saída (JSON ↔ Python)
-├── views.py         # HTTP: rotas, status codes, delegação
+├── serializers/     # a fronteira de entrada/saída (JSON ↔ Python)
+│   ├── common.py        # dinheiro como string, envelope de erro
+│   ├── guests.py        # cadastro e as duas abas
+│   ├── reservations.py  # reserva, criação, override de check-in
+│   └── statement.py     # o extrato
+├── views/           # HTTP: rotas, status codes, delegação
+│   ├── guests.py        # GuestViewSet
+│   ├── reservations.py  # ReservationViewSet
+│   └── openapi.py       # respostas e exemplos de erro compartilhados
 ├── exceptions.py    # o envelope único de erro
 ├── management/commands/seed_demo.py   # `manage.py seed_demo`
-└── migrations/0001_initial.py
+└── migrations/
 ```
 
 **`__init__.py`.** Cada pasta que é um pacote Python tem um arquivo
@@ -353,11 +360,11 @@ lados. Cada peça é explicada na hora em que aparece.
         ▼
 [ ROTEAMENTO ]  config/urls.py:19-21 → :30
         router.register("reservations", ReservationViewSet)
-        → casa a action `checkout` declarada em views.py:374
+        → casa a action `checkout` declarada em views/reservations.py:205
         │
         ▼
-[ VIEW ]  ReservationViewSet.checkout()               views.py:374-378
-        ├─ self.get_object()  → busca a reserva          views.py:247-253
+[ VIEW ]  ReservationViewSet.checkout()    views/reservations.py:205-208
+        ├─ self.get_object()  → busca a reserva  views/reservations.py:103-108
         ├─ now = timezone.now()   ◄── o ÚNICO ponto do sistema que lê o relógio
         └─ delega
         │
@@ -383,8 +390,8 @@ lados. Cada peça é explicada na hora em que aparece.
         └─ COMMIT
         │
         ▼
-[ SERIALIZER ]  build_statement(reservation, bill)   serializers.py:294-310
-                StatementSerializer                  serializers.py:280-291
+[ SERIALIZER ]  build_statement(reservation, bill)  serializers/statement.py:50-66
+                StatementSerializer                 serializers/statement.py:36-47
                 Decimal(425.00) → a string "425.00"
         │
         ▼  200 OK  {"lines":[...], "subtotal_daily":"300.00", ..., "total":"425.00"}
@@ -415,7 +422,7 @@ a classe declarou. `config/urls.py:23-43` monta a lista final; note em `:28-29`
 que o login fica fora do router — ele tem view própria, para poder ser anônimo e
 ter limite de taxa (`accounts/views.py:13-24`).
 
-**View — resolve HTTP e delega.** `hotel/views.py:374-378` é a action inteira:
+**View — resolve HTTP e delega.** `hotel/views/reservations.py:205-208` é a action inteira:
 
 ```python
 @action(detail=True, methods=["post"], url_path="checkout")
@@ -426,7 +433,8 @@ def checkout(self, request: Request, pk: str | None = None) -> Response:
 ```
 
 Três linhas. Não há cálculo, não há SQL escrito à mão, não há tratamento de
-erro — o erro sobe (§7). Isso é a invariante "views finas" (`hotel/views.py:4-6`).
+erro — o erro sobe (§7). Isso é a invariante "views finas"
+(`hotel/views/__init__.py:4-6`).
 
 Duas convenções de Python visíveis nessas três linhas, para não estranhar:
 **snake_case** (`check_out`, `get_object`, `url_path`) é a convenção de nomes de
@@ -445,7 +453,7 @@ conceito de um decorator de TypeScript ou de um HOF que envolve um handler.
 `@action(detail=True, methods=["post"], url_path="checkout")` não muda o corpo do
 método; ele **marca** o método com metadados que o router lê para criar a rota
 `POST /reservations/{id}/checkout/`. `@extend_schema(...)`, o bloco de 48 linhas
-em `hotel/views.py:326-373`, marca o método com o request, as respostas e os
+em `hotel/views/reservations.py:185-203`, marca o método com o request, as respostas e os
 exemplos que aparecem no Swagger. Nenhum dos dois participa da execução da
 requisição.
 
@@ -454,16 +462,17 @@ entre a representação interna (objetos Python, `Decimal`, `datetime`) e a
 representação de transporte (JSON, strings). No DRF o serializer faz os dois
 sentidos e, na entrada, é também onde mora a **validação**.
 
-Na saída: `hotel/serializers.py:280-291` declara a forma do extrato, e o
-`DecimalField` (`:41-43`) é o que garante que `Decimal("425.00")` sai como a
-string `"425.00"` e nunca como o número `425.0` — o invariante do §6.1 tipado na
-fronteira. `build_statement` (`:294-310`) só remapeia o `Bill` para um
-dicionário; ele não calcula nada.
+Na saída: `hotel/serializers/statement.py:36-47` declara a forma do extrato, e
+o `DecimalField` de `money_field` (`serializers/common.py:20-22`) é o que
+garante que `Decimal("425.00")` sai como a string `"425.00"` e nunca como o
+número `425.0` — o invariante do §6.1 tipado na fronteira. `build_statement`
+(`statement.py:50-66`) só remapeia o `Bill` para um dicionário; ele não calcula
+nada.
 
 Na entrada, o mesmo mecanismo valida:
 
 ```python
-# hotel/serializers.py:225-231
+# hotel/serializers/reservations.py (versão anterior)
     def validate_checkin_date(self, value):
         # D11: reserva e compromisso futuro. O passado entra no sistema pelos
         # fatos (check-in/checkout reais), nunca pelo agendamento.
@@ -549,8 +558,9 @@ reserva, porque a invariante que ele protege ("no máximo uma estadia ativa por
 hóspede") vale *entre* linhas.
 
 **O caminho de leitura é o mesmo, mais curto.** `GET /api/guests/in-hotel/`:
-view (`views.py:168-170`) → selector (`selectors.py:46-62`) → serializer
-(`serializers.py:153-166`). Sem service, porque não há mutação nem dinheiro.
+view (`views/guests.py:114-116`) → selector (`selectors.py:45-61`) →
+serializer (`serializers/guests.py:86-99`). Sem service, porque não há mutação
+nem dinheiro.
 
 ---
 
@@ -565,8 +575,8 @@ antes de escrever a primeira linha:
 | **Selector** | `hotel/selectors.py` | ler: consultas nomeadas, sem efeito colateral | mutar estado; calcular dinheiro |
 | **Service** | `hotel/services/reservations.py` | mutar: transições de status, transação, congelar totais | conhecer HTTP; ler o relógio por dentro |
 | **Motor puro** | `hotel/services/pricing.py` | calcular dinheiro e avaliar horário | tocar banco, I/O ou relógio |
-| **Serializer** | `hotel/serializers.py` | validar entrada, formatar saída | calcular dinheiro |
-| **View** | `hotel/views.py` | resolver HTTP, ler o relógio, delegar | tudo o resto |
+| **Serializer** | `hotel/serializers/` | validar entrada, formatar saída | calcular dinheiro |
+| **View** | `hotel/views/` | resolver HTTP, ler o relógio, delegar | tudo o resto |
 
 Por que não na view: uma regra na view só é alcançável por HTTP. O
 `seed_demo.py:67-94` precisa fazer check-in e checkout sem passar por HTTP, e
@@ -664,7 +674,7 @@ $ docker compose exec db psql -U hotel -d hotel \
 
 Os campos financeiros são `NULL` até o checkout e congelados nele — por isso
 `ReservationSerializer` os declara todos como `null`áveis
-(`hotel/serializers.py:187-190`) e o schema do frontend também
+(`hotel/serializers/reservations.py:29-32`) e o schema do frontend também
 (`frontend/src/features/reservations/schemas.ts:21-24`, de onde o tipo sai por
 `z.infer`).
 
@@ -776,7 +786,7 @@ monkeypatch em `timezone.now`. Na segunda, o teste **passa o horário como
 argumento** — e a função nem sabe que está sendo testada.
 
 A regra é aplicada em cadeia: a view é o único lugar do sistema que lê o
-relógio (`hotel/views.py:321`, `:377`), e o valor é passado adiante como
+relógio (`hotel/views/reservations.py:131`, `:207`), e o valor é passado adiante como
 parâmetro nomeado por todos os services (`services/reservations.py:71`, `:95`).
 
 O ganho fica visível no teste que prova a parte mais escorregadia da regra — que
@@ -943,8 +953,8 @@ Decida pela natureza da mudança, não pelo arquivo que você abriu primeiro:
 | uma transição de status, ou congelamento de valor | `hotel/services/reservations.py` | `tests/db/test_services.py` |
 | uma consulta / filtro / listagem nova | `hotel/selectors.py` | `tests/db/test_selectors.py` |
 | uma coluna, índice ou constraint | `hotel/models.py` **+ migração** | `tests/db/test_models.py` |
-| validação de entrada, ou forma da resposta | `hotel/serializers.py` | `tests/api/test_guests.py` ou `test_reservation_flow.py` |
-| uma rota, um status code, um parâmetro de query | `hotel/views.py` (+ `config/urls.py` se for rota nova) | `tests/api/` |
+| validação de entrada, ou forma da resposta | `hotel/serializers/` | `tests/api/test_guests.py` ou `test_reservation_flow.py` |
+| uma rota, um status code, um parâmetro de query | `hotel/views/` (+ `config/urls.py` se for rota nova) | `tests/api/` |
 | a forma de um erro | `hotel/exceptions.py` | `tests/api/` |
 | tela, tabela, diálogo | `frontend/src/features/<x>/` | `<Componente>.test.tsx` ao lado |
 | uma regra de formulário (campo obrigatório, mínimo, comparação de datas) | `frontend/src/features/<x>/schemas.ts` | `schemas.test.ts` ao lado, sem montar componente |

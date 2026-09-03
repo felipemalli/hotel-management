@@ -56,6 +56,9 @@ jobs:
       - name: Instalar dependencias travadas
         run: uv sync --frozen
 
+      - name: Lint
+        run: uv run ruff check .
+
       - name: Suite backend com cobertura
         run: uv run pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q
 

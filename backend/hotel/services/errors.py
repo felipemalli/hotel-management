@@ -20,7 +20,11 @@ Duas familias, porque a SPEC 4.1 tem dois significados distintos:
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from typing import Any
+
+from django.db import IntegrityError, transaction
 
 VALIDATION_DETAIL = "Dados inválidos."
 
@@ -53,3 +57,43 @@ class DomainValidationError(DomainError):
 
     def __init__(self, field: str, message: str) -> None:
         super().__init__(detail=None, extra={field: [message]})
+
+
+def constraint_name(exc: IntegrityError) -> str | None:
+    """Nome da constraint que o PostgreSQL violou, ou `None` se nao houver.
+
+    O `IntegrityError` do Django e um wrapper: a mensagem varia com locale e
+    versao, mas o driver traz o campo estruturado. Com psycopg 3 o erro
+    original fica em `__cause__` e expoe `diag.constraint_name` -- o
+    `PG_DIAG_CONSTRAINT_NAME` do protocolo. Casar por substring da mensagem (o
+    que `guests.py` fazia com "document") nao distingue unica de exclusao e
+    confunde constraints cujos nomes se contem.
+    """
+    diag = getattr(getattr(exc, "__cause__", None), "diag", None)
+    return getattr(diag, "constraint_name", None)
+
+
+@contextmanager
+def translate_integrity_error(
+    errors: Mapping[str, Callable[[], DomainError]],
+) -> Iterator[None]:
+    """Traduz violacao de constraint em erro de dominio, por NOME.
+
+    Duas razoes para o `atomic()` interno: (1) savepoint, para que o
+    `IntegrityError` nao deixe a transacao do chamador abortada -- toda
+    constraint deste projeto e verificada no proprio comando, nunca
+    `DEFERRABLE`, logo o savepoint em volta da escrita basta; (2) sem ele, uma
+    escrita que falha dentro de uma `atomic` externa envenena a transacao
+    inteira e o 409 seguinte viraria 500.
+
+    Nome desconhecido sobe intacto: constraint nova sem traducao e bug de
+    programacao, e mascara-la como erro de dominio esconderia o bug.
+    """
+    try:
+        with transaction.atomic():
+            yield
+    except IntegrityError as exc:
+        factory = errors.get(constraint_name(exc) or "")
+        if factory is None:
+            raise
+        raise factory() from exc

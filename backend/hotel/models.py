@@ -21,6 +21,11 @@ from hotel.normalization import (
     normalize_phone,
 )
 
+# Nomes de constraint sao contrato: `services/errors.translate_integrity_error`
+# casa por eles para transformar violacao em erro de dominio (SPEC 4.1). Por
+# isso nenhuma constraint deste projeto nasce com nome gerado pelo Django.
+GUEST_DOCUMENT_UNIQUE = "guest_document_unique"
+
 
 class ReservationStatus(models.TextChoices):
     PENDING = "PENDING", "Reserva pendente"
@@ -50,7 +55,7 @@ class Guest(models.Model):
     """Hospede. Nome, documento e telefone em claro e buscaveis por fragmento (D5)."""
 
     full_name = models.CharField(max_length=140)
-    document = models.CharField(max_length=DOCUMENT_MAX_LENGTH, unique=True)
+    document = models.CharField(max_length=DOCUMENT_MAX_LENGTH)
     phone = models.CharField(max_length=PHONE_MAX_LENGTH)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -59,6 +64,11 @@ class Guest(models.Model):
 
     class Meta:
         ordering = ["full_name", "id"]
+        constraints = [
+            # `unique=True` no campo deixaria o PostgreSQL escolher o nome, e a
+            # traducao de `IntegrityError` casa por nome (GUEST_DOCUMENT_UNIQUE).
+            models.UniqueConstraint(fields=["document"], name=GUEST_DOCUMENT_UNIQUE),
+        ]
         indexes = [
             # Indices FUNCIONAIS: casam o SQL real do icontains no PG,
             # `UPPER("coluna"::text) LIKE UPPER(%s)` (SPEC 1.4, V4+V5).
@@ -101,7 +111,6 @@ class Reservation(models.Model):
         max_length=11,
         choices=ReservationStatus,
         default=ReservationStatus.PENDING,
-        db_index=True,
     )
     # Fatos reais: e por eles que se cobra (D6), nunca pelas datas agendadas.
     checked_in_at = models.DateTimeField(null=True, blank=True)
@@ -118,6 +127,9 @@ class Reservation(models.Model):
         ordering = ["checkin_date", "id"]
         indexes = [
             # Serve as abas "no hotel" / "pendentes" ordenadas por data (SPEC 1.4).
+            # `status` NAO leva `db_index` proprio: e a coluna que lidera este
+            # indice composto, logo o indice simples seria peso morto -- custo
+            # de escrita e de espaco sem nenhuma consulta que o prefira.
             models.Index(fields=["status", "checkin_date"], name="resv_status_checkin"),
         ]
         constraints = [

@@ -14,15 +14,9 @@ final na corrida entre dois cadastros simultaneos.
 
 from __future__ import annotations
 
-from django.db import IntegrityError, transaction
-
-from hotel.models import Guest
+from hotel.models import GUEST_DOCUMENT_UNIQUE, Guest
 from hotel.normalization import normalize_document
-from hotel.services.errors import DomainError
-
-# Fragmento presente na mensagem do PostgreSQL para a unicidade de
-# `document` (SPEC 1.2), qualquer que seja o nome gerado pelo Django.
-DOCUMENT_UNIQUE_MARKER = "document"
+from hotel.services.errors import DomainError, translate_integrity_error
 
 
 class DuplicateDocumentError(DomainError):
@@ -35,17 +29,13 @@ class DuplicateDocumentError(DomainError):
 def create_guest(*, full_name: str, document: str, phone: str) -> Guest:
     """Cadastra um hospede (RF1). Documento e unico por hospede (D12)."""
     _assert_document_available(document)
-    try:
-        # Savepoint: se `create_guest` for chamado dentro de uma `atomic`
-        # externa, o IntegrityError nao derruba a transacao do chamador.
-        with transaction.atomic():
-            # `Guest.save()` normaliza documento e telefone (SPEC 2.1); por isso
-            # a escrita e `create`, nunca `bulk_create`.
-            return Guest.objects.create(full_name=full_name, document=document, phone=phone)
-    except IntegrityError as exc:
-        if DOCUMENT_UNIQUE_MARKER in str(exc):
-            raise DuplicateDocumentError from exc
-        raise
+    # O helper traduz por NOME de constraint e ja abre o savepoint: chamado de
+    # dentro de uma `atomic` externa (o seed), o IntegrityError nao derruba a
+    # transacao do chamador.
+    with translate_integrity_error({GUEST_DOCUMENT_UNIQUE: DuplicateDocumentError}):
+        # `Guest.save()` normaliza documento e telefone (SPEC 2.1); por isso a
+        # escrita e `create`, nunca `bulk_create`.
+        return Guest.objects.create(full_name=full_name, document=document, phone=phone)
 
 
 def _assert_document_available(document: str) -> None:

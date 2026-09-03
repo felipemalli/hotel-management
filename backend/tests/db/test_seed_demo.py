@@ -7,8 +7,10 @@ e o alarme antecipado disso -- e, de passagem, prova as promessas do seed:
 datas relativas (R4), idempotencia e um extrato de fim de semana com multa.
 """
 
+from datetime import date
 from decimal import Decimal
 from io import StringIO
+from unittest import mock
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -18,6 +20,8 @@ from freezegun import freeze_time
 
 from hotel import selectors
 from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.services import guests as guests_service
+from hotel.services import reservations as reservations_service
 
 pytestmark = pytest.mark.django_db
 
@@ -50,6 +54,45 @@ def test_seed_freezes_a_weekend_statement_with_a_late_fee():
     assert carla.late_fee == Decimal("90.00")
     assert carla.total_amount == Decimal("425.00")
     assert carla.checked_out_at < timezone.now()
+
+
+def test_seed_writes_through_the_services():
+    """Nenhuma linha do cenario nasce por `Model.objects.create` no comando.
+
+    O seed afirma no proprio docstring que passa pelos services, e por muito
+    tempo isso valia apenas para as transicoes: hospede e reserva eram gravados
+    direto no ORM, contornando D12 e D11. Como o seed esta na cadeia de subida
+    do compose, ele e o primeiro cliente do dominio a rodar -- se ele pode
+    driblar a camada de mutacao, a afirmacao "toda escrita passa por servico"
+    (SPEC 0.3) e falsa na pratica.
+    """
+    created_guests: list[str] = []
+    created_reservations: list[date] = []
+
+    real_create_guest = guests_service.create_guest
+    real_create_reservation = reservations_service.create_reservation
+
+    def spy_create_guest(**kwargs):
+        created_guests.append(kwargs["full_name"])
+        return real_create_guest(**kwargs)
+
+    def spy_create_reservation(**kwargs):
+        created_reservations.append(kwargs["checkin_date"])
+        return real_create_reservation(**kwargs)
+
+    with (
+        mock.patch.object(guests_service, "create_guest", spy_create_guest),
+        mock.patch.object(reservations_service, "create_reservation", spy_create_reservation),
+    ):
+        run_seed()
+
+    assert created_guests == ["Ana Souza", "Bruno Lima", "Carla Nunes", "Davi Rocha"]
+    assert Guest.objects.count() == len(created_guests)
+    assert len(created_reservations) == Reservation.objects.count()
+    # A ficha de Carla e uma estadia estritamente passada: so entra porque
+    # `create_reservation` recebe `today=checkin` em vez de ler o relogio,
+    # que e o que mantem D11 valendo sem que o seed a contorne.
+    assert min(created_reservations) < timezone.localdate()
 
 
 def test_seed_is_idempotent():

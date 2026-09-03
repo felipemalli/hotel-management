@@ -88,12 +88,16 @@ def create_reservation(
             "checkout_date", "Data de checkout deve ser posterior à de check-in."
         )
 
-    return Reservation.objects.create(
-        guest=guest,
-        checkin_date=checkin_date,
-        checkout_date=checkout_date,
-        has_vehicle=has_vehicle,
-    )
+    # `atomic` mesmo com uma unica escrita: criacao parcial de reserva nao
+    # existe, e e esta transacao que da ao savepoint de traducao de constraint
+    # (`errors.translate_integrity_error`) um lugar para aninhar.
+    with transaction.atomic():
+        return Reservation.objects.create(
+            guest=guest,
+            checkin_date=checkin_date,
+            checkout_date=checkout_date,
+            has_vehicle=has_vehicle,
+        )
 
 
 def check_in(reservation: Reservation, *, now: datetime, allow_early: bool = False) -> Reservation:

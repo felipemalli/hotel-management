@@ -2,7 +2,7 @@
 name = "hotel-backend"
 version = "0.1.0"
 description = "Gestao de Hospedes de Hotel - backend"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
     "django==5.2.*",
     "djangorestframework",
@@ -35,6 +35,12 @@ select = ["E", "F", "I", "UP", "B", "DJ"]
 [tool.ruff.lint.per-file-ignores]
 # Migracoes sao geradas pelo Django; nao se reformatam a mao.
 "*/migrations/*" = ["E501", "I001"]
+
+[tool.coverage.run]
+# Migracoes sao geradas e aplicadas pelo `migrate`, nao exercitadas por teste:
+# medi-las mede a fabrica do Django, e um laco de backfill nunca percorrido
+# conta contra o piso de cobertura do codigo que importa.
+omit = ["*/migrations/*"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"

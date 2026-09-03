@@ -1,16 +1,9 @@
 """
-Views da API (SPEC 4.2-4.4).
-
-Views **finas** por invariante (SPEC 0.3): elas resolvem HTTP, leem o relogio
-e delegam. Nenhuma view calcula dinheiro nem monta QuerySet a mao -- leitura
-vem de `selectors`, mutacao e dinheiro vem de `services`.
+Views de reservas e transicoes (SPEC 4.2-4.4).
 
 Relogio injetavel (SPEC 0.3): a view e o unico lugar que chama
-`timezone.now()`; a regra recebe `now` como parametro e por isso o teste pode
-congelar o tempo sem monkeypatch de dominio.
-
-Documentacao (SPEC 4.4): toda action custom carrega `@extend_schema` com
-request, response e exemplo de erro -- `/api/docs/` e contrato navegavel.
+`timezone.now()` / `timezone.localdate()`; a regra recebe `now`/`today` como
+parametro e por isso o teste pode congelar o tempo sem monkeypatch de dominio.
 """
 
 from __future__ import annotations
@@ -29,152 +22,21 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from hotel import selectors
-from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.models import Reservation, ReservationStatus
 from hotel.serializers import (
     CheckInRequestSerializer,
     ErrorEnvelopeSerializer,
-    GuestCreateSerializer,
-    GuestInHotelSerializer,
-    GuestPendingCheckinSerializer,
-    GuestSerializer,
     ReservationCreateSerializer,
     ReservationSerializer,
     StatementSerializer,
     build_statement,
 )
-from hotel.services import guests as guests_service
 from hotel.services import reservations as reservations_service
-
-GUESTS_TAG = "guests"
-RESERVATIONS_TAG = "reservations"
-
-DUPLICATE_DOCUMENT_RESPONSE = OpenApiResponse(
-    response=ErrorEnvelopeSerializer,
-    description="Documento já cadastrado (D12).",
-    examples=[
-        OpenApiExample(
-            "DUPLICATE_DOCUMENT",
-            value={
-                "code": "DUPLICATE_DOCUMENT",
-                "detail": "Documento já cadastrado para outro hóspede.",
-                "extra": {},
-            },
-            response_only=True,
-        )
-    ],
+from hotel.views.openapi import (
+    INVALID_STATUS_EXAMPLE,
+    RESERVATIONS_TAG,
+    T7_STATEMENT_EXAMPLE,
 )
-
-INVALID_STATUS_EXAMPLE = OpenApiExample(
-    "INVALID_STATUS",
-    value={
-        "code": "INVALID_STATUS",
-        "detail": "Transição inválida: CHECKED_OUT -> CHECKED_OUT.",
-        "extra": {"status": "CHECKED_OUT"},
-    },
-    response_only=True,
-)
-
-
-@extend_schema(tags=[GUESTS_TAG])
-@extend_schema_view(
-    list=extend_schema(
-        summary="Lista e busca hóspedes",
-        description=(
-            "`search` acha nome, documento e telefone por fragmento (trigram, D5). "
-            "Documento e telefone aceitam máscara no termo (D9)."
-        ),
-        parameters=[
-            OpenApiParameter(
-                name="search",
-                description="Nome, documento ou telefone, por fragmento.",
-                required=False,
-                type=str,
-            )
-        ],
-        responses={200: GuestSerializer(many=True)},
-    ),
-    retrieve=extend_schema(
-        summary="Detalhe do hóspede",
-        description="Devolve o valor gravado (documento e telefone já normalizados, SPEC 2.1).",
-        responses={200: GuestSerializer, 404: ErrorEnvelopeSerializer},
-    ),
-    create=extend_schema(
-        summary="Cadastra hóspede",
-        request=GuestCreateSerializer,
-        responses={
-            201: GuestSerializer,
-            400: ErrorEnvelopeSerializer,
-            409: DUPLICATE_DOCUMENT_RESPONSE,
-        },
-        examples=[
-            OpenApiExample(
-                "Cadastro mínimo do briefing",
-                value={
-                    "full_name": "Ana Souza",
-                    "document": "123.456.789-01",
-                    "phone": "(21) 98888-7777",
-                },
-                request_only=True,
-            )
-        ],
-    ),
-)
-class GuestViewSet(
-    mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.CreateModelMixin,
-    viewsets.GenericViewSet,
-):
-    """Hóspedes (RF1, RF3, RF4, RF5). Registros imutáveis após criação (SPEC 0.1)."""
-
-    queryset = Guest.objects.all()
-
-    def get_queryset(self):
-        if self.action == "list":
-            return selectors.search_guests(self.request.query_params.get("search"))
-        return Guest.objects.all()
-
-    def get_serializer_class(self):
-        if self.action == "create":
-            return GuestCreateSerializer
-        if self.action == "in_hotel":
-            return GuestInHotelSerializer
-        if self.action == "pending_checkin":
-            return GuestPendingCheckinSerializer
-        return GuestSerializer
-
-    def create(self, request: Request, *args, **kwargs) -> Response:
-        serializer = GuestCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        guest = guests_service.create_guest(**serializer.validated_data)
-        return Response(GuestSerializer(guest).data, status=status.HTTP_201_CREATED)
-
-    @extend_schema(
-        summary="Hóspedes que ainda estão no hotel",
-        description="Reserva `CHECKED_IN` (RF4). `active_reservation` é único (SPEC 1.5).",
-        responses={200: GuestInHotelSerializer(many=True)},
-    )
-    @action(detail=False, methods=["get"], url_path="in-hotel")
-    def in_hotel(self, request: Request) -> Response:
-        return self._paginated(selectors.guests_in_hotel(), GuestInHotelSerializer)
-
-    @extend_schema(
-        summary="Hóspedes com reserva sem check-in",
-        description=(
-            "Reservas `PENDING` (RF5). Pendência vencida continua listada até "
-            "ação do atendente (D14)."
-        ),
-        responses={200: GuestPendingCheckinSerializer(many=True)},
-    )
-    @action(detail=False, methods=["get"], url_path="pending-checkin")
-    def pending_checkin(self, request: Request) -> Response:
-        return self._paginated(selectors.guests_pending_checkin(), GuestPendingCheckinSerializer)
-
-    def _paginated(self, queryset, serializer_class) -> Response:
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            return self.get_paginated_response(serializer_class(page, many=True).data)
-        return Response(serializer_class(queryset, many=True).data)
 
 
 @extend_schema(tags=[RESERVATIONS_TAG])
@@ -337,36 +199,7 @@ class ReservationViewSet(
             ),
             404: ErrorEnvelopeSerializer,
         },
-        examples=[
-            OpenApiExample(
-                "Extrato do caso T7 (SPEC 3.3)",
-                value={
-                    "reservation_id": 7,
-                    "guest": {"id": 1, "full_name": "Ana Souza"},
-                    "checked_in_at": "2025-03-07T15:00:00-03:00",
-                    "checked_out_at": "2025-03-09T12:01:00-03:00",
-                    "lines": [
-                        {
-                            "date": "2025-03-07",
-                            "weekday": "sexta-feira",
-                            "daily_rate": "120.00",
-                            "parking_fee": "15.00",
-                        },
-                        {
-                            "date": "2025-03-08",
-                            "weekday": "sábado",
-                            "daily_rate": "180.00",
-                            "parking_fee": "20.00",
-                        },
-                    ],
-                    "subtotal_daily": "300.00",
-                    "subtotal_parking": "35.00",
-                    "late_fee": {"applied": True, "base_rate": "180.00", "amount": "90.00"},
-                    "total": "425.00",
-                },
-                response_only=True,
-            )
-        ],
+        examples=[T7_STATEMENT_EXAMPLE],
     )
     @action(detail=True, methods=["post"], url_path="checkout")
     def checkout(self, request: Request, pk: str | None = None) -> Response:
