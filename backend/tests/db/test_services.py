@@ -14,7 +14,7 @@ from hotel.models import GUEST_DOCUMENT_UNIQUE, Guest, Reservation, ReservationS
 from hotel.services import errors
 from hotel.services import guests as guests_service
 from hotel.services import reservations as service
-from tests.factories import GuestFactory, ReservationFactory, UserFactory
+from tests.factories import GuestFactory, ReservationFactory, RoomFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -59,6 +59,7 @@ def test_create_reservation_starts_pending_without_money(actor):
 
     reservation = service.create_reservation(
         guest=guest,
+        room=RoomFactory(),
         actor=actor,
         checkin_date=MARCH_7,
         checkout_date=MARCH_9,
@@ -76,6 +77,7 @@ def test_create_reservation_accepts_today_as_checkin(actor):
     """D11 recusa o passado, nao o proprio dia: `>= hoje`."""
     reservation = service.create_reservation(
         guest=GuestFactory(),
+        room=RoomFactory(),
         actor=actor,
         checkin_date=MARCH_7,
         checkout_date=MARCH_9,
@@ -90,6 +92,7 @@ def test_create_reservation_in_the_past_is_rejected(actor):
     with pytest.raises(service.DomainValidationError) as excinfo:
         service.create_reservation(
             guest=GuestFactory(),
+            room=RoomFactory(),
             actor=actor,
             checkin_date=MARCH_7,
             checkout_date=MARCH_9,
@@ -108,6 +111,7 @@ def test_create_reservation_requires_one_night(actor):
     with pytest.raises(service.DomainValidationError) as excinfo:
         service.create_reservation(
             guest=GuestFactory(),
+            room=RoomFactory(),
             actor=actor,
             checkin_date=MARCH_7,
             checkout_date=MARCH_7,
@@ -323,6 +327,7 @@ def test_transitions_record_actor_and_timestamp(actor):
     """
     reservation = service.create_reservation(
         guest=GuestFactory(),
+        room=RoomFactory(),
         actor=actor,
         checkin_date=MARCH_7,
         checkout_date=MARCH_9,

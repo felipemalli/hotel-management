@@ -24,6 +24,9 @@ EXPECTED_PATHS = [
     "/api/reservations/{id}/pay/",
     "/api/pricing-policies/",
     "/api/pricing-policies/current/",
+    "/api/rooms/",
+    "/api/rooms/{id}/",
+    "/api/rooms/available/",
 ]
 
 CUSTOM_ACTIONS = [

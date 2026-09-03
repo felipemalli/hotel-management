@@ -19,15 +19,37 @@ from django.db import transaction
 from django.utils import timezone
 
 from hotel import selectors
-from hotel.models import Guest, PaymentMethod, Reservation, ReservationStatus, StatementLine
+from hotel.models import (
+    RESV_ONE_ACTIVE_PER_ROOM,
+    RESV_ROOM_NO_OVERLAP,
+    Guest,
+    PaymentMethod,
+    Reservation,
+    ReservationStatus,
+    Room,
+    StatementLine,
+)
 from hotel.services import pricing
 from hotel.services.catalog import rate_table_of
-from hotel.services.errors import DomainError, DomainValidationError
+from hotel.services.errors import (
+    DomainError,
+    DomainValidationError,
+    translate_integrity_error,
+)
 from hotel.services.pricing import Bill
 
 if TYPE_CHECKING:  # pragma: no cover - apenas para anotacao
     from django.contrib.auth.models import AbstractBaseUser
 
+# ORDEM DE LOCK, obrigatoria em todo caminho que trave mais de uma linha:
+#
+#     Guest -> Room -> Reservation
+#
+# Duas transacoes que travem as mesmas linhas em ordens diferentes fazem
+# deadlock (o PG mata uma com `deadlock detected`, e o atendente ve um 500). A
+# ordem e por TABELA e, dentro de `Guest`, por pk crescente. `create_reservation`
+# nao trava nada -- a autoridade dela e o `EXCLUDE`, sob savepoint.
+#
 # Transicoes validas (SPEC 1.5). Qualquer outra e rejeitada.
 ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     ReservationStatus.PENDING: frozenset(
@@ -76,6 +98,20 @@ class InvalidStatusError(ReservationError):
     default_detail = "Transição de status inválida."
 
 
+class RoomUnavailableError(ReservationError):
+    """Quarto indisponivel -- 409 ROOM_UNAVAILABLE.
+
+    Um codigo so para as tres causas (agenda sobreposta, quarto ainda ocupado,
+    chegada antecipada em quarto prometido) porque a acao do atendente e a
+    mesma nas tres: escolher outro quarto ou outra data. Distinguir por codigo
+    daria ao cliente tres ramos que fariam a mesma coisa; o `extra` diz qual
+    reserva conflita, que e a informacao acionavel.
+    """
+
+    code = "ROOM_UNAVAILABLE"
+    default_detail = "Quarto indisponível para o período."
+
+
 class EarlyCheckinError(ReservationError):
     """Check-in antes da abertura, sem override -- 409 EARLY_CHECKIN (D4).
 
@@ -94,6 +130,7 @@ class EarlyCheckinError(ReservationError):
 def create_reservation(
     *,
     guest: Guest,
+    room: Room,
     checkin_date: date,
     checkout_date: date,
     has_vehicle: bool = False,
@@ -119,18 +156,33 @@ def create_reservation(
         raise DomainValidationError(
             "checkout_date", "Data de checkout deve ser posterior à de check-in."
         )
+    if not room.is_active:
+        # Estado do recurso, nao forma do payload: por isso no servico e nao no
+        # serializer. O quarto EXISTE -- so nao esta em operacao.
+        raise DomainValidationError("room_id", f"Quarto {room.number} está desativado.")
 
-    # `atomic` mesmo com uma unica escrita: criacao parcial de reserva nao
-    # existe, e e esta transacao que da ao savepoint de traducao de constraint
-    # (`errors.translate_integrity_error`) um lugar para aninhar.
+    _assert_room_free(room, checkin_date=checkin_date, checkout_date=checkout_date, today=today)
+
     with transaction.atomic():
-        return Reservation.objects.create(
-            guest=guest,
-            checkin_date=checkin_date,
-            checkout_date=checkout_date,
-            has_vehicle=has_vehicle,
-            created_by=actor,
-        )
+        # A guarda acima da a mensagem boa; o `EXCLUDE` e a autoridade na
+        # corrida entre dois atendentes reservando o mesmo quarto ao mesmo
+        # tempo. O savepoint traduz a violacao no MESMO 409, para que a corrida
+        # nao vire 500 com corpo HTML.
+        with translate_integrity_error(
+            {
+                RESV_ROOM_NO_OVERLAP: lambda: RoomUnavailableError(
+                    extra={"room_id": room.pk},
+                )
+            }
+        ):
+            return Reservation.objects.create(
+                guest=guest,
+                room=room,
+                checkin_date=checkin_date,
+                checkout_date=checkout_date,
+                has_vehicle=has_vehicle,
+                created_by=actor,
+            )
 
 
 def check_in(
@@ -152,9 +204,12 @@ def check_in(
         # linhas, e travar so a reserva deixaria dois atendentes passarem pela
         # checagem ao mesmo tempo, em reservas diferentes do mesmo hospede.
         Guest.objects.select_for_update().get(pk=reservation.guest_id)
+        # Ordem Guest -> Room -> Reservation (ver o topo do modulo).
+        Room.objects.select_for_update().get(pk=reservation.room_id)
         locked = _lock(reservation)
         _assert_transition(locked, ReservationStatus.CHECKED_IN)
         _assert_no_active_stay(locked)
+        _assert_room_ready(locked, now=now)
 
         # A politica VIGENTE NO ATO decide se e cedo -- este e o unico valor
         # que nao pode vir da politica amarrada, porque a amarracao acontece
@@ -175,7 +230,14 @@ def check_in(
         locked.checked_in_at = now
         locked.checked_in_by = actor
         locked.policy = policy
-        locked.save(update_fields=["status", "checked_in_at", "checked_in_by", "policy"])
+        with translate_integrity_error(
+            {
+                RESV_ONE_ACTIVE_PER_ROOM: lambda: RoomUnavailableError(
+                    extra={"room_id": locked.room_id},
+                )
+            }
+        ):
+            locked.save(update_fields=["status", "checked_in_at", "checked_in_by", "policy"])
 
     return _sync(reservation, locked)
 
@@ -327,6 +389,85 @@ def mark_paid(
         locked.save(update_fields=["paid_at", "payment_method", "paid_by"])
 
     return _sync(reservation, locked)
+
+
+def _assert_room_free(
+    room: Room,
+    *,
+    checkin_date: date,
+    checkout_date: date,
+    today: date,
+) -> None:
+    """Guarda de leitura da criacao: agenda cruzada ou quarto com overstay."""
+    conflict = selectors.conflicting_reservation(
+        room, checkin_date=checkin_date, checkout_date=checkout_date, today=today
+    )
+    if conflict is None:
+        return
+    raise RoomUnavailableError(
+        f"Quarto {room.number} indisponível no período solicitado.",
+        extra={
+            "room_id": room.pk,
+            "conflicting_reservation_id": conflict.pk,
+            "conflicting_status": conflict.status,
+            "conflicting_checkin_date": conflict.checkin_date.isoformat(),
+        },
+    )
+
+
+def _assert_room_ready(reservation: Reservation, *, now: datetime) -> None:
+    """Duas guardas que dependem de "hoje" e por isso nao podem ser constraint.
+
+    (a) OVERSTAY: outra estadia ainda dentro do quarto. A agenda pode ja ter
+        liberado a data, mas o hospede anterior nao saiu (D6/D7/D14).
+    (b) CHEGADA ANTECIPADA: check-in antes da data agendada continua permitido
+        (D7), salvo quando adiantar-se toma um quarto que esta prometido a
+        OUTRA reserva no periodo que a chegada antecipada realmente ocupa.
+    """
+    occupant = (
+        Reservation.objects.filter(
+            room_id=reservation.room_id, status=ReservationStatus.CHECKED_IN
+        )
+        .exclude(pk=reservation.pk)
+        .first()
+    )
+    if occupant is not None:
+        raise RoomUnavailableError(
+            "Quarto ainda ocupado por outra estadia.",
+            extra={
+                "room_id": reservation.room_id,
+                "conflicting_reservation_id": occupant.pk,
+                "conflicting_status": occupant.status,
+                "conflicting_checkin_date": occupant.checkin_date.isoformat(),
+            },
+        )
+
+    today = timezone.localdate(now)
+    if today >= reservation.checkin_date:
+        return
+
+    promised = (
+        Reservation.objects.filter(
+            room_id=reservation.room_id,
+            status=ReservationStatus.PENDING,
+            checkin_date__lt=reservation.checkout_date,
+            checkout_date__gt=today,
+        )
+        .exclude(pk=reservation.pk)
+        .order_by("checkin_date", "id")
+        .first()
+    )
+    if promised is not None:
+        raise RoomUnavailableError(
+            f"Chegada antecipada tomaria o quarto de outra reserva a partir de "
+            f"{promised.checkin_date.isoformat()}.",
+            extra={
+                "room_id": reservation.room_id,
+                "conflicting_reservation_id": promised.pk,
+                "conflicting_status": promised.status,
+                "conflicting_checkin_date": promised.checkin_date.isoformat(),
+            },
+        )
 
 
 def _lock(reservation: Reservation) -> Reservation:

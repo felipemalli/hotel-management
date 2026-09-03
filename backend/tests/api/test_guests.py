@@ -174,6 +174,7 @@ def test_in_hotel_endpoint_shape(auth_client):
     assert row["document"] == ANA_STORED_DOCUMENT
     assert row["active_reservation"] == {
         "id": reservation.pk,
+        "room": {"id": reservation.room_id, "number": reservation.room.number},
         "checkin_date": str(reservation.checkin_date),
         "checkout_date": str(reservation.checkout_date),
         "has_vehicle": True,

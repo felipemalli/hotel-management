@@ -12,9 +12,12 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import DateRangeField, RangeBoundary, RangeOperators
 from django.contrib.postgres.indexes import GinIndex, OpClass
+from django.core.validators import MinValueValidator
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Func, Q
 from django.db.models.functions import Upper
 
 from hotel.normalization import (
@@ -35,6 +38,10 @@ RESV_ACTIVE_HAS_POLICY = "resv_active_has_policy"
 RESV_PAYMENT_COMPLETE = "resv_payment_complete"
 RESV_PAID_REQUIRES_CHECKED_OUT = "resv_paid_requires_checked_out"
 STMTLINE_UNIQUE_DATE = "stmtline_unique_date"
+ROOM_NUMBER_UNIQUE = "room_number_unique"
+ROOM_CAPACITY_POSITIVE = "room_capacity_positive"
+RESV_ROOM_NO_OVERLAP = "resv_room_no_overlap"
+RESV_ONE_ACTIVE_PER_ROOM = "resv_one_active_per_room"
 
 
 class ReservationStatus(models.TextChoices):
@@ -134,6 +141,56 @@ class Guest(models.Model):
 
 
 
+
+class DateRange(Func):
+    """`daterange(checkin_date, checkout_date, '[)')` para o `EXCLUDE` do PG.
+
+    O Django nao tem expressao pronta para construir um range a partir de duas
+    colunas, e o `ExclusionConstraint` precisa de um operando do tipo range.
+    `'[)'` -- inicio incluido, fim excluido -- e o que faz uma saida no dia 09
+    e uma entrada no dia 09 NAO se sobreporem: e a mesma semantica de D1, onde
+    a diaria e cobrada por data em `[checkin, checkout)`.
+    """
+
+    function = "daterange"
+    output_field = DateRangeField()
+
+
+class Room(models.Model):
+    """Quarto fisico. Numero, capacidade e se esta em operacao.
+
+    Sem preco, sem tipo e sem foto: a unica propriedade que outra regra consome
+    hoje e `capacity` (titular + acompanhantes <= capacidade). Preco por quarto
+    entra por `RoomType` + `catalog.rate_table_of(policy, room)` quando houver
+    requisito; foto precisa de `MEDIA_ROOT`, volume no compose e Pillow no
+    Dockerfile, e nao e a coluna que custa.
+    """
+
+    number = models.CharField(max_length=10)
+    capacity = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
+    # A FK da reserva e `PROTECT`: sem `is_active`, o primeiro quarto em reforma
+    # nao teria saida -- nao daria para apaga-lo (tem historico) nem para
+    # esconde-lo da disponibilidade.
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["number"]
+        constraints = [
+            # Texto, nao inteiro: "12A" e um numero de quarto tao valido quanto
+            # "101". Nomeada, como todas -- a traducao de IntegrityError casa
+            # por nome.
+            models.UniqueConstraint(fields=["number"], name=ROOM_NUMBER_UNIQUE),
+            models.CheckConstraint(
+                name=ROOM_CAPACITY_POSITIVE,
+                condition=Q(capacity__gte=1),
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.number
+
+
 class PricingPolicy(models.Model):
     """Tarifas e horarios vigentes a partir de um instante. Append-only.
 
@@ -209,6 +266,13 @@ class Reservation(models.Model):
 
     guest = models.ForeignKey(
         Guest,
+        on_delete=models.PROTECT,
+        related_name="reservations",
+    )
+    # NOT NULL: reserva sem quarto e o overbooking que este inventario
+    # existe para impedir. `PROTECT` porque o quarto explica a estadia.
+    room = models.ForeignKey(
+        "hotel.Room",
         on_delete=models.PROTECT,
         related_name="reservations",
     )
@@ -329,6 +393,32 @@ class Reservation(models.Model):
             models.UniqueConstraint(
                 name="resv_one_active_per_guest",
                 fields=["guest"],
+                condition=Q(status="CHECKED_IN"),
+            ),
+            # A AGENDA: duas reservas ativas nao podem ocupar o mesmo quarto
+            # em datas que se cruzam. `[)` deixa passar estadias adjacentes
+            # (sai dia 09, entra dia 09), que e o comportamento correto.
+            # NAO `DEFERRABLE`: o conflito e detectado no proprio INSERT da
+            # segunda transacao (depois de ela esperar a primeira), e e por isso
+            # que o savepoint em volta do INSERT basta para traduzir o erro.
+            ExclusionConstraint(
+                name=RESV_ROOM_NO_OVERLAP,
+                expressions=[
+                    ("room", RangeOperators.EQUAL),
+                    (
+                        DateRange("checkin_date", "checkout_date", RangeBoundary()),
+                        RangeOperators.OVERLAPS,
+                    ),
+                ],
+                condition=Q(status__in=["PENDING", "CHECKED_IN"]),
+            ),
+            # O FATO FISICO: um hospede que fica alem do `checkout_date` (D6/D7)
+            # continua CHECKED_IN com a agenda ja liberada. A exclusao acima nao
+            # pega esse caso, porque ela olha datas agendadas. Duas pessoas no
+            # mesmo quarto ao mesmo tempo e o que esta unique impede.
+            models.UniqueConstraint(
+                name=RESV_ONE_ACTIVE_PER_ROOM,
+                fields=["room"],
                 condition=Q(status="CHECKED_IN"),
             ),
             # Toda reserva que passou pelo check-in tem politica: sem ela,

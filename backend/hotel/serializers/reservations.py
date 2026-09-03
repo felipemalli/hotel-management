@@ -9,16 +9,26 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from hotel.models import Guest, PaymentMethod, Reservation, ReservationStatus
+from hotel.models import Guest, PaymentMethod, Reservation, ReservationStatus, Room
 from hotel.serializers.common import UserMinimalSerializer, money_field
+from hotel.serializers.rooms import RoomSummarySerializer
 
 
 class ReservationSummarySerializer(serializers.ModelSerializer):
     """Reserva resumida dentro das abas de hospedes (SPEC 4.3)."""
 
+    room = RoomSummarySerializer(read_only=True)
+
     class Meta:
         model = Reservation
-        fields = ["id", "checkin_date", "checkout_date", "has_vehicle", "checked_in_at"]
+        fields = [
+            "id",
+            "room",
+            "checkin_date",
+            "checkout_date",
+            "has_vehicle",
+            "checked_in_at",
+        ]
         read_only_fields = fields
 
 
@@ -26,6 +36,7 @@ class ReservationSerializer(serializers.ModelSerializer):
     """Reserva completa. Campos financeiros ficam `null` ate o checkout."""
 
     guest_id = serializers.IntegerField(read_only=True)
+    room = RoomSummarySerializer(read_only=True)
     total_daily = money_field(read_only=True)
     total_parking = money_field(read_only=True)
     late_fee = money_field(read_only=True)
@@ -44,6 +55,7 @@ class ReservationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "guest_id",
+            "room",
             "policy_id",
             "checkin_date",
             "checkout_date",
@@ -85,10 +97,18 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         source="guest",
         help_text="Id de um hóspede já cadastrado.",
     )
+    # So EXISTENCIA, como `guest_id`. Se o quarto esta ativo e se esta livre no
+    # periodo sao regras de estado, e vivem no servico (400 `room_id` /
+    # 409 `ROOM_UNAVAILABLE`).
+    room_id = serializers.PrimaryKeyRelatedField(
+        queryset=Room.objects.all(),
+        source="room",
+        help_text="Id do quarto que a reserva vai ocupar.",
+    )
 
     class Meta:
         model = Reservation
-        fields = ["guest_id", "checkin_date", "checkout_date", "has_vehicle"]
+        fields = ["guest_id", "room_id", "checkin_date", "checkout_date", "has_vehicle"]
 
 
 class PaymentRequestSerializer(serializers.Serializer):

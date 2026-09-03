@@ -43,6 +43,13 @@ from hotel.serializers.reservations import (
     ReservationSerializer,
     ReservationSummarySerializer,
 )
+from hotel.serializers.rooms import (
+    RoomAvailabilityQuerySerializer,
+    RoomCreateSerializer,
+    RoomSerializer,
+    RoomSummarySerializer,
+    RoomUpdateSerializer,
+)
 from hotel.serializers.statement import (
     BillLineSerializer,
     LateFeeSerializer,
@@ -70,6 +77,11 @@ __all__ = [
     "ReservationListQuerySerializer",
     "ReservationSerializer",
     "ReservationSummarySerializer",
+    "RoomAvailabilityQuerySerializer",
+    "RoomCreateSerializer",
+    "RoomSerializer",
+    "RoomSummarySerializer",
+    "RoomUpdateSerializer",
     "StatementSerializer",
     "UserMinimalSerializer",
     "build_statement",

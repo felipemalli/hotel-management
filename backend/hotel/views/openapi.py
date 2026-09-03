@@ -17,6 +17,7 @@ from hotel.serializers import ErrorEnvelopeSerializer
 GUESTS_TAG = "guests"
 RESERVATIONS_TAG = "reservations"
 PRICING_TAG = "pricing"
+ROOMS_TAG = "rooms"
 
 DUPLICATE_DOCUMENT_RESPONSE = OpenApiResponse(
     response=ErrorEnvelopeSerializer,
@@ -48,6 +49,21 @@ PERMISSION_DENIED_RESPONSE = OpenApiResponse(
             response_only=True,
         )
     ],
+)
+
+ROOM_UNAVAILABLE_EXAMPLE = OpenApiExample(
+    "ROOM_UNAVAILABLE",
+    value={
+        "code": "ROOM_UNAVAILABLE",
+        "detail": "Quarto 101 indisponível no período solicitado.",
+        "extra": {
+            "room_id": 1,
+            "conflicting_reservation_id": 7,
+            "conflicting_status": "PENDING",
+            "conflicting_checkin_date": "2026-09-05",
+        },
+    },
+    response_only=True,
 )
 
 INVALID_STATUS_EXAMPLE = OpenApiExample(
@@ -95,6 +111,8 @@ __all__ = [
     "INVALID_STATUS_EXAMPLE",
     "PERMISSION_DENIED_RESPONSE",
     "PRICING_TAG",
+    "ROOMS_TAG",
+    "ROOM_UNAVAILABLE_EXAMPLE",
     "RESERVATIONS_TAG",
     "T7_STATEMENT_EXAMPLE",
 ]

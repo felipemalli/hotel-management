@@ -24,7 +24,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Role
-from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.models import Guest, Reservation, ReservationStatus, Room
 from hotel.normalization import normalize_document
 from hotel.services import guests as guest_services
 from hotel.services import reservations as reservation_services
@@ -57,11 +57,13 @@ class Command(BaseCommand):
 
         attendant = self._ensure_attendant()
         self._ensure_admin()
+        rooms = self._ensure_rooms()
 
         # 1. Ana Souza - reserva PENDING de hoje: povoa a aba "pendentes".
         ana = self._ensure_guest("Ana Souza", "123.456.789-01", "+55 21 98888-7777", "BR")
         self._ensure_reservation(
             ana,
+            room=rooms["101"],
             checkin=today,
             checkout=today + timedelta(days=2),
             has_vehicle=True,
@@ -73,6 +75,7 @@ class Command(BaseCommand):
         yesterday = today - timedelta(days=1)
         bruno_reservation = self._ensure_reservation(
             bruno,
+            room=rooms["102"],
             checkin=yesterday,
             checkout=today + timedelta(days=1),
             has_vehicle=False,
@@ -94,7 +97,12 @@ class Command(BaseCommand):
         sunday = last_past_sunday(today)
         friday = sunday - timedelta(days=2)
         carla_reservation = self._ensure_reservation(
-            carla, checkin=friday, checkout=sunday, has_vehicle=True, actor=attendant
+            carla,
+            room=rooms["103"],
+            checkin=friday,
+            checkout=sunday,
+            has_vehicle=True,
+            actor=attendant,
         )
         if carla_reservation.status == ReservationStatus.PENDING:
             reservation_services.check_in(
@@ -120,6 +128,7 @@ class Command(BaseCommand):
         self.stdout.write(
             f"Atendente: {ATTENDANT_USERNAME} / {ATTENDANT_PASSWORD} "
             f"| Admin: {ADMIN_USERNAME} / {ADMIN_PASSWORD} "
+            f"| quartos: {Room.objects.count()} "
             f"| hospedes: {Guest.objects.count()} | reservas: {Reservation.objects.count()}"
         )
 
@@ -164,6 +173,19 @@ class Command(BaseCommand):
             admin.save(update_fields=["password"])
             self.stdout.write(f"  admin criado: {ADMIN_USERNAME}")
 
+    def _ensure_rooms(self) -> dict[str, Room]:
+        """Quatro quartos, capacidades diferentes: a demo precisa mostrar que
+        capacidade freia o numero de pessoas."""
+        rooms: dict[str, Room] = {}
+        for number, capacity in (("101", 2), ("102", 2), ("103", 3), ("201", 4)):
+            room, created = Room.objects.get_or_create(
+                number=number, defaults={"capacity": capacity}
+            )
+            if created:
+                self.stdout.write(f"  quarto criado: {number} ({capacity} pessoas)")
+            rooms[number] = room
+        return rooms
+
     def _ensure_guest(
         self, full_name: str, document: str, phone: str, nationality: str
     ) -> Guest:
@@ -185,7 +207,14 @@ class Command(BaseCommand):
         return guest
 
     def _ensure_reservation(
-        self, guest: Guest, *, checkin: date, checkout: date, has_vehicle: bool, actor
+        self,
+        guest: Guest,
+        *,
+        room: Room,
+        checkin: date,
+        checkout: date,
+        has_vehicle: bool,
+        actor,
     ) -> Reservation:
         """Uma reserva por hospede do seed, criada uma unica vez.
 
@@ -208,6 +237,7 @@ class Command(BaseCommand):
 
         reservation = reservation_services.create_reservation(
             guest=guest,
+            room=room,
             checkin_date=checkin,
             checkout_date=checkout,
             has_vehicle=has_vehicle,

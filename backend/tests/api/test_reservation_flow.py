@@ -18,7 +18,7 @@ from freezegun import freeze_time
 
 from hotel.models import Reservation, ReservationStatus
 from tests.api.conftest import local
-from tests.factories import GuestFactory, ReservationFactory
+from tests.factories import GuestFactory, ReservationFactory, RoomFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -79,6 +79,7 @@ def test_create_reservation_persists_pending(auth_client):
         "/api/reservations/",
         {
             "guest_id": guest.pk,
+            "room_id": RoomFactory().pk,
             "checkin_date": str(today + timedelta(days=4)),
             "checkout_date": str(today + timedelta(days=7)),
             "has_vehicle": True,
@@ -109,6 +110,7 @@ def test_create_reservation_in_the_past_returns_400(auth_client):
         "/api/reservations/",
         {
             "guest_id": guest.pk,
+            "room_id": RoomFactory().pk,
             "checkin_date": str(today - timedelta(days=1)),
             "checkout_date": str(today + timedelta(days=1)),
         },
@@ -130,6 +132,7 @@ def test_create_reservation_requires_one_night(auth_client):
         "/api/reservations/",
         {
             "guest_id": guest.pk,
+            "room_id": RoomFactory().pk,
             "checkin_date": str(today),
             "checkout_date": str(today),
         },
@@ -148,6 +151,7 @@ def test_create_reservation_requires_existing_guest(auth_client):
         "/api/reservations/",
         {
             "guest_id": 999999,
+            "room_id": RoomFactory().pk,
             "checkin_date": str(today),
             "checkout_date": str(today + timedelta(days=1)),
         },

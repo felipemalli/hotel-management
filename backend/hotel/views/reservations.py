@@ -37,6 +37,7 @@ from hotel.services import reservations as reservations_service
 from hotel.views.openapi import (
     INVALID_STATUS_EXAMPLE,
     RESERVATIONS_TAG,
+    ROOM_UNAVAILABLE_EXAMPLE,
     T7_STATEMENT_EXAMPLE,
 )
 
@@ -78,12 +79,21 @@ from hotel.views.openapi import (
             "checkin_date` (D13) e `checkin_date >= hoje` local (D11)."
         ),
         request=ReservationCreateSerializer,
-        responses={201: ReservationSerializer, 400: ErrorEnvelopeSerializer},
+        responses={
+            201: ReservationSerializer,
+            400: ErrorEnvelopeSerializer,
+            409: OpenApiResponse(
+                response=ErrorEnvelopeSerializer,
+                description="Quarto sem disponibilidade no período (D16).",
+                examples=[ROOM_UNAVAILABLE_EXAMPLE],
+            ),
+        },
         examples=[
             OpenApiExample(
                 "Reserva de 3 noites com vaga",
                 value={
                     "guest_id": 1,
+                    "room_id": 1,
                     "checkin_date": "2026-09-05",
                     "checkout_date": "2026-09-08",
                     "has_vehicle": True,
@@ -140,7 +150,9 @@ class ReservationViewSet(
         description=(
             "Antes das 14:00 locais responde `409 EARLY_CHECKIN` com o horário do "
             "servidor — alerta, não bloqueio (D4). O atendente reenvia com "
-            "`allow_early: true` para confirmar."
+            "`allow_early: true` para confirmar. Quarto ainda ocupado, ou chegada "
+            "antecipada que tomaria o quarto de outra reserva, respondem "
+            "`409 ROOM_UNAVAILABLE` (D7/D16)."
         ),
         request=CheckInRequestSerializer,
         responses={
@@ -159,6 +171,7 @@ class ReservationViewSet(
                         response_only=True,
                     ),
                     INVALID_STATUS_EXAMPLE,
+                    ROOM_UNAVAILABLE_EXAMPLE,
                 ],
             ),
             404: ErrorEnvelopeSerializer,

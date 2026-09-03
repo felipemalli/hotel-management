@@ -20,12 +20,97 @@ from datetime import datetime, time
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from hotel.models import PricingPolicy
+from hotel.models import ROOM_NUMBER_UNIQUE, PricingPolicy, ReservationStatus, Room
 from hotel.services import pricing
-from hotel.services.errors import DomainValidationError
+from hotel.services.errors import (
+    DomainError,
+    DomainValidationError,
+    translate_integrity_error,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - apenas para anotacao
     from django.contrib.auth.models import AbstractBaseUser
+
+
+class DuplicateRoomNumberError(DomainError):
+    """Numero de quarto ja cadastrado."""
+
+    code = "VALIDATION_ERROR"
+    status_code = 400
+    default_detail = "Dados inválidos."
+
+    def __init__(self) -> None:
+        super().__init__(extra={"number": ["Já existe um quarto com este número."]})
+
+
+def create_room(*, number: str, capacity: int) -> Room:
+    """Cadastra um quarto.
+
+    Sem `actor`: nenhuma coluna do quarto grava quem o criou, e parametro morto
+    e pior que assimetria com os servicos de reserva. Numero duplicado sai como
+    `400` no campo, nao como um codigo novo -- e erro de formulario, nao
+    conflito com o estado de um recurso.
+    """
+    with translate_integrity_error({ROOM_NUMBER_UNIQUE: DuplicateRoomNumberError}):
+        return Room.objects.create(number=number, capacity=capacity)
+
+
+def update_room(room: Room, *, capacity: int | None = None, is_active: bool | None = None) -> Room:
+    """Ajusta capacidade e operacao. Sem `DELETE` (`PROTECT` + historico).
+
+    As duas guardas existem porque as duas mudancas podem invalidar uma reserva
+    JA aceita: desativar um quarto ocupado deixaria o hospede num quarto que o
+    sistema considera fora de operacao, e reduzir a capacidade abaixo do grupo
+    que ja esta la tornaria a reserva impossivel de existir.
+    """
+    fields: list[str] = []
+
+    if is_active is False and _has_active_reservation(room):
+        raise RoomInUseError()
+
+    if capacity is not None:
+        occupants = _largest_active_party(room)
+        if capacity < occupants:
+            raise DomainValidationError(
+                "capacity",
+                f"O quarto {room.number} tem reserva ativa para {occupants} pessoas.",
+            )
+        room.capacity = capacity
+        fields.append("capacity")
+
+    if is_active is not None:
+        room.is_active = is_active
+        fields.append("is_active")
+
+    if fields:
+        room.save(update_fields=fields)
+    return room
+
+
+class RoomInUseError(DomainError):
+    """Quarto com reserva ativa nao sai de operacao -- 409 INVALID_STATUS."""
+
+    code = "INVALID_STATUS"
+    default_detail = "Quarto com reserva ativa não pode ser desativado."
+
+
+def _has_active_reservation(room: Room) -> bool:
+    return room.reservations.filter(
+        status__in=[ReservationStatus.PENDING, ReservationStatus.CHECKED_IN]
+    ).exists()
+
+
+def _largest_active_party(room: Room) -> int:
+    """Maior grupo entre as reservas ativas do quarto (titular + acompanhantes).
+
+    Hoje toda reserva tem exatamente uma pessoa; a contagem existe assim para
+    que a guarda continue verdadeira quando acompanhantes entrarem, sem virar
+    um numero magico agora.
+    """
+    active = room.reservations.filter(
+        status__in=[ReservationStatus.PENDING, ReservationStatus.CHECKED_IN]
+    )
+    return max((1 for _ in active), default=0)
 
 
 def rate_table_of(policy: PricingPolicy) -> pricing.RateTable:

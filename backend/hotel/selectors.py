@@ -7,11 +7,11 @@ dinheiro -- dinheiro e de `services/pricing.py`.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
-from django.db.models import Prefetch, Q, QuerySet
+from django.db.models import Exists, OuterRef, Prefetch, Q, QuerySet
 
-from hotel.models import Guest, PricingPolicy, Reservation, ReservationStatus
+from hotel.models import Guest, PricingPolicy, Reservation, ReservationStatus, Room
 from hotel.normalization import normalize_document, normalize_phone
 
 # Atributos preenchidos pelos prefetches abaixo, consumidos pelos
@@ -87,6 +87,7 @@ def guests_pending_checkin() -> QuerySet[Guest]:
 # teste e o que impede a regressao silenciosa.
 RESERVATION_RELATIONS = (
     "guest",
+    "room",
     "policy",
     "created_by",
     "checked_in_by",
@@ -144,3 +145,91 @@ def policy_in_force(at: datetime) -> PricingPolicy:
 def list_policies() -> QuerySet[PricingPolicy]:
     """Historico de politicas, da mais recente para a mais antiga."""
     return PricingPolicy.objects.select_related("created_by").all()
+
+
+# -- quartos ------------------------------------------------------------------
+
+# Reservas que ocupam a agenda de um quarto. Cancelada e finalizada nao contam:
+# o quarto volta a ser oferecivel no instante do cancel/checkout.
+OCCUPYING_STATUSES = (ReservationStatus.PENDING, ReservationStatus.CHECKED_IN)
+
+
+def list_rooms(*, active_only: bool = True) -> QuerySet[Room]:
+    """Quartos do inventario. Por default so os em operacao."""
+    queryset = Room.objects.all()
+    if active_only:
+        queryset = queryset.filter(is_active=True)
+    return queryset
+
+
+def _overlapping(checkin_date: date, checkout_date: date) -> QuerySet[Reservation]:
+    """Reservas ativas cujo intervalo cruza `[checkin_date, checkout_date)`.
+
+    Intervalos meio-abertos: `a.inicio < b.fim AND a.fim > b.inicio`. Sai dia 09
+    e entra dia 09 NAO se cruzam -- a mesma semantica de D1 e do `[)` do
+    `EXCLUDE`.
+    """
+    return Reservation.objects.filter(
+        status__in=OCCUPYING_STATUSES,
+        checkin_date__lt=checkout_date,
+        checkout_date__gt=checkin_date,
+    )
+
+
+def available_rooms(
+    *,
+    checkin_date: date,
+    checkout_date: date,
+    people: int,
+    today: date,
+) -> QuerySet[Room]:
+    """Quartos ofereciveis para o periodo e o numero de pessoas.
+
+    Duas exclusoes, e a segunda e a que nao daria para expressar em constraint:
+
+    1. Agenda cruzada, por `~Exists`. Nao `exclude(reservations__...)`: numa
+       relacao multivalorada o `exclude` gera um `NOT IN` sobre a juncao e
+       descarta o quarto quando QUALQUER reserva dele casa parte do predicado,
+       nao quando UMA reserva casa o predicado inteiro.
+    2. Overstay: se o periodo comeca hoje ou antes, um quarto com hospede ainda
+       dentro (CHECKED_IN de qualquer data) nao esta livre -- por mais que a
+       agenda diga que sim (D6/D7/D14). Isso depende de "hoje", logo e guarda de
+       leitura e nao constraint.
+    """
+    queryset = list_rooms(active_only=True).filter(capacity__gte=people)
+
+    scheduled = _overlapping(checkin_date, checkout_date).filter(room=OuterRef("pk"))
+    queryset = queryset.filter(~Exists(scheduled))
+
+    if checkin_date <= today:
+        occupied_now = Reservation.objects.filter(
+            room=OuterRef("pk"), status=ReservationStatus.CHECKED_IN
+        )
+        queryset = queryset.filter(~Exists(occupied_now))
+
+    return queryset
+
+
+def conflicting_reservation(
+    room: Room,
+    *,
+    checkin_date: date,
+    checkout_date: date,
+    today: date,
+) -> Reservation | None:
+    """A reserva que impede este quarto neste periodo, ou `None`.
+
+    Mesmo predicado de `available_rooms`, mas devolvendo a linha: e ela que
+    alimenta o `extra` do `409 ROOM_UNAVAILABLE` com o id do conflito, para o
+    atendente saber o que consultar em vez de receber "indisponivel" e nada.
+    """
+    conflict = _overlapping(checkin_date, checkout_date).filter(room=room).first()
+    if conflict is not None:
+        return conflict
+    if checkin_date <= today:
+        return (
+            Reservation.objects.filter(room=room, status=ReservationStatus.CHECKED_IN)
+            .order_by("checkin_date", "id")
+            .first()
+        )
+    return None

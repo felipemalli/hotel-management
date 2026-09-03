@@ -18,7 +18,7 @@ que o briefing não pede fica de fora de propósito (§ [8](#8-escopo-deliberada
 | Swagger (contrato navegável) | <http://localhost:8000/api/docs/> |
 | Admin do Django | <http://localhost:8000/admin/> |
 | Credenciais do seed | `atendente` / `atendente123` · `admin` / `admin123` |
-| Atenção | O esquema mudou: rode `docker compose down -v` antes de subir sobre um volume antigo. |
+| Atenção | O esquema mudou (quarto obrigatório, nacionalidade obrigatória): rode `docker compose down -v` antes de subir sobre um volume antigo. |
 
 **Índice**
 
@@ -288,6 +288,8 @@ Estas decisões são **normativas**. Todo código e teste deriva delas.
 | D12 | Hóspede duplicado | `document` é único (`409 DUPLICATE_DOCUMENT` no segundo cadastro). Como a coluna já está normalizada (D9), a unicidade é tolerante a máscara. Telefone **não** é único (familiares compartilham). |
 | D13 | Day-use agendado | Agendamento exige mínimo de 1 noite (constraint §1.5 mantida). Day-use existe apenas como **fato** (check-in e checkout reais no mesmo dia — T9), coberto por D1. |
 | D14 | Reserva PENDING vencida | Continua listada em `pending-checkin` até ação do atendente (check-in ou cancelamento). O sistema não muda estado sem gesto humano. |
+| D16 | Overbooking de quarto | Três camadas: o `EXCLUDE` gist protege a **agenda** (datas que se cruzam), a unique parcial protege o **fato físico** (dois `CHECKED_IN` no mesmo quarto), e overstay e chegada antecipada — que dependem de "hoje" — são guardas de leitura sob lock. |
+| D17 | Capacidade do quarto | `capacity` é a única propriedade do quarto que outra regra consome. Lotação total do hotel **não** se guarda: é derivada (`Sum(capacity)` dos ativos) e já imposta por construção. |
 | D18 | Pagamento da conta fechada | Pagamento **único e integral**, com forma e ator, registrado depois do checkout. Não é um status: `CHECKED_OUT` continua sendo o estado terminal. Sem pagamento parcial e sem estorno. |
 | D15 | Qual política de tarifa rege a estadia | A política **amarrada no check-in** rege tudo: diárias, vaga, fator da multa **e** limite de checkout. Só o horário de abertura do check-in vem da política vigente no ato, porque antecede a amarração. |
 
@@ -312,6 +314,16 @@ Para cada decisão: a leitura alternativa em uma frase testável, um caso concre
 **D8 — cancelamento só de PENDING.** Alternativa: "CHECKED_IN também cancela (estorno)." Divergência: cancelar após uma noite dormida exigiria política de estorno inexistente no briefing. Venceu a adotada: dinheiro monotônico, extrato único.
 
 **D9 — normalização alfanumérica do documento.** Alternativa: "normalizar documento por dígitos." Divergência: passaportes `AB123456` e `CD123456` colidiriam na coluna única → `409 DUPLICATE_DOCUMENT` indevido no segundo. Venceu a adotada: preserva a unicidade real; telefone segue por dígitos porque só a máscara varia.
+
+**D16 — overbooking em três camadas, e por que não dá para ser só uma.** O `EXCLUDE` gist (`resv_room_no_overlap`) impede duas reservas ativas com datas cruzadas no mesmo quarto; `'[)'` deixa passar estadias adjacentes — sai dia 09, entra dia 09 — que é a mesma semântica de D1. Mas ele olha datas **agendadas**, e D6 cobra pelos fatos reais: um hóspede que fica além do `checkout_date` continua `CHECKED_IN` com a agenda já liberada, e nada impediria um segundo `CHECKED_IN` no mesmo quarto. Daí a unique parcial (`resv_one_active_per_room`), que protege o fato físico. Sobram dois casos que **nenhuma constraint pode expressar**, porque dependem de "hoje": (a) oferecer um quarto com overstay na disponibilidade; (b) uma chegada antecipada (D7) tomar um quarto prometido a outra `PENDING`. Esses são guardas de leitura sob lock, com o `today`/`now` que a view já injeta.
+
+**D7 (complemento) — chegar antes continua permitido, salvo se toma o quarto de alguém.** Divergência com caso: a reserva de 09→11 aparece no balcão dia 07 e quer entrar já; existe outra reserva de 07→09 no mesmo quarto. Adotada: `409 ROOM_UNAVAILABLE` com o id da reserva prometida. Alternativa (permitir): o `EXCLUDE` não pega — as datas agendadas 07→09 e 09→11 não se cruzam — e o hóspede das 07 chega a um quarto ocupado.
+
+**D14 (complemento) — a pendência vencida retém o quarto.** Consequência direta de "o sistema não muda estado sem gesto humano": enquanto ninguém cancela nem faz o check-in, o quarto segue reservado. É registrado aqui porque é o custo assumido de não ter no-show automático; a saída é o `cancel`.
+
+**A ordem de lock é `Guest → Room → Reservation`,** por tabela, e dentro de `Guest` por pk crescente. Duas transações que travem as mesmas linhas em ordens diferentes fazem deadlock, e o atendente vê um 500. `create_reservation` não trava nada: a autoridade dela é o `EXCLUDE` sob savepoint, que traduz a corrida no mesmo `409 ROOM_UNAVAILABLE` da guarda.
+
+**D17 — capacidade sim, lotação do hotel não.** `capacity` é a única propriedade do quarto que outra regra consome (titular + acompanhantes ≤ capacidade); sem ela, "reserva com mais pessoas" não tem freio. Lotação total é derivada (`Sum(capacity)` dos ativos) e já imposta por construção pelo anti-overbooking. **Gatilho:** lotação legal (alvará) *menor* que a soma — aí é uma linha de configuração e uma guarda no check-in. Sem preço por quarto, sem `RoomType` e sem foto: a costura para preço é `catalog.rate_table_of`, ponto único, e foto exigiria `MEDIA_ROOT`, volume no compose e Pillow no Dockerfile — não é a coluna que custa.
 
 **D18 — pagamento único e integral, em colunas da reserva.** Alternativa: `ReservationStatus.PAID` como quinto estado, ou uma tabela `Payment` desde já. Divergência: `PAID` obrigaria toda consulta de "estadia encerrada" a olhar dois valores, numa máquina de estados linear que já termina em `CHECKED_OUT` — e pago é um **fato sobre** a reserva encerrada, não um estágio dela. Uma tabela `Payment` 1:1 duplicaria os quatro totais e o ator, ou obrigaria a movê-los. Adotada: três colunas (`paid_at`, `payment_method`, `paid_by`) que nascem e morrem juntas, guardadas pela CHECK `resv_payment_complete` — meio pagamento gravado seria um recibo que não se sustenta. Pagar duas vezes responde `409 INVALID_STATUS` com `extra.paid_at`, e **não** um código `ALREADY_PAID`: é uma operação ilegal para o estado atual do recurso, o mesmo significado de D8. **Gatilho para extrair `Payment`:** o primeiro pagamento parcial ou estorno — aí a transição passa a ser repetível e a coluna deixa de ser o histórico.
 
@@ -484,6 +496,7 @@ nunca por texto:
 | `EARLY_CHECKIN` | 409 | Check-in antes da abertura da política vigente (default do briefing: 14h) sem `allow_early` (D4). `extra`: `server_time`, `opens_at` |
 | `INVALID_STATUS` | 409 | Transição de status ilegal; pagamento fora de `CHECKED_OUT` ou conta já paga (`extra.paid_at`) |
 | `DUPLICATE_DOCUMENT` | 409 | Documento já cadastrado (D12) |
+| `ROOM_UNAVAILABLE` | 409 | Quarto sem disponibilidade: agenda cruzada, ainda ocupado, ou chegada antecipada que tomaria o quarto de outra reserva (D16). `extra`: `room_id`, `conflicting_reservation_id`, `conflicting_status`, `conflicting_checkin_date` |
 | `AI_UPSTREAM_ERROR` | 502 | Provedor de IA indisponível ou resposta inutilizável |
 | `THROTTLED` | 429 | Login 10/min por IP; IA 20/min por usuário |
 | `AI_DISABLED` | 503 | IA sem chave configurada |

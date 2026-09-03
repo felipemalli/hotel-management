@@ -23,6 +23,7 @@ from hotel.models import (
     PricingPolicy,
     Reservation,
     ReservationStatus,
+    Room,
     StatementLine,
 )
 from hotel.services import pricing
@@ -54,6 +55,17 @@ class UserFactory(factory.django.DjangoModelFactory):
     # skip_postgeneration_save, set_password roda em memoria e nunca e salvo:
     # authenticate() devolve None e todo login via factory falha.
     password = factory.LazyFunction(lambda: make_password(DEFAULT_PASSWORD))
+
+
+class RoomFactory(factory.django.DjangoModelFactory):
+    """Quarto de teste. Numero unico por sequencia."""
+
+    class Meta:
+        model = Room
+
+    number = factory.Sequence(lambda n: f"1{n:03d}")
+    capacity = 2
+    is_active = True
 
 
 class PricingPolicyFactory(factory.django.DjangoModelFactory):
@@ -132,6 +144,10 @@ class ReservationFactory(factory.django.DjangoModelFactory):
         )
 
     guest = factory.SubFactory(GuestFactory)
+    # Cada reserva nasce em quarto PROPRIO: sem isto, todo teste que cria duas
+    # reservas esbarraria no `EXCLUDE` por acidente. Os testes de overbooking
+    # fixam `room=` explicitamente -- a colisao tem de ser pedida.
+    room = factory.SubFactory(RoomFactory)
     checkin_date = factory.LazyFunction(timezone.localdate)
     checkout_date = factory.LazyAttribute(lambda o: o.checkin_date + timedelta(days=2))
     has_vehicle = False
