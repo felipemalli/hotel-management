@@ -23,10 +23,7 @@ export interface RenderWithProvidersOptions {
 }
 
 /** Retorno inferido: o `RenderResult` do RTL, mais o cliente do teste. */
-export function renderWithProviders(
-  ui: ReactElement,
-  options: RenderWithProvidersOptions = {},
-) {
+export function renderWithProviders(ui: ReactElement, options: RenderWithProvidersOptions = {}) {
   const queryClient = options.queryClient ?? createQueryClient()
 
   function Wrapper({ children }: { children: ReactNode }) {

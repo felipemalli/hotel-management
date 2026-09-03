@@ -60,11 +60,11 @@ export function AiFillGuest({ onFilled }: AiFillGuestProps) {
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder="hóspede Ana Souza cpf 123.456.789-01 cel (21) 98888-7777"
-        className="rounded-md bg-white px-3 py-2 text-sm text-slate-900 ring-1 ring-slate-300 ring-inset placeholder:text-slate-500 focus:-outline-offset-2 focus:outline-2 focus:outline-slate-900"
+        className="rounded-md bg-white px-3 py-2 text-sm text-slate-900 ring-1 ring-slate-300 ring-inset placeholder:text-slate-500 focus:outline-2 focus:-outline-offset-2 focus:outline-slate-900"
       />
       <p className="text-xs text-slate-500">
-        O texto é enviado a um provedor externo (Anthropic) para extração dos campos. Nada é
-        salvo por aqui: revise nome, documento e telefone antes de cadastrar.
+        O texto é enviado a um provedor externo (Anthropic) para extração dos campos. Nada é salvo
+        por aqui: revise nome, documento e telefone antes de cadastrar.
       </p>
       <div className="flex justify-end gap-2">
         <Button

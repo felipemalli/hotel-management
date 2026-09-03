@@ -110,9 +110,7 @@ describe('GuestForm', () => {
     await user.type(screen.getByLabelText('Telefone'), '21')
     await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
 
-    expect(
-      await screen.findByText('Telefone deve ter ao menos 8 dígitos.'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Telefone deve ter ao menos 8 dígitos.')).toBeInTheDocument()
     expect(screen.getByLabelText('Telefone')).toHaveAttribute('aria-invalid', 'true')
   })
 })

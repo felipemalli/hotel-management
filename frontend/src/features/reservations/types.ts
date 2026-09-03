@@ -6,12 +6,7 @@
  * cliente e a perda de precisao que o `Decimal` do backend existe para evitar.
  */
 
-export const RESERVATION_STATUSES = [
-  'PENDING',
-  'CHECKED_IN',
-  'CHECKED_OUT',
-  'CANCELLED',
-] as const
+export const RESERVATION_STATUSES = ['PENDING', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'] as const
 
 export type ReservationStatus = (typeof RESERVATION_STATUSES)[number]
 

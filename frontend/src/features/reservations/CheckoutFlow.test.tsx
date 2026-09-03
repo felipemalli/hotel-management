@@ -2,11 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { DashboardPage } from '@/app/DashboardPage'
-import {
-  fetchGuests,
-  fetchGuestsInHotel,
-  fetchGuestsPendingCheckin,
-} from '@/features/guests/api'
+import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import type { GuestInHotel } from '@/features/guests/types'
 import { checkOut } from '@/features/reservations/api'
 import type { Paginated } from '@/lib/apiClient'

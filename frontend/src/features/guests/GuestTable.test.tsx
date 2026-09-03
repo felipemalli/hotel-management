@@ -2,11 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { act } from 'react'
 
-import {
-  fetchGuests,
-  fetchGuestsInHotel,
-  fetchGuestsPendingCheckin,
-} from '@/features/guests/api'
+import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import type { Paginated } from '@/lib/apiClient'
 import { ApiError } from '@/lib/errors'
 import { renderWithProviders, resetGlobalStores } from '@/test/renderWithProviders'
@@ -147,10 +143,7 @@ describe('GuestTable', () => {
 
     // A busca por fragmento nao existe fora de "Todos" (o contrato nao a expoe).
     expect(screen.queryByLabelText('Buscar hóspede')).not.toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /No hotel/ })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    )
+    expect(screen.getByRole('tab', { name: /No hotel/ })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('test_tab_pending_switches_dataset', async () => {

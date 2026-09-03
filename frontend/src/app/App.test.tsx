@@ -41,7 +41,9 @@ describe('App', () => {
     signInForTest()
     render(<App />)
 
-    expect(await screen.findByRole('tablist', { name: 'Listagens de hóspedes' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('tablist', { name: 'Listagens de hóspedes' }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Novo hóspede' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
   })

@@ -2,11 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { DashboardPage } from '@/app/DashboardPage'
-import {
-  fetchGuests,
-  fetchGuestsInHotel,
-  fetchGuestsPendingCheckin,
-} from '@/features/guests/api'
+import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import type { GuestInHotel, GuestPendingCheckin } from '@/features/guests/types'
 import { checkIn } from '@/features/reservations/api'
 import type { Paginated } from '@/lib/apiClient'
@@ -83,11 +79,7 @@ describe('EarlyCheckinFlow', () => {
     })
 
     renderWithProviders(
-      <ReservationActions
-        reservationId={RESERVATION_ID}
-        guestName={GUEST_NAME}
-        state="PENDING"
-      />,
+      <ReservationActions reservationId={RESERVATION_ID} guestName={GUEST_NAME} state="PENDING" />,
     )
 
     // 1. Primeira tentativa sai sem override, como manda o fluxo F2.
@@ -202,9 +194,7 @@ describe('EarlyCheckinFlow', () => {
     await waitFor(() =>
       expect(vi.mocked(fetchGuestsPendingCheckin).mock.calls.length).toBeGreaterThan(1),
     )
-    expect(
-      await screen.findByText('Nenhuma reserva aguardando check-in'),
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Nenhuma reserva aguardando check-in')).toBeInTheDocument()
 
     // E o novo status aparece: o hospede agora esta na aba "No hotel", com o
     // `checked_in_at` que o contrato devolveu.
@@ -228,11 +218,7 @@ describe('EarlyCheckinFlow', () => {
     )
 
     renderWithProviders(
-      <ReservationActions
-        reservationId={RESERVATION_ID}
-        guestName={GUEST_NAME}
-        state="PENDING"
-      />,
+      <ReservationActions reservationId={RESERVATION_ID} guestName={GUEST_NAME} state="PENDING" />,
     )
 
     await user.click(screen.getByRole('button', { name: 'Check-in' }))

@@ -122,20 +122,14 @@ export function DashboardPage() {
             onCancel={() => setReservationFor(null)}
             onSuccess={(reservation) => {
               setReservationFor(null)
-              setNotice(
-                `Reserva #${reservation.id} criada para ${reservationFor.full_name}.`,
-              )
+              setNotice(`Reserva #${reservation.id} criada para ${reservationFor.full_name}.`)
             }}
           />
         </Dialog>
       ) : null}
 
       {statement ? (
-        <CheckoutStatementDialog
-          open
-          statement={statement}
-          onClose={() => setStatement(null)}
-        />
+        <CheckoutStatementDialog open statement={statement} onClose={() => setStatement(null)} />
       ) : null}
     </div>
   )

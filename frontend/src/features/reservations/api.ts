@@ -29,9 +29,7 @@ export async function fetchReservations(
   return response.data
 }
 
-export async function createReservation(
-  payload: CreateReservationPayload,
-): Promise<Reservation> {
+export async function createReservation(payload: CreateReservationPayload): Promise<Reservation> {
   const response = await apiClient.post<Reservation>('/reservations/', payload)
   return response.data
 }

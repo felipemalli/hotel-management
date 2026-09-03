@@ -20,10 +20,7 @@ export function TableSkeleton({ rows = 4, columns = 4 }: { rows?: number; column
           className="flex gap-4 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0"
         >
           {Array.from({ length: columns }).map((__, columnIndex) => (
-            <div
-              key={columnIndex}
-              className="h-4 grow animate-pulse rounded bg-slate-200"
-            />
+            <div key={columnIndex} className="h-4 grow animate-pulse rounded bg-slate-200" />
           ))}
         </div>
       ))}

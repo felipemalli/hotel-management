@@ -15,9 +15,7 @@ import { BILL_FIXTURES, BILL_TOTALS, T1_STATEMENT, T7_STATEMENT } from './__fixt
  */
 
 function renderStatement(statement = T7_STATEMENT) {
-  return render(
-    <CheckoutStatementDialog open statement={statement} onClose={() => {}} />,
-  )
+  return render(<CheckoutStatementDialog open statement={statement} onClose={() => {}} />)
 }
 
 /** As diarias do extrato: o `tbody` da tabela "Diárias cobradas". */
@@ -57,9 +55,7 @@ describe('CheckoutStatementDialog', () => {
     expect(screen.getByText('R$ 35,00')).toBeInTheDocument()
 
     // RN5: a multa aparece com a base do dia da saida (domingo, D3) e o valor.
-    expect(
-      screen.getByText('Multa de checkout tardio (50% de R$ 180,00)'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Multa de checkout tardio (50% de R$ 180,00)')).toBeInTheDocument()
     expect(screen.getByText('R$ 90,00')).toBeInTheDocument()
 
     // RN6: total geral em destaque — R$ 425,00 da linha T7 da SPEC 3.3.
@@ -101,9 +97,7 @@ describe('CheckoutStatementDialog', () => {
       const lateFeeLine = screen.queryByText(/^Multa de checkout tardio/)
       if (statement.late_fee.applied) {
         expect(lateFeeLine).not.toBeNull()
-        expect(lateFeeLine?.parentElement).toHaveTextContent(
-          formatBRL(statement.late_fee.amount),
-        )
+        expect(lateFeeLine?.parentElement).toHaveTextContent(formatBRL(statement.late_fee.amount))
       } else {
         expect(lateFeeLine).toBeNull()
       }
@@ -113,9 +107,7 @@ describe('CheckoutStatementDialog', () => {
   })
 
   it('nao renderiza nada com `open` falso', () => {
-    render(
-      <CheckoutStatementDialog open={false} statement={T7_STATEMENT} onClose={() => {}} />,
-    )
+    render(<CheckoutStatementDialog open={false} statement={T7_STATEMENT} onClose={() => {}} />)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

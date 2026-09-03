@@ -31,9 +31,7 @@ export function Input({ label, error, hint, className = '', id, ...props }: Inpu
         className={[
           'rounded-md bg-white px-3 py-2 text-sm text-slate-900 ring-1 ring-inset',
           'placeholder:text-slate-500 focus:outline-2 focus:-outline-offset-2',
-          error
-            ? 'ring-red-400 focus:outline-red-600'
-            : 'ring-slate-300 focus:outline-slate-900',
+          error ? 'ring-red-400 focus:outline-red-600' : 'ring-slate-300 focus:outline-slate-900',
           className,
         ].join(' ')}
         {...props}

@@ -29,9 +29,7 @@ export function useAiStatus() {
   })
 }
 
-export function useParseGuestText(options?: {
-  onSuccess?: (fields: ParsedGuestFields) => void
-}) {
+export function useParseGuestText(options?: { onSuccess?: (fields: ParsedGuestFields) => void }) {
   return useMutation({
     mutationFn: (text: string) => parseGuestText(text),
     onSuccess: options?.onSuccess,

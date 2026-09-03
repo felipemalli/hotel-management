@@ -8,12 +8,7 @@
 
 import { apiClient, type Paginated } from '@/lib/apiClient'
 
-import type {
-  CreateGuestPayload,
-  Guest,
-  GuestInHotel,
-  GuestPendingCheckin,
-} from './types'
+import type { CreateGuestPayload, Guest, GuestInHotel, GuestPendingCheckin } from './types'
 
 export async function fetchGuests(search: string): Promise<Paginated<Guest>> {
   const response = await apiClient.get<Paginated<Guest>>('/guests/', {
@@ -28,9 +23,7 @@ export async function fetchGuestsInHotel(): Promise<Paginated<GuestInHotel>> {
 }
 
 export async function fetchGuestsPendingCheckin(): Promise<Paginated<GuestPendingCheckin>> {
-  const response = await apiClient.get<Paginated<GuestPendingCheckin>>(
-    '/guests/pending-checkin/',
-  )
+  const response = await apiClient.get<Paginated<GuestPendingCheckin>>('/guests/pending-checkin/')
   return response.data
 }
 

@@ -22,11 +22,7 @@ export const DEFAULT_STALE_TIME_MS = 30_000
  * - `EARLY_CHECKIN` -> nao e falha: e o ramo de protocolo D4 que abre o alerta
  *   do fluxo F2 (SPEC 5.3). Cair em toast aqui contradiria a RN4.
  */
-const LOCALLY_PRESENTED_CODES = new Set([
-  'VALIDATION_ERROR',
-  'DUPLICATE_DOCUMENT',
-  'EARLY_CHECKIN',
-])
+const LOCALLY_PRESENTED_CODES = new Set(['VALIDATION_ERROR', 'DUPLICATE_DOCUMENT', 'EARLY_CHECKIN'])
 
 export function isLocallyPresented(error: unknown): boolean {
   return isApiError(error) && LOCALLY_PRESENTED_CODES.has(error.code)

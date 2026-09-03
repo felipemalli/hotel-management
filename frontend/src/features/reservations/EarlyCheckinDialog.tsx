@@ -50,8 +50,8 @@ export function EarlyCheckinDialog({
       }
     >
       <p className="text-sm text-slate-600">
-        O check-in de <strong className="text-slate-900">{guestName}</strong> será registrado
-        fora do horário de abertura.
+        O check-in de <strong className="text-slate-900">{guestName}</strong> será registrado fora
+        do horário de abertura.
       </p>
     </Dialog>
   )
