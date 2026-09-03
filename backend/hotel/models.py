@@ -9,6 +9,8 @@ escrita (API, seed, admin, shell).
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex, OpClass
 from django.db import models
@@ -27,6 +29,9 @@ from hotel.normalization import (
 # casa por eles para transformar violacao em erro de dominio (SPEC 4.1). Por
 # isso nenhuma constraint deste projeto nasce com nome gerado pelo Django.
 GUEST_DOCUMENT_UNIQUE = "guest_document_unique"
+POLICY_MONEY_NON_NEGATIVE = "policy_money_non_negative"
+POLICY_CHECKOUT_BEFORE_CHECKIN = "policy_checkout_before_checkin"
+RESV_ACTIVE_HAS_POLICY = "resv_active_has_policy"
 
 
 class ReservationStatus(models.TextChoices):
@@ -110,6 +115,72 @@ class Guest(models.Model):
         super().save(*args, **kwargs)
 
 
+
+class PricingPolicy(models.Model):
+    """Tarifas e horarios vigentes a partir de um instante. Append-only.
+
+    Append-only por AUSENCIA de caminho de escrita, nao por gatilho no banco:
+    nao existe `PATCH` nem `DELETE`, e `services.catalog.create_policy` so
+    insere. Mudar a politica e publicar outra linha -- e mudar a politica e
+    mudar o FUTURO, nunca o passado, porque a reserva amarra a sua por FK no
+    check-in (D15) e o extrato tem as tarifas persistidas linha a linha.
+
+    Nenhum metodo aqui importa `pricing`: a camada e models -> services, e a
+    conversao para `pricing.RateTable` e de `services.catalog.rate_table_of`,
+    que e o UNICO ponto de resolucao -- e por isso a costura para preco por
+    quarto no futuro.
+    """
+
+    weekday_rate = models.DecimalField(max_digits=10, decimal_places=2)
+    weekend_rate = models.DecimalField(max_digits=10, decimal_places=2)
+    weekday_park = models.DecimalField(max_digits=10, decimal_places=2)
+    weekend_park = models.DecimalField(max_digits=10, decimal_places=2)
+    # 4 casas: a multa e um fator (0.5000 = 50%), nao dinheiro. Sem teto --
+    # multa de 100% e plausivel e um `<= 1` seria regra inventada aqui.
+    late_fee_factor = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal("0.5"))
+    # Hora LOCAL (America/Sao_Paulo), com precisao de minuto na entrada.
+    checkin_opens = models.TimeField()
+    checkout_limit = models.TimeField()
+    # Definido pelo SERVIDOR (`now` injetado pela view), nunca pelo cliente.
+    # Sem `unique`: erro de digitacao se corrige publicando outra linha, e a
+    # resolucao por `(-effective_from, -id)` faz a mais recente vencer sem que
+    # a errada desapareca do historico.
+    effective_from = models.DateTimeField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # `null` = a linha do bootstrap, inserida pela migration: ninguem a criou.
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="pricing_policies",
+        null=True,
+        blank=True,
+    )
+    note = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["-effective_from", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                name=POLICY_MONEY_NON_NEGATIVE,
+                condition=Q(weekday_rate__gte=0)
+                & Q(weekend_rate__gte=0)
+                & Q(weekday_park__gte=0)
+                & Q(weekend_park__gte=0)
+                & Q(late_fee_factor__gte=0),
+            ),
+            # O limite de checkout vem ANTES da abertura do check-in no mesmo
+            # dia: e o que faz o quarto ser desocupado antes de ser reocupado.
+            # Invertido, a mesma diaria pertenceria a duas estadias.
+            models.CheckConstraint(
+                name=POLICY_CHECKOUT_BEFORE_CHECKIN,
+                condition=Q(checkout_limit__lte=F("checkin_opens")),
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"politica de {self.effective_from:%Y-%m-%d %H:%M}"
+
+
 class Reservation(models.Model):
     """Reserva. Datas agendadas + fatos reais; totais congelados no checkout.
 
@@ -130,6 +201,19 @@ class Reservation(models.Model):
         max_length=11,
         choices=ReservationStatus,
         default=ReservationStatus.PENDING,
+    )
+    # Amarrada no CHECK-IN, nao na criacao nem no checkout: e a politica
+    # vigente quando o hospede entrou que rege a estadia inteira -- diarias,
+    # vaga, fator da multa e limite de checkout (D15). `PROTECT` porque a
+    # politica e o que explica os numeros congelados. `null` enquanto a reserva
+    # e PENDING (ou foi cancelada sem nunca entrar), o que a CHECK abaixo
+    # formaliza.
+    policy = models.ForeignKey(
+        "hotel.PricingPolicy",
+        on_delete=models.PROTECT,
+        related_name="reservations",
+        null=True,
+        blank=True,
     )
     # Fatos reais: e por eles que se cobra (D6), nunca pelas datas agendadas.
     checked_in_at = models.DateTimeField(null=True, blank=True)
@@ -199,6 +283,12 @@ class Reservation(models.Model):
                 name="resv_one_active_per_guest",
                 fields=["guest"],
                 condition=Q(status="CHECKED_IN"),
+            ),
+            # Toda reserva que passou pelo check-in tem politica: sem ela,
+            # `statement()` nao saberia com que tarifa a conta foi fechada.
+            models.CheckConstraint(
+                name=RESV_ACTIVE_HAS_POLICY,
+                condition=Q(status__in=["PENDING", "CANCELLED"]) | Q(policy__isnull=False),
             ),
             # Estado terminal exige timestamp e total congelado.
             models.CheckConstraint(

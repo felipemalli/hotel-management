@@ -378,6 +378,7 @@ def test_sync_matches_refresh_from_db(actor):
     # nova nao entrar em SYNCED_FIELDS, o conjunto abaixo denuncia.
     written_by_transitions = {
         "status",
+        "policy_id",
         "checked_in_at",
         "checked_in_by_id",
         "checked_out_at",
@@ -419,7 +420,7 @@ def test_check_in_before_14_raises_early_checkin_with_server_time(actor):
 
     assert exc.value.code == "EARLY_CHECKIN"
     assert exc.value.detail == "Check-in permitido a partir das 14:00."
-    assert exc.value.extra == {"server_time": "13:59"}
+    assert exc.value.extra == {"server_time": "13:59", "opens_at": "14:00"}
     assert Reservation.objects.get(pk=reservation.pk).status == ReservationStatus.PENDING
 
 
@@ -442,7 +443,7 @@ def test_check_in_rule_is_evaluated_in_local_time(actor):
     with pytest.raises(service.EarlyCheckinError) as exc:
         service.check_in(reservation, now=now_utc, allow_early=False, actor=actor)
 
-    assert exc.value.extra == {"server_time": "13:30"}
+    assert exc.value.extra == {"server_time": "13:30", "opens_at": "14:00"}
 
 
 @pytest.mark.parametrize(

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from hotel.models import Guest
@@ -40,4 +41,18 @@ class GuestMinimalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Guest
         fields = ["id", "full_name"]
+        read_only_fields = fields
+
+
+class UserMinimalSerializer(serializers.ModelSerializer):
+    """Quem fez a acao. `username` e nao nome civil: e a identidade operacional.
+
+    Sem e-mail, sem papel: o cliente que precisa do papel pergunta por si em
+    `GET /api/auth/me/`, e vazar o papel de OUTRO usuario num extrato seria
+    informacao a mais sem consumidor.
+    """
+
+    class Meta:
+        model = get_user_model()
+        fields = ["id", "username"]
         read_only_fields = fields

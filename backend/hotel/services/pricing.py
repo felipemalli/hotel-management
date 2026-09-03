@@ -53,14 +53,25 @@ class RateTable:
     weekday_park: Decimal
     weekend_park: Decimal
     late_fee_factor: Decimal
+    # No FIM e COM default: a tabela SPEC 3.3 e construida posicionalmente em
+    # `tests/unit/test_pricing.py`, e um campo novo em qualquer outra posicao
+    # deslocaria as 9 tuplas em silencio. Com default no fim, nenhuma
+    # assinatura existente muda um byte.
+    checkin_opens: time = CHECKIN_OPENS
+    checkout_limit: time = CHECKOUT_LIMIT
 
 
+# A tarifa do briefing, e o estado inicial do sistema: a linha que a data
+# migration insere na `PricingPolicy` tem estes mesmos valores, e
+# `test_default_policy_row_matches_default_rates` amarra as duas.
 DEFAULT_RATES = RateTable(
     weekday_rate=Decimal("120.00"),
     weekend_rate=Decimal("180.00"),
     weekday_park=Decimal("15.00"),
     weekend_park=Decimal("20.00"),
     late_fee_factor=Decimal("0.5"),
+    checkin_opens=CHECKIN_OPENS,
+    checkout_limit=CHECKOUT_LIMIT,
 )
 
 
@@ -123,14 +134,19 @@ def stay_dates(checkin: date, checkout: date) -> list[date]:
     return days
 
 
-def early_checkin(now: datetime) -> bool:
-    """True se a tentativa e antes das 14:00 locais; 14:00:00 em ponto NAO e cedo (D4)."""
-    return now.time() < CHECKIN_OPENS
+def early_checkin(now: datetime, rates: RateTable = DEFAULT_RATES) -> bool:
+    """True se a tentativa e antes do horario de abertura local (D4).
+
+    O horario exato NAO e cedo: `>= checkin_opens` passa. `rates` tem default
+    pelo mesmo motivo de `calculate_bill` -- a fronteira 13:59/14:00 da SPEC
+    3.3 vale com `DEFAULT_RATES` e nenhum teste unitario precisa de banco.
+    """
+    return now.time() < rates.checkin_opens
 
 
-def late_checkout(now: datetime) -> bool:
-    """True se a saida e depois das 12:00 locais; 12:00:00 em ponto e isento (D3)."""
-    return now.time() > CHECKOUT_LIMIT
+def late_checkout(now: datetime, rates: RateTable = DEFAULT_RATES) -> bool:
+    """True se a saida passa do limite local; o limite em ponto e isento (D3)."""
+    return now.time() > rates.checkout_limit
 
 
 def calculate_bill(
@@ -144,6 +160,8 @@ def calculate_bill(
 
     `rates` tem default: a tabela SPEC 3.3 (T1-T9) vale com `DEFAULT_RATES` e
     nenhum chamador precisa passar nada enquanto a tarifa for a do briefing.
+    O limite de checkout vem de `rates`, nao da constante do modulo: e a
+    politica amarrada na estadia que decide se houve atraso (D15).
     """
     lines = [
         BillLine(
@@ -158,7 +176,7 @@ def calculate_bill(
     subtotal_daily = quantize_money(sum((line.daily_rate for line in lines), ZERO))
     subtotal_parking = quantize_money(sum((line.parking_fee for line in lines), ZERO))
 
-    applied = late_checkout(checkout)
+    applied = late_checkout(checkout, rates)
     # A multa usa a tarifa do dia da SAIDA (D3): o procedimento de checkout e
     # o que o briefing penaliza, e ele acontece na data de saida.
     base = daily_rate(checkout.date(), rates) if applied else None

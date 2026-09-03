@@ -22,6 +22,7 @@ from hotel.serializers.common import (
     MONEY,
     ErrorEnvelopeSerializer,
     GuestMinimalSerializer,
+    UserMinimalSerializer,
     money_field,
 )
 from hotel.serializers.guests import (
@@ -29,6 +30,10 @@ from hotel.serializers.guests import (
     GuestInHotelSerializer,
     GuestPendingCheckinSerializer,
     GuestSerializer,
+)
+from hotel.serializers.policies import (
+    PricingPolicyCreateSerializer,
+    PricingPolicySerializer,
 )
 from hotel.serializers.reservations import (
     CheckInRequestSerializer,
@@ -54,10 +59,13 @@ __all__ = [
     "GuestPendingCheckinSerializer",
     "GuestSerializer",
     "LateFeeSerializer",
+    "PricingPolicyCreateSerializer",
+    "PricingPolicySerializer",
     "ReservationCreateSerializer",
     "ReservationSerializer",
     "ReservationSummarySerializer",
     "StatementSerializer",
+    "UserMinimalSerializer",
     "build_statement",
     "money_field",
 ]

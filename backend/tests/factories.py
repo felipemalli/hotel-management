@@ -10,6 +10,7 @@ mente sobre o sistema.
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 
 import factory
 from django.contrib.auth import get_user_model
@@ -17,7 +18,7 @@ from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 
 from accounts.models import Role
-from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.models import Guest, PricingPolicy, Reservation, ReservationStatus
 from hotel.services import pricing
 
 CHECKIN_TIME = time(15, 0)
@@ -49,6 +50,30 @@ class UserFactory(factory.django.DjangoModelFactory):
     password = factory.LazyFunction(lambda: make_password(DEFAULT_PASSWORD))
 
 
+class PricingPolicyFactory(factory.django.DjangoModelFactory):
+    """Politica de tarifa. Por padrao, os valores do briefing.
+
+    `django_get_or_create=("effective_from",)` porque a linha de bootstrap ja
+    existe (data migration + fixture autouse): sem isso, cada chamada com a
+    vigencia sentinela criaria uma politica duplicada e a resolucao por
+    `(-effective_from, -id)` passaria a devolver a copia -- teste verde
+    provando a coisa errada.
+    """
+
+    class Meta:
+        model = PricingPolicy
+        django_get_or_create = ("effective_from",)
+
+    weekday_rate = Decimal("120.00")
+    weekend_rate = Decimal("180.00")
+    weekday_park = Decimal("15.00")
+    weekend_park = Decimal("20.00")
+    late_fee_factor = Decimal("0.5")
+    checkin_opens = time(14, 0)
+    checkout_limit = time(12, 0)
+    effective_from = factory.LazyFunction(timezone.now)
+
+
 class GuestFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Guest
@@ -69,14 +94,19 @@ class ReservationFactory(factory.django.DjangoModelFactory):
         model = Reservation
 
     class Params:
+        # `policy` nos dois traits: a constraint `resv_active_has_policy`
+        # recusa reserva CHECKED_IN/CHECKED_OUT sem politica, porque sem ela
+        # `statement()` nao saberia com que tarifa a conta foi fechada.
         checked_in = factory.Trait(
             status=ReservationStatus.CHECKED_IN,
             checked_in_at=factory.LazyAttribute(
                 lambda o: local_datetime(o.checkin_date, CHECKIN_TIME)
             ),
+            policy=factory.SubFactory(PricingPolicyFactory),
         )
         checked_out = factory.Trait(
             status=ReservationStatus.CHECKED_OUT,
+            policy=factory.SubFactory(PricingPolicyFactory),
             checked_in_at=factory.LazyAttribute(
                 lambda o: local_datetime(o.checkin_date, CHECKIN_TIME)
             ),

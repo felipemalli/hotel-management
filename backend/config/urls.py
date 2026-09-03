@@ -18,11 +18,12 @@ from accounts.views import (
     ThrottledTokenRefreshView,
 )
 from config.health import health
-from hotel.views import GuestViewSet, ReservationViewSet
+from hotel.views import GuestViewSet, PricingPolicyViewSet, ReservationViewSet
 
 router = SimpleRouter()
 router.register("guests", GuestViewSet, basename="guest")
 router.register("reservations", ReservationViewSet, basename="reservation")
+router.register("pricing-policies", PricingPolicyViewSet, basename="pricing-policy")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

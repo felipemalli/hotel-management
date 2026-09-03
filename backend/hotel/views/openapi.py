@@ -16,6 +16,7 @@ from hotel.serializers import ErrorEnvelopeSerializer
 
 GUESTS_TAG = "guests"
 RESERVATIONS_TAG = "reservations"
+PRICING_TAG = "pricing"
 
 DUPLICATE_DOCUMENT_RESPONSE = OpenApiResponse(
     response=ErrorEnvelopeSerializer,
@@ -26,6 +27,22 @@ DUPLICATE_DOCUMENT_RESPONSE = OpenApiResponse(
             value={
                 "code": "DUPLICATE_DOCUMENT",
                 "detail": "Documento já cadastrado para outro hóspede.",
+                "extra": {},
+            },
+            response_only=True,
+        )
+    ],
+)
+
+PERMISSION_DENIED_RESPONSE = OpenApiResponse(
+    response=ErrorEnvelopeSerializer,
+    description="Rota restrita ao `ADMIN` (`IsHotelAdmin`).",
+    examples=[
+        OpenApiExample(
+            "PERMISSION_DENIED",
+            value={
+                "code": "PERMISSION_DENIED",
+                "detail": "Ação restrita ao administrador do hotel.",
                 "extra": {},
             },
             response_only=True,
@@ -76,6 +93,8 @@ __all__ = [
     "DUPLICATE_DOCUMENT_RESPONSE",
     "GUESTS_TAG",
     "INVALID_STATUS_EXAMPLE",
+    "PERMISSION_DENIED_RESPONSE",
+    "PRICING_TAG",
     "RESERVATIONS_TAG",
     "T7_STATEMENT_EXAMPLE",
 ]

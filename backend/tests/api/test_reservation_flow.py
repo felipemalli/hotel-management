@@ -187,7 +187,10 @@ def test_checkin_before_14_returns_409_and_override(auth_client):
         assert blocked.data == {
             "code": "EARLY_CHECKIN",
             "detail": "Check-in permitido a partir das 14:00.",
-            "extra": {"server_time": "13:59"},
+            # `opens_at` e o horario da politica vigente, para o cliente
+            # montar a mensagem sem parsear `detail` (RESUMO 7). Com a politica
+            # do briefing o `detail` sai byte a byte igual ao de antes.
+            "extra": {"server_time": "13:59", "opens_at": "14:00"},
         }
         reservation.refresh_from_db()
         assert reservation.status == ReservationStatus.PENDING

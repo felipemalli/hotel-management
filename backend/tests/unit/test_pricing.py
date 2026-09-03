@@ -10,7 +10,8 @@ Datetimes sao naive de proposito: o modulo e puro e recebe HORA LOCAL ja
 convertida por quem chama (SPEC 3.2).
 """
 
-from datetime import datetime
+from dataclasses import replace
+from datetime import datetime, time
 from decimal import Decimal
 
 import pytest
@@ -304,3 +305,55 @@ def test_rate_table_reaches_parking_and_late_fee():
     assert bill.late_fee_base == D("200.00")
     assert bill.late_fee == D("100.00")
     assert bill.total == D("483.00")
+
+
+# -- horarios como parametro (politica versionada) ----------------------------
+
+
+def test_default_rates_carry_briefing_times():
+    """Os horarios do briefing sao campos com default, nao constantes soltas."""
+    assert pricing.DEFAULT_RATES.checkin_opens == time(14, 0)
+    assert pricing.DEFAULT_RATES.checkout_limit == time(12, 0)
+
+
+def test_rate_table_times_are_parameters():
+    """Trocar o horario troca a decisao, sem tocar no modulo.
+
+    Enquanto 14h/12h eram constantes de modulo, "configurar o horario" exigiria
+    monkeypatch -- e a regra passaria a depender de estado global. Como campo
+    com default, a politica de 15:00 e apenas outro argumento, e as 9 tuplas da
+    tabela SPEC 3.3 seguem construidas posicionalmente sem mudar um byte.
+    """
+    late_shift = replace(pricing.DEFAULT_RATES, checkin_opens=time(15, 0))
+
+    assert pricing.early_checkin(dt(3, 14, 30), late_shift) is True
+    assert pricing.early_checkin(dt(3, 14, 30)) is False
+    assert pricing.early_checkin(dt(3, 15, 0), late_shift) is False
+
+
+def test_checkout_limit_is_a_parameter_and_the_exact_minute_is_exempt():
+    generous = replace(pricing.DEFAULT_RATES, checkout_limit=time(13, 0))
+
+    assert pricing.late_checkout(dt(3, 12, 30)) is True
+    assert pricing.late_checkout(dt(3, 12, 30), generous) is False
+    # O limite EM PONTO continua isento, seja ele qual for (D3).
+    assert pricing.late_checkout(dt(3, 13, 0, 0), generous) is False
+    assert pricing.late_checkout(dt(3, 13, 0, 1), generous) is True
+
+
+def test_calculate_bill_uses_the_checkout_limit_from_the_rates():
+    """A multa segue o limite da politica, nao a constante do modulo (D15).
+
+    Sem repassar `rates` a `late_checkout`, uma politica com limite as 13:00
+    ainda multaria a saida as 12:30: os valores viriam da politica e a decisao
+    de multar, do modulo -- incoerencia silenciosa dentro do mesmo extrato.
+    """
+    generous = replace(pricing.DEFAULT_RATES, checkout_limit=time(13, 0))
+
+    bill = pricing.calculate_bill(
+        checkin=dt(3, 15), checkout=dt(5, 12, 30), has_vehicle=False, rates=generous
+    )
+
+    assert bill.late_fee_applied is False
+    assert bill.late_fee == D("0.00")
+    assert bill.total == D("240.00")

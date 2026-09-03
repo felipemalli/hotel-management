@@ -288,6 +288,7 @@ Estas decisões são **normativas**. Todo código e teste deriva delas.
 | D12 | Hóspede duplicado | `document` é único (`409 DUPLICATE_DOCUMENT` no segundo cadastro). Como a coluna já está normalizada (D9), a unicidade é tolerante a máscara. Telefone **não** é único (familiares compartilham). |
 | D13 | Day-use agendado | Agendamento exige mínimo de 1 noite (constraint §1.5 mantida). Day-use existe apenas como **fato** (check-in e checkout reais no mesmo dia — T9), coberto por D1. |
 | D14 | Reserva PENDING vencida | Continua listada em `pending-checkin` até ação do atendente (check-in ou cancelamento). O sistema não muda estado sem gesto humano. |
+| D15 | Qual política de tarifa rege a estadia | A política **amarrada no check-in** rege tudo: diárias, vaga, fator da multa **e** limite de checkout. Só o horário de abertura do check-in vem da política vigente no ato, porque antecede a amarração. |
 
 ### 4.2 Leituras alternativas rejeitadas
 
@@ -310,6 +311,12 @@ Para cada decisão: a leitura alternativa em uma frase testável, um caso concre
 **D8 — cancelamento só de PENDING.** Alternativa: "CHECKED_IN também cancela (estorno)." Divergência: cancelar após uma noite dormida exigiria política de estorno inexistente no briefing. Venceu a adotada: dinheiro monotônico, extrato único.
 
 **D9 — normalização alfanumérica do documento.** Alternativa: "normalizar documento por dígitos." Divergência: passaportes `AB123456` e `CD123456` colidiriam na coluna única → `409 DUPLICATE_DOCUMENT` indevido no segundo. Venceu a adotada: preserva a unicidade real; telefone segue por dígitos porque só a máscara varia.
+
+**D15 — a política amarrada no check-in rege a estadia inteira.** Alternativa: "ler o limite de checkout da política vigente no momento do checkout." Divergência com caso numérico: política A (`checkout_limit=12:00`, multa 50%) amarrada na sexta; o admin publica B (`13:00`, 25%) no sábado; a saída é domingo 12:30. Adotada: **atraso sob A** — multa de R$ 90,00 e total de R$ 425,00 (o T7). Alternativa: isento, porque 12:30 < 13:00 — e a diária viria de A enquanto a decisão de multar viria de B, duas políticas dentro do mesmo extrato. Venceu a adotada: o hóspede combinou uma política na entrada, e é a combinada que fecha a conta.
+
+A exceção é o horário de **abertura** do check-in: ele decide se o check-in pode acontecer, logo antecede a amarração e só pode vir da política vigente no ato. É por isso que `EARLY_CHECKIN` traz `extra.opens_at` — o cliente monta a mensagem sem parsear `detail`, e com a política do briefing o texto sai idêntico ao de sempre ("Check-in permitido a partir das 14:00.").
+
+**Valores configuráveis não quebram o briefing.** Os números do desafio (120/180/15/20, multa de 50%, 14h/12h) passam a ser o **estado inicial** do sistema, em três camadas redundantes: (1) `pricing.DEFAULT_RATES` segue a constante, agora com os horários como campos com default — `tests/unit/test_pricing.py` não passa `rates`, e T1–T9 não mudam um byte; (2) uma data migration insere a mesma linha com os **mesmos literais** (migração é registro histórico e não importa constante de código), e `test_default_policy_row_matches_default_rates` amarra as duas fontes campo a campo; (3) `effective_from` é o instante da publicação e a política é amarrada por FK no check-in, então **mudar a política é mudar o futuro, nunca o passado**. Isto é *mais* fiel ao briefing que antes: até aqui, mudar `DEFAULT_RATES` reescreveria silenciosamente a 2ª via de um extrato já emitido. Sem uma ação deliberada de um `ADMIN`, cada número e cada mensagem do sistema é idêntico ao de hoje.
 
 **D9 (emenda) — o telefone exige `+` e código do país na entrada.** Alternativa: "aceitar o número como vier e inferir o país." Divergência: `11933334444` é um celular de São Paulo; sem o `+`, `phonenumbers` o lê como `+1 193…` (EUA) — e `31…` vira Holanda, `41…` vira Suíça. Adotada: `400` no campo `phone`, e o atendente completa o DDI. Alternativa: o número entra no banco com o país errado, passa a busca e a unicidade sem levantar nada, e nunca mais volta ao dono. Por isso a checagem é `is_valid_number` (plano de numeração do país) e não `is_possible_number` (só comprimento) — a segunda aceitaria os três casos acima. A regra mora em `services.guests.create_guest`, não no serializer, pelo mesmo motivo de D11/D13: tem de valer para o seed e para o shell. Consequência declarada: a IA de preenchimento **não** infere DDI — inferir país a partir de um número solto é regra de negócio dentro de um prompt, acertaria o Brasil na maioria dos casos e erraria calado no hóspede estrangeiro.
 
@@ -467,11 +474,13 @@ nunca por texto:
 |---|---|---|
 | `VALIDATION_ERROR` | 400 | Payload inválido (`extra` = erros por campo) |
 | `NOT_AUTHENTICATED` | 401 | Token ausente ou expirado |
+| `PERMISSION_DENIED` | 403 | Atendente numa rota restrita ao `ADMIN` (`IsHotelAdmin`) |
 | `NOT_FOUND` | 404 | Recurso inexistente |
-| `EARLY_CHECKIN` | 409 | Check-in antes das 14h sem `allow_early` (D4) |
+| `EARLY_CHECKIN` | 409 | Check-in antes da abertura da política vigente (default do briefing: 14h) sem `allow_early` (D4). `extra`: `server_time`, `opens_at` |
 | `INVALID_STATUS` | 409 | Transição de status ilegal |
 | `DUPLICATE_DOCUMENT` | 409 | Documento já cadastrado (D12) |
 | `AI_UPSTREAM_ERROR` | 502 | Provedor de IA indisponível ou resposta inutilizável |
+| `THROTTLED` | 429 | Login 10/min por IP; IA 20/min por usuário |
 | `AI_DISABLED` | 503 | IA sem chave configurada |
 
 ---

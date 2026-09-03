@@ -7,9 +7,11 @@ dinheiro -- dinheiro e de `services/pricing.py`.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from django.db.models import Prefetch, Q, QuerySet
 
-from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.models import Guest, PricingPolicy, Reservation, ReservationStatus
 from hotel.normalization import normalize_document, normalize_phone
 
 # Atributos preenchidos pelos prefetches abaixo, consumidos pelos
@@ -87,3 +89,33 @@ def list_reservations(*, status: str | None = None, guest_id: int | None = None)
     if guest_id is not None:
         queryset = queryset.filter(guest_id=guest_id)
     return queryset
+
+
+def policy_in_force(at: datetime) -> PricingPolicy:
+    """A politica vigente no instante `at` (SPEC 3.1).
+
+    `at` e parametro, nao `timezone.now()` lido aqui: a mesma consulta responde
+    "qual era a politica na sexta passada", e e assim que o seed e o teste
+    conseguem se situar no passado sem congelar o relogio do processo.
+
+    Empate em `effective_from` (duas publicacoes no mesmo instante) e desfeito
+    por `-id`: vence a ultima inserida.
+    """
+    policy = (
+        PricingPolicy.objects.filter(effective_from__lte=at)
+        .order_by("-effective_from", "-id")
+        .first()
+    )
+    if policy is None:
+        # Nao e erro de dominio: e banco sem bootstrap. Um codigo de envelope
+        # aqui (`POLICY_MISSING`) fingiria que o cliente pode resolver isso
+        # mudando a requisicao. O traceback e a resposta certa.
+        raise RuntimeError(
+            "nenhuma PricingPolicy vigente: o bootstrap nao foi aplicado (rode migrate)"
+        )
+    return policy
+
+
+def list_policies() -> QuerySet[PricingPolicy]:
+    """Historico de politicas, da mais recente para a mais antiga."""
+    return PricingPolicy.objects.select_related("created_by").all()

@@ -17,6 +17,7 @@ GuestViewSet` segue valido em `config/urls.py` e em todo teste.
 from __future__ import annotations
 
 from hotel.views.guests import GuestViewSet
+from hotel.views.policies import PricingPolicyViewSet
 from hotel.views.reservations import ReservationViewSet
 
-__all__ = ["GuestViewSet", "ReservationViewSet"]
+__all__ = ["GuestViewSet", "PricingPolicyViewSet", "ReservationViewSet"]
