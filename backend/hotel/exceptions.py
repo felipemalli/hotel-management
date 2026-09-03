@@ -9,10 +9,14 @@ a mesma forma `{"code", "detail", "extra"}`. O frontend ramifica por `code`
 |--------------------|------|
 | VALIDATION_ERROR   | 400  |
 | NOT_AUTHENTICATED  | 401  |
+| PERMISSION_DENIED  | 403  |
 | NOT_FOUND          | 404  |
 | EARLY_CHECKIN      | 409  |
 | INVALID_STATUS     | 409  |
 | DUPLICATE_DOCUMENT | 409  |
+| THROTTLED          | 429  |
+| AI_UPSTREAM_ERROR  | 502  |
+| AI_DISABLED        | 503  |
 
 Privacidade (SPEC 2.2): este modulo nao loga nada e **nao ecoa o body** da
 requisicao -- o `extra` de validacao carrega apenas os nomes dos campos e as
@@ -23,6 +27,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.http import Http404
 from rest_framework import exceptions
 from rest_framework.response import Response
@@ -37,8 +42,11 @@ GENERIC_DETAIL = "Não foi possível processar a requisição."
 class ApiError(exceptions.APIException):
     """`APIException` que carrega um `code` da tabela SPEC 4.1.
 
-    `error_code` (e nao `default_code`) porque `default_code` do DRF alimenta
-    `get_codes()` e a maquinaria de validacao -- sao coisas diferentes.
+    `error_code`, e nao `code`, porque `APIException.__init__` ja recebe um
+    `code`: o slug que o DRF gruda em cada `ErrorDetail` (`invalid`,
+    `not_found`). Sao dois conceitos, e `AiUpstreamError(code="X")` nao deve
+    parecer que muda o envelope. Sobrescrever o `default_code` teria o mesmo
+    problema pelo avesso: e o campo do framework, em snake_case, nao o nosso.
     """
 
     error_code = "ERROR"
@@ -59,6 +67,7 @@ def api_exception_handler(exc: Exception, context: dict) -> Response | None:
             status=exc.status_code,
         )
 
+    exc = _as_api_exception(exc)
     response = drf_exception_handler(exc, context)
     if response is None:
         # Excecao nao tratada: deixa estourar (500 do Django), sem mascarar bug
@@ -70,18 +79,36 @@ def api_exception_handler(exc: Exception, context: dict) -> Response | None:
     return response
 
 
+def _as_api_exception(exc: Exception) -> Exception:
+    """Troca os erros do Django pelos equivalentes do DRF.
+
+    O `exception_handler` do DRF faz essa conversao, mas so na variavel local
+    dele: o `exc` que chega ao `_classify` continua sendo o do Django, que nao
+    tem `default_code` para derivar codigo nenhum. Sem isto, o
+    `PermissionDenied` do Django sai como `ERROR` num HTTP 403.
+    """
+    if isinstance(exc, Http404):
+        return exceptions.NotFound(*exc.args)
+    if isinstance(exc, DjangoPermissionDenied):
+        return exceptions.PermissionDenied(*exc.args)
+    return exc
+
+
 def _classify(exc: Exception) -> tuple[str, dict[str, Any]]:
+    """`code` do envelope. So tem ramo onde o nome derivado sairia errado."""
     if isinstance(exc, exceptions.ValidationError):
+        # Derivaria INVALID, e as mensagens por campo tem de virar `extra`.
         return "VALIDATION_ERROR", _field_errors(exc.detail)
     error_code = getattr(exc, "error_code", None)
     if error_code:
         return str(error_code), dict(getattr(exc, "extra", None) or {})
     if isinstance(exc, exceptions.NotAuthenticated | exceptions.AuthenticationFailed):
+        # `AuthenticationFailed` derivaria AUTHENTICATION_FAILED, fora da
+        # tabela: credencial invalida e credencial ausente sao o mesmo 401.
         return "NOT_AUTHENTICATED", {}
-    if isinstance(exc, Http404 | exceptions.NotFound):
-        return "NOT_FOUND", {}
-    if isinstance(exc, exceptions.PermissionDenied):
-        return "PERMISSION_DENIED", {}
+    # `default_code` do DRF em maiusculas -- e assim que NOT_FOUND, THROTTLED e
+    # PERMISSION_DENIED saem certos sem ramo proprio. Excecao futura do DRF cai
+    # aqui com um nome legivel em vez de ERROR.
     return str(getattr(exc, "default_code", "error")).upper(), {}
 
 

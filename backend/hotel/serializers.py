@@ -17,6 +17,7 @@ from typing import Any
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from hotel.models import Guest, Reservation
 from hotel.normalization import (
     DOCUMENT_MAX_LENGTH,
     DOCUMENT_MIN_LENGTH,
@@ -25,7 +26,6 @@ from hotel.normalization import (
     normalize_document,
     normalize_phone,
 )
-from hotel.models import Guest, Reservation
 from hotel.selectors import ACTIVE_RESERVATIONS_ATTR, PENDING_RESERVATIONS_ATTR
 from hotel.services.pricing import Bill
 
