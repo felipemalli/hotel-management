@@ -96,8 +96,10 @@ export function Dialog({
         return
       }
 
-      const first = stops[0]
-      const last = stops[stops.length - 1]
+      const first = stops.at(0)
+      const last = stops.at(-1)
+      if (!first || !last) return
+
       const active = document.activeElement
 
       if (!event.shiftKey && (active === last || active === panel)) {

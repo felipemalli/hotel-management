@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 
 import { formatBRL } from '@/lib/money'
+import { elementAt } from '@/test/fixtures'
 
 import { CheckoutStatementDialog } from './CheckoutStatementDialog'
 import { BILL_FIXTURES, BILL_TOTALS, T1_STATEMENT, T7_STATEMENT } from './__fixtures__/bills'
@@ -37,16 +38,16 @@ describe('CheckoutStatementDialog', () => {
     expect(rows).toHaveLength(2)
 
     // RN1: a diaria de sexta-feira exibe R$ 120,00 e a vaga util, R$ 15,00.
-    expect(within(rows[0]).getByText('07/03/2025')).toBeInTheDocument()
-    expect(within(rows[0]).getByText('sexta-feira')).toBeInTheDocument()
-    expect(within(rows[0]).getByText('R$ 120,00')).toBeInTheDocument()
-    expect(within(rows[0]).getByText('R$ 15,00')).toBeInTheDocument()
+    expect(within(elementAt(rows, 0)).getByText('07/03/2025')).toBeInTheDocument()
+    expect(within(elementAt(rows, 0)).getByText('sexta-feira')).toBeInTheDocument()
+    expect(within(elementAt(rows, 0)).getByText('R$ 120,00')).toBeInTheDocument()
+    expect(within(elementAt(rows, 0)).getByText('R$ 15,00')).toBeInTheDocument()
 
     // RN2: a diaria de sabado exibe R$ 180,00. RN3: a vaga de fds, R$ 20,00.
-    expect(within(rows[1]).getByText('08/03/2025')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('sábado')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('R$ 180,00')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('R$ 20,00')).toBeInTheDocument()
+    expect(within(elementAt(rows, 1)).getByText('08/03/2025')).toBeInTheDocument()
+    expect(within(elementAt(rows, 1)).getByText('sábado')).toBeInTheDocument()
+    expect(within(elementAt(rows, 1)).getByText('R$ 180,00')).toBeInTheDocument()
+    expect(within(elementAt(rows, 1)).getByText('R$ 20,00')).toBeInTheDocument()
 
     // Subtotais do payload SPEC 4.4, exibidos como vieram.
     expect(screen.getByText('Subtotal diárias')).toBeInTheDocument()
@@ -74,8 +75,8 @@ describe('CheckoutStatementDialog', () => {
     // RN1: as duas diarias uteis exibem R$ 120,00, e a vaga, R$ 0,00.
     const rows = dailyRows()
     expect(rows).toHaveLength(2)
-    expect(within(rows[0]).getByText('segunda-feira')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('terça-feira')).toBeInTheDocument()
+    expect(within(elementAt(rows, 0)).getByText('segunda-feira')).toBeInTheDocument()
+    expect(within(elementAt(rows, 1)).getByText('terça-feira')).toBeInTheDocument()
     expect(screen.getAllByText('R$ 120,00')).toHaveLength(2)
     expect(screen.getAllByText('R$ 0,00')).toHaveLength(3) // 2 vagas + subtotal vaga
 

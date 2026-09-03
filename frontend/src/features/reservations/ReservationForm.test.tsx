@@ -76,10 +76,10 @@ describe('ReservationForm', () => {
     })
 
     // Formato do contrato SPEC 4.1: datas `YYYY-MM-DD`, nunca `Date` serializado.
-    const payload = vi.mocked(createReservation).mock.calls[0][0]
-    expect(payload.checkin_date).toMatch(ISO_DATE)
-    expect(payload.checkout_date).toMatch(ISO_DATE)
-    expect(typeof payload.has_vehicle).toBe('boolean')
+    const payload = vi.mocked(createReservation).mock.lastCall?.[0]
+    expect(payload?.checkin_date).toMatch(ISO_DATE)
+    expect(payload?.checkout_date).toMatch(ISO_DATE)
+    expect(typeof payload?.has_vehicle).toBe('boolean')
 
     await waitFor(() =>
       expect(onSuccess).toHaveBeenCalledWith(createdReservation(checkin, checkout)),

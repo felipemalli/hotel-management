@@ -33,6 +33,7 @@ export function todayISO(now: Date = new Date()): string {
 /** Soma dias sobre uma data ISO local, para o default do formulario. */
 export function addDaysISO(isoDate: string, days: number): string {
   const [year, month, day] = isoDate.split('-').map((part) => Number.parseInt(part, 10))
-  const shifted = new Date(year, (month ?? 1) - 1, (day ?? 1) + days)
+  if (year === undefined || month === undefined || day === undefined) return isoDate
+  const shifted = new Date(year, month - 1, day + days)
   return todayISO(shifted)
 }

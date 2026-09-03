@@ -54,9 +54,11 @@ export function Tabs<T extends string>({ items, value, onChange, label }: TabsPr
               ? last
               : -1
 
-    if (next === -1) return
+    const target = items[next]
+    if (!target) return
+
     event.preventDefault()
-    move(items[next].id)
+    move(target.id)
   }
 
   return (

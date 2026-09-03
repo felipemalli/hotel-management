@@ -7,6 +7,7 @@ import type { GuestInHotel, GuestPendingCheckin } from '@/features/guests/types'
 import { checkIn } from '@/features/reservations/api'
 import type { Paginated } from '@/lib/apiClient'
 import { ApiError } from '@/lib/errors'
+import { elementAt } from '@/test/fixtures'
 import { renderWithProviders, resetGlobalStores, signInForTest } from '@/test/renderWithProviders'
 
 import { ReservationActions } from './ReservationActions'
@@ -200,7 +201,7 @@ describe('EarlyCheckinFlow', () => {
     // `checked_in_at` que o contrato devolveu.
     await user.click(screen.getByRole('tab', { name: /No hotel/ }))
     const table = await screen.findByRole('table', { name: 'Hóspedes no hotel' })
-    const row = within(table).getAllByRole('row')[1]
+    const row = elementAt(within(table).getAllByRole('row'), 1)
     expect(within(row).getByText(GUEST_NAME)).toBeInTheDocument()
     expect(within(row).getByText('01/09/2026 14:02')).toBeInTheDocument()
     expect(within(row).getByRole('button', { name: 'Checkout' })).toBeInTheDocument()

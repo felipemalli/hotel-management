@@ -5,6 +5,7 @@ import { act } from 'react'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import type { Paginated } from '@/lib/apiClient'
 import { ApiError } from '@/lib/errors'
+import { elementAt } from '@/test/fixtures'
 import { renderWithProviders, resetGlobalStores } from '@/test/renderWithProviders'
 
 import { DEBOUNCE_MS, GuestTable } from './GuestTable'
@@ -137,7 +138,7 @@ describe('GuestTable', () => {
 
     // RF4: a linha exibe a `active_reservation` do contrato SPEC 4.3.
     const table = screen.getByRole('table', { name: 'Hóspedes no hotel' })
-    const row = within(table).getAllByRole('row')[1]
+    const row = elementAt(within(table).getAllByRole('row'), 1)
     expect(within(row).getByText('31/08/2026 → 02/09/2026')).toBeInTheDocument()
     expect(within(row).getByText('31/08/2026 15:00')).toBeInTheDocument()
 
@@ -161,7 +162,7 @@ describe('GuestTable', () => {
     const table = await screen.findByRole('table', {
       name: 'Hóspedes com reserva pendente de check-in',
     })
-    const row = within(table).getAllByRole('row')[1]
+    const row = elementAt(within(table).getAllByRole('row'), 1)
     expect(within(row).getByText('Ana Souza')).toBeInTheDocument()
     expect(within(row).getByText('01/09/2026 → 03/09/2026')).toBeInTheDocument()
     expect(within(row).getByText('Sim')).toBeInTheDocument()
