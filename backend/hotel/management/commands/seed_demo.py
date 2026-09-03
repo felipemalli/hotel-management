@@ -72,9 +72,13 @@ class Command(BaseCommand):
 
         # 2. Bruno Lima - check-in feito ontem: povoa a aba "no hotel".
         bruno = self._ensure_guest("Bruno Lima", "987.654.321-00", "+55 11 97777-6666", "BR")
+        # Acompanhante: hospede COMPLETO, com documento e telefone proprios. E
+        # ela quem prova que as duas abas listam acompanhantes.
+        eva = self._ensure_guest("Eva Lima", "555.444.333-22", "+54 11 5555-4444", "AR")
         yesterday = today - timedelta(days=1)
         bruno_reservation = self._ensure_reservation(
             bruno,
+            companions=[eva],
             room=rooms["102"],
             checkin=yesterday,
             checkout=today + timedelta(days=1),
@@ -211,6 +215,7 @@ class Command(BaseCommand):
         guest: Guest,
         *,
         room: Room,
+        companions: list[Guest] | None = None,
         checkin: date,
         checkout: date,
         has_vehicle: bool,
@@ -238,6 +243,7 @@ class Command(BaseCommand):
         reservation = reservation_services.create_reservation(
             guest=guest,
             room=room,
+            companions=companions or [],
             checkin_date=checkin,
             checkout_date=checkout,
             has_vehicle=has_vehicle,

@@ -18,6 +18,11 @@ from hotel.normalization import normalize_document, normalize_phone
 # serializers das abas "no hotel" e "pendentes" (SPEC 4.3).
 ACTIVE_RESERVATIONS_ATTR = "active_reservations"
 PENDING_RESERVATIONS_ATTR = "pending_reservations"
+# As duas relacoes tem nomes distintos no ORM (`reservations` e
+# `companion_reservations`), entao sao dois prefetches e dois atributos; o
+# serializer concatena.
+ACTIVE_COMPANION_RESERVATIONS_ATTR = "active_companion_reservations"
+PENDING_COMPANION_RESERVATIONS_ATTR = "pending_companion_reservations"
 
 
 def search_guests(term: str | None = None) -> QuerySet[Guest]:
@@ -44,40 +49,61 @@ def search_guests(term: str | None = None) -> QuerySet[Guest]:
     return queryset.filter(predicate)
 
 
-def guests_in_hotel() -> QuerySet[Guest]:
-    """Hospedes com reserva CHECKED_IN (RF4).
+def _by_status(status: str, *, attr_own: str, attr_companion: str) -> QuerySet[Guest]:
+    """Hospedes com reserva no status dado, como titular OU acompanhante.
 
-    A constraint `resv_one_active_per_guest` (SPEC 1.5) garante que a lista
-    prefetchada tem no maximo um item -- e o `active_reservation` da SPEC 4.3.
+    A raiz continua em `Guest` porque RF4/RF5 pedem "localizar HOSPEDES" e a
+    contagem da paginacao e por PESSOA -- inverter para `Reservation` faria
+    `count` contar reservas e um acompanhante de duas reservas apareceria duas
+    vezes. `distinct()` porque o `OR` sobre duas relacoes multivaloradas
+    duplica a linha.
+
+    Dois `Prefetch` e nao um: as duas relacoes tem nomes diferentes no ORM
+    (`reservations` e `companion_reservations`) e nao ha como uni-las num
+    prefetch so. O serializer concatena as duas listas.
     """
+    reservations = Reservation.objects.filter(status=status).select_related("room")
     return (
-        Guest.objects.filter(reservations__status=ReservationStatus.CHECKED_IN)
+        Guest.objects.filter(
+            Q(reservations__status=status) | Q(companion_reservations__status=status)
+        )
         .prefetch_related(
-            Prefetch(
-                "reservations",
-                queryset=Reservation.objects.filter(status=ReservationStatus.CHECKED_IN),
-                to_attr=ACTIVE_RESERVATIONS_ATTR,
-            )
+            Prefetch("reservations", queryset=reservations, to_attr=attr_own),
+            Prefetch("companion_reservations", queryset=reservations, to_attr=attr_companion),
         )
         .distinct()
+    )
+
+
+def guests_in_hotel() -> QuerySet[Guest]:
+    """Hospedes no hotel (RF4) -- titulares E acompanhantes.
+
+    O acompanhante ESTA no hotel: nao lista-lo faria a aba mentir sobre quem
+    esta hospedado, que e a unica pergunta que ela responde. A constraint
+    `resv_one_active_per_guest` garante no maximo uma ativa por titular, e o
+    lock de `_lock_people` garante o mesmo para acompanhante -- entao a
+    concatenacao das duas listas tem no maximo um item, que e o
+    `active_reservation` da SPEC 4.3.
+    """
+    return _by_status(
+        ReservationStatus.CHECKED_IN,
+        attr_own=ACTIVE_RESERVATIONS_ATTR,
+        attr_companion=ACTIVE_COMPANION_RESERVATIONS_ATTR,
     )
 
 
 def guests_pending_checkin() -> QuerySet[Guest]:
     """Hospedes com reserva PENDING (RF5), inclusive vencidas (D14).
 
-    Um hospede pode ter mais de uma reserva futura, logo a lista e plural.
+    Inclui acompanhantes por SIMETRIA com RF4: se um acompanhante conta como
+    hospedado depois do check-in, ele conta como esperado antes dele -- e a
+    pergunta de RF5 e "quem tem reserva e ainda nao entrou". Um hospede pode
+    ter mais de uma reserva futura, logo a lista e plural.
     """
-    return (
-        Guest.objects.filter(reservations__status=ReservationStatus.PENDING)
-        .prefetch_related(
-            Prefetch(
-                "reservations",
-                queryset=Reservation.objects.filter(status=ReservationStatus.PENDING),
-                to_attr=PENDING_RESERVATIONS_ATTR,
-            )
-        )
-        .distinct()
+    return _by_status(
+        ReservationStatus.PENDING,
+        attr_own=PENDING_RESERVATIONS_ATTR,
+        attr_companion=PENDING_COMPANION_RESERVATIONS_ATTR,
     )
 
 
@@ -97,6 +123,17 @@ RESERVATION_RELATIONS = (
 )
 
 
+def reservation_queryset() -> QuerySet[Reservation]:
+    """Base com tudo o que o serializer le, sem N+1.
+
+    `companions` e M2M, logo `prefetch_related` e nao `select_related`: uma
+    segunda consulta para todas as linhas, em vez de uma por linha.
+    """
+    return Reservation.objects.select_related(*RESERVATION_RELATIONS).prefetch_related(
+        "companions"
+    )
+
+
 def list_reservations(
     *,
     status: str | None = None,
@@ -104,7 +141,7 @@ def list_reservations(
     paid: bool | None = None,
 ):
     """Reservas filtradas por status, hospede e/ou pagamento (SPEC 4.2)."""
-    queryset = Reservation.objects.select_related(*RESERVATION_RELATIONS)
+    queryset = reservation_queryset()
     if status:
         queryset = queryset.filter(status=status)
     if guest_id is not None:

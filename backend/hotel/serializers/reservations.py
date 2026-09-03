@@ -10,7 +10,11 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from hotel.models import Guest, PaymentMethod, Reservation, ReservationStatus, Room
-from hotel.serializers.common import UserMinimalSerializer, money_field
+from hotel.serializers.common import (
+    GuestMinimalSerializer,
+    UserMinimalSerializer,
+    money_field,
+)
 from hotel.serializers.rooms import RoomSummarySerializer
 
 
@@ -22,7 +26,11 @@ class ReservationSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
         fields = [
+            # `guest_id` e o TITULAR. O front deriva "esta pessoa e
+            # acompanhante" de `guest_id != row.id`, sem um campo `role`
+            # computado que so existiria para dizer o que dois ids ja dizem.
             "id",
+            "guest_id",
             "room",
             "checkin_date",
             "checkout_date",
@@ -37,6 +45,7 @@ class ReservationSerializer(serializers.ModelSerializer):
 
     guest_id = serializers.IntegerField(read_only=True)
     room = RoomSummarySerializer(read_only=True)
+    companions = GuestMinimalSerializer(many=True, read_only=True)
     total_daily = money_field(read_only=True)
     total_parking = money_field(read_only=True)
     late_fee = money_field(read_only=True)
@@ -55,6 +64,7 @@ class ReservationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "guest_id",
+            "companions",
             "room",
             "policy_id",
             "checkin_date",
@@ -105,10 +115,28 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
         source="room",
         help_text="Id do quarto que a reserva vai ocupar.",
     )
+    # Tambem so existencia. Titular na propria lista, repetidos e estouro de
+    # capacidade sao regras de AGREGADO e vivem no servico -- o serializer nao
+    # conhece o quarto nem o titular ao validar um id isolado.
+    companion_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Guest.objects.all(),
+        source="companions",
+        many=True,
+        required=False,
+        default=list,
+        help_text="Ids dos acompanhantes já cadastrados como hóspedes.",
+    )
 
     class Meta:
         model = Reservation
-        fields = ["guest_id", "room_id", "checkin_date", "checkout_date", "has_vehicle"]
+        fields = [
+            "guest_id",
+            "room_id",
+            "companion_ids",
+            "checkin_date",
+            "checkout_date",
+            "has_vehicle",
+        ]
 
 
 class PaymentRequestSerializer(serializers.Serializer):

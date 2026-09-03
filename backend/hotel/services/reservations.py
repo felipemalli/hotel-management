@@ -12,10 +12,12 @@ O relogio e injetado: `now` e sempre parametro explicito -- a view passa
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from hotel import selectors
@@ -131,6 +133,7 @@ def create_reservation(
     *,
     guest: Guest,
     room: Room,
+    companions: Sequence[Guest] = (),
     checkin_date: date,
     checkout_date: date,
     has_vehicle: bool = False,
@@ -161,6 +164,7 @@ def create_reservation(
         # serializer. O quarto EXISTE -- so nao esta em operacao.
         raise DomainValidationError("room_id", f"Quarto {room.number} está desativado.")
 
+    _assert_party(guest, companions, room)
     _assert_room_free(room, checkin_date=checkin_date, checkout_date=checkout_date, today=today)
 
     with transaction.atomic():
@@ -175,7 +179,7 @@ def create_reservation(
                 )
             }
         ):
-            return Reservation.objects.create(
+            reservation = Reservation.objects.create(
                 guest=guest,
                 room=room,
                 checkin_date=checkin_date,
@@ -183,6 +187,12 @@ def create_reservation(
                 has_vehicle=has_vehicle,
                 created_by=actor,
             )
+        # Dentro do MESMO `atomic`: reserva com quarto cheio e sem os
+        # acompanhantes gravados seria uma reserva que ninguem consegue
+        # explicar -- e a capacidade ja foi consumida.
+        if companions:
+            reservation.companions.set(companions)
+        return reservation
 
 
 def check_in(
@@ -203,12 +213,12 @@ def check_in(
         # estadia ativa" (SPEC 1.5, `resv_one_active_per_guest`) vale ENTRE
         # linhas, e travar so a reserva deixaria dois atendentes passarem pela
         # checagem ao mesmo tempo, em reservas diferentes do mesmo hospede.
-        Guest.objects.select_for_update().get(pk=reservation.guest_id)
+        people_ids = _lock_people(reservation)
         # Ordem Guest -> Room -> Reservation (ver o topo do modulo).
         Room.objects.select_for_update().get(pk=reservation.room_id)
         locked = _lock(reservation)
         _assert_transition(locked, ReservationStatus.CHECKED_IN)
-        _assert_no_active_stay(locked)
+        _assert_no_active_stay(locked, people_ids)
         _assert_room_ready(locked, now=now)
 
         # A politica VIGENTE NO ATO decide se e cedo -- este e o unico valor
@@ -391,6 +401,53 @@ def mark_paid(
     return _sync(reservation, locked)
 
 
+def _assert_party(guest: Guest, companions: Sequence[Guest], room: Room) -> None:
+    """Regras do GRUPO -- de agregado, logo do servico e nao do serializer.
+
+    O serializer sabe se cada id existe; ele nao sabe se o titular esta na
+    propria lista de acompanhantes, nem quantas pessoas o quarto comporta.
+    """
+    if not companions:
+        return
+
+    companion_ids = [companion.pk for companion in companions]
+    if guest.pk in companion_ids:
+        raise DomainValidationError(
+            "companion_ids", "O titular da reserva não pode ser também acompanhante."
+        )
+    if len(set(companion_ids)) != len(companion_ids):
+        raise DomainValidationError(
+            "companion_ids", "Há acompanhantes repetidos na lista."
+        )
+
+    party = 1 + len(companion_ids)
+    if party > room.capacity:
+        raise DomainValidationError(
+            "companion_ids",
+            f"Quarto {room.number} comporta {room.capacity} pessoas.",
+        )
+
+
+def _lock_people(reservation: Reservation) -> list[int]:
+    """Trava titular e acompanhantes, e devolve os ids travados.
+
+    UNICA funcao que trava pessoas -- ter duas seria ter duas ordens de lock.
+    Tres detalhes, cada um com uma falha real por tras:
+
+    * `sorted(...)`: duas transacoes que travem as mesmas pessoas em ordens
+      diferentes fazem deadlock. Ordem por pk crescente resolve por convencao.
+    * SEM JOIN (`filter(pk__in=ids)`, nunca `filter(companion_reservations=...)`):
+      o PostgreSQL recusa `FOR UPDATE` no lado anulavel de um outer join, e o
+      ORM gera outer join ao atravessar M2M.
+    * `list(...)`: queryset e preguicoso. Sem materializar, o `SELECT ... FOR
+      UPDATE` nunca chega a ser executado e ninguem trava nada -- o codigo
+      pareceria correto e a invariante ficaria desprotegida.
+    """
+    ids = sorted({reservation.guest_id, *reservation.companions.values_list("pk", flat=True)})
+    list(Guest.objects.filter(pk__in=ids).order_by("pk").select_for_update())
+    return ids
+
+
 def _assert_room_free(
     room: Room,
     *,
@@ -475,26 +532,37 @@ def _lock(reservation: Reservation) -> Reservation:
     return Reservation.objects.select_for_update().get(pk=reservation.pk)
 
 
-def _assert_no_active_stay(reservation: Reservation) -> None:
-    """Hospede com estadia em curso nao faz novo check-in.
+def _assert_no_active_stay(reservation: Reservation, people_ids: list[int]) -> None:
+    """Ninguem do grupo pode ter estadia em curso -- nem titular, nem acompanhante.
 
-    Sem esta checagem a `UniqueConstraint` do banco estoura como
-    `IntegrityError`, que o handler da SPEC 4.1 nao classifica -- virava HTTP
-    500 com corpo HTML numa condicao legitima de negocio (hospede com duas
-    reservas PENDING). Invariante violada e `409 INVALID_STATUS`.
+    Para o TITULAR a autoridade final e a constraint `resv_one_active_per_guest`
+    (sem a guarda, o `IntegrityError` viraria 500 com corpo HTML numa condicao
+    legitima de negocio). Para ACOMPANHANTE nao ha constraint cross-table
+    possivel sem denormalizar `status`, entao a autoridade e o lock de
+    `_lock_people` mais esta leitura: sob READ COMMITTED, a segunda transacao
+    espera no lock e rele depois do commit da primeira.
+
+    Fraqueza declarada: escrita que nao passe por `check_in` fura a regra do
+    acompanhante. Hoje nao existe outra -- acompanhante so e gravado na criacao,
+    que nasce PENDING. Gatilho para uma tabela unica de participantes com
+    constraint: o SEGUNDO caminho de escrita.
     """
     active = (
-        Reservation.objects.filter(
-            guest_id=reservation.guest_id, status=ReservationStatus.CHECKED_IN
-        )
+        Reservation.objects.filter(status=ReservationStatus.CHECKED_IN)
+        .filter(Q(guest_id__in=people_ids) | Q(companions__in=people_ids))
         .exclude(pk=reservation.pk)
-        .values_list("pk", flat=True)
+        .values_list("pk", "guest_id")
         .first()
     )
     if active is not None:
+        active_pk, active_guest_id = active
         raise InvalidStatusError(
             "Hóspede já possui uma estadia ativa; faça o checkout antes de um novo check-in.",
-            extra={"status": reservation.status, "active_reservation_id": active},
+            extra={
+                "status": reservation.status,
+                "guest_id": active_guest_id,
+                "active_reservation_id": active_pk,
+            },
         )
 
 

@@ -575,13 +575,13 @@ def test_list_reservations_rejects_a_non_numeric_guest_filter(auth_client):
 
 
 def test_reservation_list_does_not_grow_queries_with_rows(auth_client, django_assert_num_queries):
-    """N+1 na listagem: 6 relacoes por linha vira 120 idas ao banco em 20 linhas.
+    """N+1 na listagem: 7 relacoes por linha vira 140 idas ao banco em 20 linhas.
 
     O numero exato importa menos que a INVARIANCIA: a mesma contagem com 1 e
     com 3 reservas prova que `select_related` esta fazendo o trabalho.
     """
     ReservationFactory(checked_out=True, checkin_date=MARCH_7, checkout_date=MARCH_9)
-    with django_assert_num_queries(2) as captured:
+    with django_assert_num_queries(3) as captured:
         auth_client.get("/api/reservations/")
 
     for _ in range(2):
@@ -593,3 +593,97 @@ def test_reservation_list_does_not_grow_queries_with_rows(auth_client, django_as
         response = auth_client.get("/api/reservations/")
 
     assert response.data["count"] == 3
+
+
+# -- acompanhantes ------------------------------------------------------------
+
+
+def test_create_reservation_with_companions_persists_m2m(auth_client):
+    guest, eva = GuestFactory(), GuestFactory()
+    room = RoomFactory(capacity=3)
+    today = timezone.localdate()
+
+    response = auth_client.post(
+        "/api/reservations/",
+        {
+            "guest_id": guest.pk,
+            "room_id": room.pk,
+            "companion_ids": [eva.pk],
+            "checkin_date": str(today),
+            "checkout_date": str(today + timedelta(days=2)),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["companions"] == [{"id": eva.pk, "full_name": eva.full_name}]
+    assert response.data["guest_id"] == guest.pk
+
+
+def test_create_reservation_without_companions_returns_empty_list(auth_client):
+    today = timezone.localdate()
+
+    response = auth_client.post(
+        "/api/reservations/",
+        {
+            "guest_id": GuestFactory().pk,
+            "room_id": RoomFactory().pk,
+            "checkin_date": str(today),
+            "checkout_date": str(today + timedelta(days=2)),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["companions"] == []
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["duplicate", "holder", "over_capacity"],
+)
+def test_create_reservation_rejects_a_bad_party_400(auth_client, case):
+    """As tres sao regras de AGREGADO: o serializer so sabe que cada id existe."""
+    guest, eva, davi = GuestFactory(), GuestFactory(), GuestFactory()
+    room = RoomFactory(capacity=2)
+    today = timezone.localdate()
+    companions = {
+        "duplicate": [eva.pk, eva.pk],
+        "holder": [guest.pk],
+        "over_capacity": [eva.pk, davi.pk],
+    }[case]
+
+    response = auth_client.post(
+        "/api/reservations/",
+        {
+            "guest_id": guest.pk,
+            "room_id": room.pk,
+            "companion_ids": companions,
+            "checkin_date": str(today),
+            "checkout_date": str(today + timedelta(days=2)),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["code"] == "VALIDATION_ERROR"
+    assert "companion_ids" in response.data["extra"]
+
+
+def test_create_reservation_rejects_an_unknown_companion(auth_client):
+    today = timezone.localdate()
+
+    response = auth_client.post(
+        "/api/reservations/",
+        {
+            "guest_id": GuestFactory().pk,
+            "room_id": RoomFactory(capacity=3).pk,
+            "companion_ids": [999999],
+            "checkin_date": str(today),
+            "checkout_date": str(today + timedelta(days=2)),
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "companion_ids" in response.data["extra"]

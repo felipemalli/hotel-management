@@ -276,6 +276,15 @@ class Reservation(models.Model):
         on_delete=models.PROTECT,
         related_name="reservations",
     )
+    # M2M IMPLICITO: a unicidade `(reservation, guest)` vem de graca com a
+    # tabela intermediaria do Django, e nao ha atributo POR VINCULO (papel,
+    # idade, data de entrada do acompanhante) que justifique um `through`.
+    # Quando houver, o `through` explicito e uma migration, nao um redesenho.
+    companions = models.ManyToManyField(
+        Guest,
+        related_name="companion_reservations",
+        blank=True,
+    )
     checkin_date = models.DateField()
     checkout_date = models.DateField()
     has_vehicle = models.BooleanField(default=False)

@@ -9,7 +9,7 @@ import pytest
 from django.utils import timezone
 
 from hotel.models import Guest, ReservationStatus
-from tests.factories import GuestFactory, ReservationFactory
+from tests.factories import GuestFactory, ReservationFactory, RoomFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -96,13 +96,18 @@ def test_duplicate_phone_is_allowed(auth_client):
     ("payload", "field"),
     [
         ({"document": "1.2", "phone": "+55 21 98888-7777"}, "document"),
-        ({"document": "12345678901", "phone": "(21) 9"}, "phone"),
+        # Telefone curto demais para o plano do pais: quem recusa e o SERVIÇO
+        # (`is_valid_number`), nao mais uma contagem de digitos no serializer --
+        # e o envelope sai igual, que e o ponto de `DomainValidationError`.
+        ({"document": "12345678901", "phone": "+55 21 9"}, "phone"),
     ],
 )
 def test_create_guest_validation_uses_error_envelope(auth_client, payload, field):
     """SPEC 4.3: minimos de D9 aferidos APOS normalizar; erro no envelope da SPEC 4.1."""
     response = auth_client.post(
-        "/api/guests/", {"full_name": "Ana Souza", **payload}, format="json"
+        "/api/guests/",
+        {"full_name": "Ana Souza", "nationality": "BR", **payload},
+        format="json",
     )
 
     assert response.status_code == 400
@@ -174,6 +179,7 @@ def test_in_hotel_endpoint_shape(auth_client):
     assert row["document"] == ANA_STORED_DOCUMENT
     assert row["active_reservation"] == {
         "id": reservation.pk,
+        "guest_id": reservation.guest_id,
         "room": {"id": reservation.room_id, "number": reservation.room.number},
         "checkin_date": str(reservation.checkin_date),
         "checkout_date": str(reservation.checkout_date),
@@ -315,3 +321,35 @@ def test_search_still_finds_a_fragment_of_the_stored_phone(auth_client):
         results = auth_client.get("/api/guests/", {"search": term}).data["results"]
 
         assert [item["full_name"] for item in results] == ["Ana Souza"], term
+
+
+def test_pending_checkin_lists_companions(auth_client):
+    """Simetria com RF4: quem acompanha depois do check-in, espera antes dele."""
+    holder = GuestFactory(full_name="Bruno Lima")
+    eva = GuestFactory(full_name="Eva Lima")
+    reservation = ReservationFactory(guest=holder, room=RoomFactory(capacity=2))
+    reservation.companions.add(eva)
+
+    response = auth_client.get("/api/guests/pending-checkin/")
+
+    assert response.status_code == 200
+    names = [row["full_name"] for row in response.data["results"]]
+    assert names == ["Bruno Lima", "Eva Lima"]
+    # A linha do acompanhante aponta para a reserva do TITULAR: o front deriva
+    # "acompanhante" de `guest_id != id`, sem campo `role` computado.
+    eva_row = next(row for row in response.data["results"] if row["full_name"] == "Eva Lima")
+    assert eva_row["pending_reservations"][0]["guest_id"] == holder.pk
+
+
+def test_in_hotel_lists_companions(auth_client):
+    holder = GuestFactory(full_name="Bruno Lima")
+    eva = GuestFactory(full_name="Eva Lima")
+    reservation = ReservationFactory(
+        guest=holder, room=RoomFactory(capacity=2), checked_in=True
+    )
+    reservation.companions.add(eva)
+
+    response = auth_client.get("/api/guests/in-hotel/")
+
+    assert response.data["count"] == 2
+    assert [row["full_name"] for row in response.data["results"]] == ["Bruno Lima", "Eva Lima"]

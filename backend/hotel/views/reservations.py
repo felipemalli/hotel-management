@@ -22,7 +22,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from hotel import selectors
-from hotel.models import Reservation, ReservationStatus
+from hotel.models import ReservationStatus
 from hotel.serializers import (
     CheckInRequestSerializer,
     ErrorEnvelopeSerializer,
@@ -111,7 +111,7 @@ class ReservationViewSet(
 ):
     """Reservas e transições de status (RF2, RF6, RF7)."""
 
-    queryset = Reservation.objects.select_related(*selectors.RESERVATION_RELATIONS)
+    queryset = selectors.reservation_queryset()
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -119,7 +119,7 @@ class ReservationViewSet(
         return ReservationSerializer
 
     def get_queryset(self):
-        base = Reservation.objects.select_related(*selectors.RESERVATION_RELATIONS)
+        base = selectors.reservation_queryset()
         if self.action != "list":
             return base
         # Os filtros passam por serializer: tipos, enum e mensagens de erro

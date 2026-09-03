@@ -38,7 +38,12 @@ def test_seed_populates_the_three_tabs():
 
     assert get_user_model().objects.filter(username="atendente").exists()
     assert [guest.full_name for guest in selectors.guests_pending_checkin()] == ["Ana Souza"]
-    assert [guest.full_name for guest in selectors.guests_in_hotel()] == ["Bruno Lima"]
+    # Eva acompanha Bruno: o acompanhante ESTA no hotel, e a aba diria uma
+    # meia-verdade se listasse so o titular.
+    assert [guest.full_name for guest in selectors.guests_in_hotel()] == [
+        "Bruno Lima",
+        "Eva Lima",
+    ]
     assert selectors.search_guests("Davi").count() == 1
 
 
@@ -87,7 +92,13 @@ def test_seed_writes_through_the_services():
     ):
         run_seed()
 
-    assert created_guests == ["Ana Souza", "Bruno Lima", "Carla Nunes", "Davi Rocha"]
+    assert created_guests == [
+        "Ana Souza",
+        "Bruno Lima",
+        "Eva Lima",
+        "Carla Nunes",
+        "Davi Rocha",
+    ]
     assert Guest.objects.count() == len(created_guests)
     assert len(created_reservations) == Reservation.objects.count()
     # A ficha de Carla e uma estadia estritamente passada: so entra porque
@@ -107,10 +118,13 @@ def test_seed_guests_have_country_code():
 
     phones = list(Guest.objects.values_list("phone", flat=True))
     assert phones, "o seed nao criou hospede nenhum"
-    assert all(phone.startswith("55") and phone.isdigit() for phone in phones), phones
+    # Eva e argentina: o DDI dela nao e 55, e e justamente esse o ponto de o
+    # telefone exigir codigo de pais.
+    assert all(phone.isdigit() and len(phone) >= 10 for phone in phones), phones
+    assert any(phone.startswith("54") for phone in phones), phones
     # O `+` nao persiste: a coluna e digito puro (D9).
     assert not any("+" in phone for phone in phones)
-    assert set(Guest.objects.values_list("nationality", flat=True)) == {"BR", "PT"}
+    assert set(Guest.objects.values_list("nationality", flat=True)) == {"AR", "BR", "PT"}
 
 
 def test_seed_is_idempotent():

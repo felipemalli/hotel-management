@@ -17,11 +17,14 @@ from hotel.normalization import (
     DOCUMENT_MAX_LENGTH,
     DOCUMENT_MIN_LENGTH,
     PHONE_MAX_LENGTH,
-    PHONE_MIN_LENGTH,
     normalize_document,
-    normalize_phone,
 )
-from hotel.selectors import ACTIVE_RESERVATIONS_ATTR, PENDING_RESERVATIONS_ATTR
+from hotel.selectors import (
+    ACTIVE_COMPANION_RESERVATIONS_ATTR,
+    ACTIVE_RESERVATIONS_ATTR,
+    PENDING_COMPANION_RESERVATIONS_ATTR,
+    PENDING_RESERVATIONS_ATTR,
+)
 from hotel.serializers.reservations import ReservationSummarySerializer
 
 
@@ -37,7 +40,11 @@ class GuestSerializer(serializers.ModelSerializer):
 class GuestCreateSerializer(serializers.ModelSerializer):
     """Forma do cadastro (SPEC 4.3). Os 3 campos minimos do briefing sao obrigatorios.
 
-    Comprimento de documento e telefone (D9) e forma, e fica aqui. O que
+    Comprimento do documento (D9) e forma, e fica aqui. O TELEFONE nao tem
+    mais checagem de comprimento aqui: "ao menos 8 digitos" era uma medida, nao
+    uma regra, e um numero valido com DDI passa por `to_e164_digits` no
+    servico. Duas checagens sobre o mesmo campo dariam duas mensagens
+    diferentes para a mesma entrada ruim, conforme qual falhasse primeiro. O que
     depende de conhecimento de mundo NAO fica: a validade do telefone
     internacional (lista de DDIs e planos de numeracao) e a lista ISO de
     nacionalidades vivem em `services.guests.create_guest` (SPEC 3.4), junto
@@ -85,12 +92,6 @@ class GuestCreateSerializer(serializers.ModelSerializer):
             )
         return value.strip()
 
-    def validate_phone(self, value: str) -> str:
-        if len(normalize_phone(value)) < PHONE_MIN_LENGTH:
-            raise serializers.ValidationError(
-                f"Telefone exige ao menos {PHONE_MIN_LENGTH} dígitos."
-            )
-        return value.strip()
 
 
 class GuestInHotelSerializer(GuestSerializer):
@@ -103,7 +104,7 @@ class GuestInHotelSerializer(GuestSerializer):
 
     @extend_schema_field(ReservationSummarySerializer(allow_null=True))
     def get_active_reservation(self, guest: Guest) -> dict | None:
-        reservations = getattr(guest, ACTIVE_RESERVATIONS_ATTR, None) or []
+        reservations = _merged(guest, ACTIVE_RESERVATIONS_ATTR, ACTIVE_COMPANION_RESERVATIONS_ATTR)
         if not reservations:
             return None
         return ReservationSummarySerializer(reservations[0]).data
@@ -119,5 +120,21 @@ class GuestPendingCheckinSerializer(GuestSerializer):
 
     @extend_schema_field(ReservationSummarySerializer(many=True))
     def get_pending_reservations(self, guest: Guest) -> list[dict]:
-        reservations = getattr(guest, PENDING_RESERVATIONS_ATTR, None) or []
+        reservations = _merged(
+            guest, PENDING_RESERVATIONS_ATTR, PENDING_COMPANION_RESERVATIONS_ATTR
+        )
         return ReservationSummarySerializer(reservations, many=True).data
+
+
+def _merged(guest: Guest, own_attr: str, companion_attr: str) -> list:
+    """Reservas do hospede como titular e como acompanhante, em uma lista.
+
+    Ordenada por `(checkin_date, id)` em Python e nao no banco: sao dois
+    prefetches distintos, e ordenar cada um separadamente daria uma
+    concatenacao com as vencidas no meio. A aba precisa de
+    `[vencidas, futuras]` -- e o que `test_pending_checkin_endpoint_shape`
+    verifica.
+    """
+    own = getattr(guest, own_attr, None) or []
+    companion = getattr(guest, companion_attr, None) or []
+    return sorted([*own, *companion], key=lambda r: (r.checkin_date, r.pk))
