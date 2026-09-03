@@ -1,7 +1,6 @@
 import { type FormEvent, useState } from 'react'
 
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Button, Input } from '@/components/ui'
 import { AiFillGuest } from '@/features/ai/AiFillGuest'
 import { errorMessage, fieldErrors, isApiErrorCode } from '@/lib/errors'
 

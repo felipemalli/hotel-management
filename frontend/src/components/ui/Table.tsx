@@ -1,4 +1,4 @@
-import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
+import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
 
 export function Table({ children, caption }: { children: ReactNode; caption?: string }) {
   return (
@@ -19,8 +19,8 @@ export function TBody({ children }: { children: ReactNode }) {
   return <tbody className="divide-y divide-slate-100 bg-white">{children}</tbody>
 }
 
-export function TR({ children }: { children: ReactNode }) {
-  return <tr>{children}</tr>
+export function TR({ children, ...props }: HTMLAttributes<HTMLTableRowElement>) {
+  return <tr {...props}>{children}</tr>
 }
 
 export function TH({ children, className = '', ...props }: ThHTMLAttributes<HTMLTableCellElement>) {

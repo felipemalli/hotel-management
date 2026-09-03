@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 
+import { DismissButton } from './DismissButton'
+
 export type AlertTone = 'error' | 'warning' | 'success' | 'info'
 
 const TONES: Record<AlertTone, string> = {
@@ -29,16 +31,7 @@ export function Alert({ tone = 'error', children, onDismiss }: AlertProps) {
       className={`flex items-start gap-3 rounded-md px-3 py-2 text-sm ring-1 ring-inset ${TONES[tone]}`}
     >
       <span className="grow">{children}</span>
-      {onDismiss ? (
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Fechar aviso"
-          className="shrink-0 rounded px-1 font-bold text-current hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-        >
-          &times;
-        </button>
-      ) : null}
+      {onDismiss ? <DismissButton onClick={onDismiss} /> : null}
     </div>
   )
 }

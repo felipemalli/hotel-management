@@ -2,6 +2,8 @@ import { useEffect, useSyncExternalStore } from 'react'
 
 import { type Toast, toastStore, type ToastTone } from '@/lib/toast'
 
+import { DismissButton } from './DismissButton'
+
 const AUTO_DISMISS_MS = 8_000
 
 const TONES: Record<ToastTone, string> = {
@@ -21,14 +23,7 @@ function ToastCard({ toast }: { toast: Toast }) {
       className={`pointer-events-auto flex items-start gap-3 rounded-md px-4 py-3 text-sm shadow-lg ring-1 ring-inset ${TONES[toast.tone]}`}
     >
       <span className="grow">{toast.message}</span>
-      <button
-        type="button"
-        aria-label="Fechar aviso"
-        onClick={() => toastStore.dismiss(toast.id)}
-        className="shrink-0 rounded px-1 font-bold text-current hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
-      >
-        &times;
-      </button>
+      <DismissButton onClick={() => toastStore.dismiss(toast.id)} />
     </div>
   )
 }

@@ -1,9 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Alert } from '@/components/ui/Alert'
-import { Button } from '@/components/ui/Button'
-import { Dialog } from '@/components/ui/Dialog'
+import { Alert, Button, Dialog } from '@/components/ui'
 import { useAuth } from '@/features/auth/useAuth'
 import { GuestForm } from '@/features/guests/GuestForm'
 import { type GuestRow, GuestTable } from '@/features/guests/GuestTable'

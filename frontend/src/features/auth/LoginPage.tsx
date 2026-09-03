@@ -1,9 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 
-import { Alert } from '@/components/ui/Alert'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Alert, Button, Input } from '@/components/ui'
 import { errorMessage, fieldErrors, isApiErrorCode } from '@/lib/errors'
 
 import { useAuth } from './useAuth'

@@ -1,6 +1,4 @@
-import { Button } from '@/components/ui/Button'
-import { Dialog } from '@/components/ui/Dialog'
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/Table'
+import { Button, Dialog, Table, TBody, TD, TH, THead, TR } from '@/components/ui'
 import { formatISODate, formatISODateTime } from '@/lib/dates'
 import { formatBRL } from '@/lib/money'
 
@@ -62,12 +60,12 @@ export function CheckoutStatementDialog({
           </THead>
           <TBody>
             {statement.lines.map((line) => (
-              <tr key={line.date}>
+              <TR key={line.date}>
                 <TD className="whitespace-nowrap">{formatISODate(line.date)}</TD>
                 <TD className="capitalize">{line.weekday}</TD>
                 <TD className="text-right whitespace-nowrap">{formatBRL(line.daily_rate)}</TD>
                 <TD className="text-right whitespace-nowrap">{formatBRL(line.parking_fee)}</TD>
-              </tr>
+              </TR>
             ))}
           </TBody>
         </Table>

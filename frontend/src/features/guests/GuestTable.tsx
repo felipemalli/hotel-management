@@ -1,10 +1,20 @@
 import { type ReactNode, useState } from 'react'
 
-import { Input } from '@/components/ui/Input'
-import { EmptyState, ErrorState, TableSkeleton } from '@/components/ui/States'
-import { tabId, tabPanelId } from '@/components/ui/tabIds'
-import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/Table'
-import { Tabs } from '@/components/ui/Tabs'
+import {
+  EmptyState,
+  ErrorState,
+  Input,
+  tabId,
+  Table,
+  TableSkeleton,
+  tabPanelId,
+  Tabs,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+} from '@/components/ui'
 import type { Paginated } from '@/lib/apiClient'
 import { formatISODate, formatISODateTime } from '@/lib/dates'
 import { errorMessage } from '@/lib/errors'
@@ -89,11 +99,11 @@ function TodosTable({
       </THead>
       <TBody>
         {data.results.map((guest) => (
-          <tr key={guest.id}>
+          <TR key={guest.id}>
             <PiiCells guest={guest} />
             <TD className="text-xs text-slate-500">{formatISODateTime(guest.created_at)}</TD>
             <TD>{renderActions?.({ tab: 'todos', guest })}</TD>
-          </tr>
+          </TR>
         ))}
       </TBody>
     </Table>
@@ -126,7 +136,7 @@ function InHotelTable({
       </THead>
       <TBody>
         {data.results.map((guest) => (
-          <tr key={guest.id}>
+          <TR key={guest.id}>
             <PiiCells guest={guest} />
             <TD className="text-xs">
               <Stay reservation={guest.active_reservation} />
@@ -144,7 +154,7 @@ function InHotelTable({
                 reservation: guest.active_reservation,
               })}
             </TD>
-          </tr>
+          </TR>
         ))}
       </TBody>
     </Table>
@@ -180,14 +190,14 @@ function PendingTable({
       </THead>
       <TBody>
         {rows.map(({ guest, reservation }) => (
-          <tr key={reservation.id}>
+          <TR key={reservation.id}>
             <PiiCells guest={guest} />
             <TD className="text-xs">
               <Stay reservation={reservation} />
             </TD>
             <VehicleCell reservation={reservation} />
             <TD>{renderActions?.({ tab: 'pending-checkin', guest, reservation })}</TD>
-          </tr>
+          </TR>
         ))}
       </TBody>
     </Table>

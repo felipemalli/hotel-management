@@ -1,6 +1,6 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 
-import { Button } from '@/components/ui/Button'
+import { Button, Textarea } from '@/components/ui'
 
 import { useAiStatus, useParseGuestText } from './hooks'
 import type { ParsedGuestFields } from './types'
@@ -13,7 +13,6 @@ export function AiFillGuest({ onFilled }: AiFillGuestProps) {
   const status = useAiStatus()
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
-  const textareaId = useId()
 
   const parse = useParseGuestText({
     onSuccess: (fields) => {
@@ -37,16 +36,12 @@ export function AiFillGuest({ onFilled }: AiFillGuestProps) {
 
   return (
     <div className="flex flex-col gap-2 rounded-md bg-slate-50 p-3 ring-1 ring-slate-200 ring-inset">
-      <label htmlFor={textareaId} className="text-sm font-medium text-slate-800">
-        Texto livre
-      </label>
-      <textarea
-        id={textareaId}
+      <Textarea
+        label="Texto livre"
         rows={3}
         value={text}
         onChange={(event) => setText(event.target.value)}
         placeholder="hóspede Ana Souza cpf 123.456.789-01 cel (21) 98888-7777"
-        className="rounded-md bg-white px-3 py-2 text-sm text-slate-900 ring-1 ring-slate-300 ring-inset placeholder:text-slate-500 focus:outline-2 focus:-outline-offset-2 focus:outline-slate-900"
       />
       <p className="text-xs text-slate-500">
         O texto é enviado a um provedor externo (Anthropic) para extração dos campos. Nada é salvo

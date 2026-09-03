@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 
-import { Toaster } from '@/components/ui/Toaster'
+import { Toaster } from '@/components/ui'
 import { createQueryClient } from '@/lib/queryClient'
 
 export function AppProviders({ children }: { children: ReactNode }) {

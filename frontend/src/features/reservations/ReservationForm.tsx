@@ -1,9 +1,6 @@
 import { type FormEvent, useState } from 'react'
 
-import { Alert } from '@/components/ui/Alert'
-import { Button } from '@/components/ui/Button'
-import { Checkbox } from '@/components/ui/Checkbox'
-import { Input } from '@/components/ui/Input'
+import { Alert, Button, Checkbox, Input } from '@/components/ui'
 import { addDaysISO, todayISO } from '@/lib/dates'
 import { fieldErrors } from '@/lib/errors'
 

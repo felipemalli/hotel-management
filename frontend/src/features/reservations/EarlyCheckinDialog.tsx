@@ -1,5 +1,4 @@
-import { Button } from '@/components/ui/Button'
-import { Dialog } from '@/components/ui/Dialog'
+import { Button, Dialog } from '@/components/ui'
 
 export interface EarlyCheckinDialogProps {
   open: boolean
