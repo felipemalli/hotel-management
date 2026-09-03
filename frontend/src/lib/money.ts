@@ -3,8 +3,8 @@
  *
  * INVARIANTE SPEC 0.3: o frontend **nunca** faz aritmetica de dinheiro. O valor
  * chega da API como string decimal ("120.00") e sai como string exibivel
- * ("R$ 120,00"). Zero `Number`, zero `parseFloat`, zero `toLocaleString` — a
- * conversao para binario de ponto flutuante nao acontece em nenhum ponto.
+ * ("R$ 120,00"). Nenhuma conversao para ponto flutuante acontece no caminho —
+ * e por isso que o CI vigia este arquivo por grep.
  *
  *   formatBRL('120.00')  -> 'R$ 120,00'
  *   formatBRL('1234.50') -> 'R$ 1.234,50'
