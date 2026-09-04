@@ -35,10 +35,10 @@ describe('parseReservationFilters', () => {
     expect(parse('status=CHECKED_OUT&paid=talvez').paid).toBeNull()
   })
 
-  it('cai na primeira pagina para valor fora do formato', () => {
+  // O parsing de página em si (formato inválido, zero) já é provado por
+  // `pageFromSearchParams`; aqui só se confirma que o valor chega ao filtro.
+  it('repassa a pagina para pageFromSearchParams', () => {
     expect(parse('page=2').page).toBe(2)
-    expect(parse('page=abc').page).toBe(1)
-    expect(parse('page=0').page).toBe(1)
   })
 })
 

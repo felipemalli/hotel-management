@@ -16,20 +16,16 @@ function apiError(code: Parameters<typeof isApiErrorCode>[1], status: number, de
 }
 
 describe('isErrorCode', () => {
-  it('aceita os codigos do servidor e os sinteticos do cliente', () => {
-    expect(isErrorCode('EARLY_CHECKIN')).toBe(true)
-    expect(isErrorCode('THROTTLED')).toBe(true)
-    expect(isErrorCode('NETWORK_ERROR')).toBe(true)
-    expect(isErrorCode('CONTRACT_ERROR')).toBe(true)
-  })
-
-  it('conhece os codigos das rotas administrativas e de quarto', () => {
-    expect(isErrorCode('PERMISSION_DENIED')).toBe(true)
-    expect(isErrorCode('ROOM_UNAVAILABLE')).toBe(true)
-  })
-
-  it('recusa um codigo que a uniao nao conhece', () => {
-    expect(isErrorCode('QUOTA_EXCEEDED')).toBe(false)
+  it.each([
+    ['EARLY_CHECKIN', true],
+    ['THROTTLED', true],
+    ['NETWORK_ERROR', true],
+    ['CONTRACT_ERROR', true],
+    ['PERMISSION_DENIED', true],
+    ['ROOM_UNAVAILABLE', true],
+    ['QUOTA_EXCEEDED', false],
+  ])('%s → %s', (code, expected) => {
+    expect(isErrorCode(code)).toBe(expected)
   })
 })
 
@@ -70,6 +66,9 @@ describe('errorMessage', () => {
     expect(errorMessage(apiError('INVALID_STATUS', 409, 'Transição inválida: CHECKED_OUT.'))).toBe(
       'Transição inválida: CHECKED_OUT.',
     )
+    expect(
+      errorMessage(apiError('ROOM_UNAVAILABLE', 409, 'Quarto 101 indisponivel no periodo.')),
+    ).toBe('Quarto 101 indisponivel no periodo.')
   })
 
   it('deixa a tela sobrepor a mensagem do codigo que ela apresenta', () => {
@@ -152,11 +151,5 @@ describe('errorMessage para autorizacao', () => {
     )
 
     expect(errorMessage(error)).toBe('Ação restrita ao administrador do hotel.')
-  })
-
-  it('mantem o detail do servidor para o codigo de dominio', () => {
-    const error = apiError('ROOM_UNAVAILABLE', 409, 'Quarto 101 indisponivel no periodo.')
-
-    expect(errorMessage(error)).toBe('Quarto 101 indisponivel no periodo.')
   })
 })

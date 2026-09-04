@@ -22,7 +22,7 @@ vi.mock('@/features/ai/api')
 // duplicado, VALIDATION_ERROR por campo, non_field_errors) ficam provados em
 // `e2e/reception.spec.ts`, não aqui. Esta suíte prova só o que RTL consegue:
 // a exigência dos quatro campos e a validação puramente cliente do telefone.
-describe('GuestForm', () => {
+describe('GuestForm · RF1', () => {
   beforeEach(() => {
     vi.mocked(createGuest).mockResolvedValue(ANA)
   })

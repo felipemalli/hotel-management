@@ -15,9 +15,6 @@ describe('pageFromSearchParams', () => {
     expect(pageFromSearchParams(new URLSearchParams('page=abc'))).toBe(1)
     expect(pageFromSearchParams(new URLSearchParams('page=-2'))).toBe(1)
     expect(pageFromSearchParams(new URLSearchParams('page=1.5'))).toBe(1)
-  })
-
-  it('cai na primeira pagina para zero', () => {
     expect(pageFromSearchParams(new URLSearchParams('page=0'))).toBe(1)
   })
 })

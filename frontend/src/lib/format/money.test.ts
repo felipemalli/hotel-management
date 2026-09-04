@@ -2,18 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import { BILL_TOTALS } from '@/features/reservations/__fixtures__/bills'
 
-import { formatBRL, formatDecimalBR, toDecimalString, toMoneyString } from './money'
+import { formatBRL, formatDecimalBR, toDecimalString } from './money'
 
 describe('formatBRL', () => {
   it('veste a string decimal da API sem tocar no valor', () => {
     expect(formatBRL('120.00')).toBe('R$ 120,00')
     expect(formatBRL('1234.50')).toBe('R$ 1.234,50')
     expect(formatBRL('0.00')).toBe('R$ 0,00')
-  })
-
-  it('formata o total de T3 vindo da fixture, e nao de um literal', () => {
-    expect(formatBRL('535.00')).toBe('R$ 535,00')
-    expect(formatBRL(BILL_TOTALS.T3)).toBe('R$ 535,00')
   })
 
   it('formata todos os totais da tabela de precos sem perder centavos', () => {
@@ -50,28 +45,28 @@ describe('formatBRL', () => {
 
 describe('toDecimalString', () => {
   it('completa as casas de um inteiro digitado', () => {
-    expect(toMoneyString('120')).toBe('120.00')
+    expect(toDecimalString('120', 2)).toBe('120.00')
     expect(toDecimalString('0', 4)).toBe('0.0000')
   })
 
   it('aceita virgula e ponto como separador do balcao', () => {
-    expect(toMoneyString('120,5')).toBe('120.50')
-    expect(toMoneyString('120.5')).toBe('120.50')
-    expect(toMoneyString('120,50')).toBe('120.50')
+    expect(toDecimalString('120,5', 2)).toBe('120.50')
+    expect(toDecimalString('120.5', 2)).toBe('120.50')
+    expect(toDecimalString('120,50', 2)).toBe('120.50')
   })
 
   it('tolera separador solto no fim e espaco em volta', () => {
-    expect(toMoneyString('120.')).toBe('120.00')
-    expect(toMoneyString('  15 ')).toBe('15.00')
+    expect(toDecimalString('120.', 2)).toBe('120.00')
+    expect(toDecimalString('  15 ', 2)).toBe('15.00')
   })
 
   it('descarta zeros a esquerda sem comer o proprio zero', () => {
-    expect(toMoneyString('0120')).toBe('120.00')
-    expect(toMoneyString('0')).toBe('0.00')
+    expect(toDecimalString('0120', 2)).toBe('120.00')
+    expect(toDecimalString('0', 2)).toBe('0.00')
   })
 
   it('preserva o sinal para o formulario recusar com mensagem propria', () => {
-    expect(toMoneyString('-90')).toBe('-90.00')
+    expect(toDecimalString('-90', 2)).toBe('-90.00')
   })
 
   it('normaliza o fator com quatro casas', () => {
@@ -81,28 +76,28 @@ describe('toDecimalString', () => {
   })
 
   it('recusa fracao mais longa que o contrato em vez de arredondar', () => {
-    expect(toMoneyString('12.345')).toBeNull()
+    expect(toDecimalString('12.345', 2)).toBeNull()
     expect(toDecimalString('0.50000', 4)).toBeNull()
   })
 
   it('recusa separador de milhar, porque dois separadores sao ambiguos', () => {
-    expect(toMoneyString('1.234,50')).toBeNull()
-    expect(toMoneyString('1,234.50')).toBeNull()
-    expect(toMoneyString('1 234')).toBeNull()
+    expect(toDecimalString('1.234,50', 2)).toBeNull()
+    expect(toDecimalString('1,234.50', 2)).toBeNull()
+    expect(toDecimalString('1 234', 2)).toBeNull()
   })
 
   it('recusa o que nao e digito com separador', () => {
-    expect(toMoneyString('')).toBeNull()
-    expect(toMoneyString('abc')).toBeNull()
-    expect(toMoneyString('12a')).toBeNull()
-    expect(toMoneyString('1e3')).toBeNull()
-    expect(toMoneyString('-')).toBeNull()
-    expect(toMoneyString('.5')).toBeNull()
-    expect(toMoneyString('R$ 120')).toBeNull()
+    expect(toDecimalString('', 2)).toBeNull()
+    expect(toDecimalString('abc', 2)).toBeNull()
+    expect(toDecimalString('12a', 2)).toBeNull()
+    expect(toDecimalString('1e3', 2)).toBeNull()
+    expect(toDecimalString('-', 2)).toBeNull()
+    expect(toDecimalString('.5', 2)).toBeNull()
+    expect(toDecimalString('R$ 120', 2)).toBeNull()
   })
 
   it('compoe com formatBRL: o que normaliza, formata', () => {
-    const normalized = toMoneyString('120,5')
+    const normalized = toDecimalString('120,5', 2)
     expect(normalized).not.toBeNull()
     expect(formatBRL(normalized ?? '')).toBe('R$ 120,50')
   })

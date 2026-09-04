@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { describe, expect, it } from 'vitest'
 
 import { ANA, BRUNO, inHotel, pendingCheckin } from './__fixtures__/guests'
@@ -72,40 +71,9 @@ describe('guestFormSchema', () => {
   })
 })
 
-// O teste normativo do formulario espera exatamente tres avisos de obrigatorio
-// no submit vazio: o resolver e quem traduz os problemas do schema em erros por
-// campo, e um `abort` esquecido apareceria aqui como duas mensagens no mesmo.
-describe('guestFormSchema pelo resolver do formulario', () => {
-  it('devolve uma unica mensagem por campo vazio', async () => {
-    const resolver = zodResolver(guestFormSchema)
-
-    const { errors, values } = await resolver(
-      { full_name: '', document: '', phone: '', nationality: '' },
-      undefined,
-      { fields: {}, shouldUseNativeValidation: false },
-    )
-
-    expect(values).toEqual({})
-    expect(Object.keys(errors)).toEqual(['full_name', 'document', 'phone', 'nationality'])
-    expect(errors.full_name?.message).toBe('Campo obrigatório.')
-    expect(errors.document?.message).toBe('Campo obrigatório.')
-    expect(errors.phone?.message).toBe('Campo obrigatório.')
-    expect(errors.nationality?.message).toBe('Campo obrigatório.')
-  })
-
-  it('mantem a mensagem de formato quando o documento e curto demais', async () => {
-    const resolver = zodResolver(guestFormSchema)
-
-    const { errors } = await resolver({ ...VALID, document: 'a-1' }, undefined, {
-      fields: {},
-      shouldUseNativeValidation: false,
-    })
-
-    expect(errors.document?.message).toBe('Documento exige ao menos 4 caracteres alfanuméricos.')
-    expect(errors.phone).toBeUndefined()
-  })
-})
-
+// A ponte schema → RHF (resolver do zod) e provada pelo teste normativo de
+// GuestForm, que submete o formulario real; testar o resolver aqui em cima
+// repetiria o mesmo schema so que por outra porta.
 describe('schemas de resposta dos hospedes', () => {
   function envelope<T>(results: T[]) {
     return { count: results.length, next: null, previous: null, results }

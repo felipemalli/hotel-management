@@ -20,9 +20,7 @@ describe('requiredString', () => {
     expect(abortResult.success).toBe(false)
     expect(abortResult.error?.issues).toHaveLength(1)
     expect(abortResult.error?.issues[0]?.message).toBe(REQUIRED_MESSAGE)
-  })
 
-  it('aceita um valor nao vazio', () => {
     expect(requiredString().safeParse('Ana').success).toBe(true)
   })
 

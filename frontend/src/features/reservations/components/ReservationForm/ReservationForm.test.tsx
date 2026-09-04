@@ -45,7 +45,7 @@ function setDate(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } })
 }
 
-describe('ReservationForm', () => {
+describe('ReservationForm · RF2', () => {
   beforeEach(() => {
     vi.mocked(fetchAvailableRooms).mockResolvedValue(page([ROOM_101, ROOM_201]))
     vi.mocked(fetchGuests).mockResolvedValue(page([]))

@@ -13,9 +13,6 @@ describe('normalizeDocument', () => {
 
   it('normaliza tambem um fragmento de busca mascarado', () => {
     expect(normalizeDocument('789-01')).toBe('78901')
-  })
-
-  it('devolve vazio quando nao sobra nenhum alfanumerico', () => {
     expect(normalizeDocument('.-/')).toBe('')
   })
 })
@@ -23,9 +20,6 @@ describe('normalizeDocument', () => {
 describe('normalizePhone', () => {
   it('mantem so os digitos do telefone com mascara', () => {
     expect(normalizePhone('(21) 98888-7777')).toBe('21988887777')
-  })
-
-  it('normaliza um fragmento de busca com mascara parcial', () => {
     expect(normalizePhone('(21) 98888')).toBe('2198888')
   })
 })

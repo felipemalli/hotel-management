@@ -47,14 +47,11 @@ describe('addDaysISO', () => {
   it('atravessa o fim do mes somando um dia', () => {
     expect(addDaysISO('2026-01-31', 1)).toBe('2026-02-01')
     expect(addDaysISO('2026-02-28', 1)).toBe('2026-03-01')
+    expect(addDaysISO('2026-09-03', 5)).toBe('2026-09-08')
   })
 
   it('atravessa o fim do ano somando um dia', () => {
     expect(addDaysISO('2025-12-31', 1)).toBe('2026-01-01')
-  })
-
-  it('soma varios dias dentro do mesmo mes', () => {
-    expect(addDaysISO('2026-09-03', 5)).toBe('2026-09-08')
   })
 
   it('devolve a string original quando a data nao esta em AAAA-MM-DD', () => {

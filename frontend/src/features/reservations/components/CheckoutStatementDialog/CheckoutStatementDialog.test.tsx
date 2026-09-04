@@ -32,7 +32,7 @@ function dailyRows() {
   return within(table).getAllByRole('row').slice(1)
 }
 
-describe('CheckoutStatementDialog', () => {
+describe('CheckoutStatementDialog · RF7 · RN1 · RN2 · RN3 · RN5 · RN6', () => {
   it('test_T7_full_statement', () => {
     renderStatement(T7_STATEMENT)
 

@@ -25,7 +25,7 @@ function renderProtectedApp() {
   )
 }
 
-describe('ProtectedRoute', () => {
+describe('ProtectedRoute · RF8', () => {
   it('test_redirects_anonymous_to_login', () => {
     const view = renderProtectedApp()
 

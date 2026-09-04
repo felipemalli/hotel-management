@@ -45,7 +45,7 @@ const EVA_AS_COMPANION = inHotel(EVA, {
   checked_in_at: '2026-08-31T15:00:00-03:00',
 })
 
-describe('GuestTable', () => {
+describe('GuestTable · RF3 · RF4 · RF5', () => {
   beforeEach(() => {
     vi.mocked(fetchGuests).mockResolvedValue(page([ANA, DAVI]))
     vi.mocked(fetchGuestsInHotel).mockResolvedValue(page([BRUNO_IN_HOTEL]))

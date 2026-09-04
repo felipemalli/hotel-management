@@ -70,11 +70,8 @@ describe('policyFormSchema', () => {
     expect(firstMessage({ ...FILLED, note: 'x'.repeat(201) })).toBe(
       'Nota com no máximo 200 caracteres.',
     )
-  })
 
-  it('so avisa do obrigatorio quando o campo esta vazio', () => {
     const result = policyFormSchema.safeParse({ ...FILLED, weekday_rate: '' })
-
     expect(result.error?.issues).toHaveLength(1)
     expect(result.error?.issues[0]?.message).toBe('Campo obrigatório.')
   })
@@ -90,14 +87,11 @@ describe('policyFormSchema', () => {
       policyFormSchema.safeParse({ ...FILLED, checkin_opens: '12:00', checkout_limit: '12:00' })
         .success,
     ).toBe(true)
-  })
 
-  it('nao compara horarios malformados, so aponta o formato invalido', () => {
-    const result = policyFormSchema.safeParse({ ...FILLED, checkout_limit: '25:00' })
-
-    expect(result.error?.issues).toHaveLength(1)
-    expect(result.error?.issues[0]?.path).toEqual(['checkout_limit'])
-    expect(result.error?.issues[0]?.message).not.toBe(CHECKOUT_LIMIT_MESSAGE)
+    const malformed = policyFormSchema.safeParse({ ...FILLED, checkout_limit: '25:00' })
+    expect(malformed.error?.issues).toHaveLength(1)
+    expect(malformed.error?.issues[0]?.path).toEqual(['checkout_limit'])
+    expect(malformed.error?.issues[0]?.message).not.toBe(CHECKOUT_LIMIT_MESSAGE)
   })
 })
 

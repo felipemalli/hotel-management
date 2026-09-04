@@ -36,10 +36,6 @@ export function toDecimalString(input: string, places: number): string | null {
   return `${sign}${integer.replace(LEADING_ZEROS, '')}.${fraction.padEnd(places, '0')}`
 }
 
-export function toMoneyString(input: string): string | null {
-  return toDecimalString(input, 2)
-}
-
 // "0.5000" → "0,5000": a vírgula do balcão, sem passar por número.
 export function formatDecimalBR(value: string): string {
   if (!DECIMAL.test(value)) {

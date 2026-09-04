@@ -41,7 +41,7 @@ function checkedInReservation(): Reservation {
   })
 }
 
-describe('EarlyCheckinFlow', () => {
+describe('EarlyCheckinFlow · RF6 · RN4', () => {
   it('test_409_opens_dialog_and_retry_allow_early', async () => {
     const user = userEvent.setup()
 

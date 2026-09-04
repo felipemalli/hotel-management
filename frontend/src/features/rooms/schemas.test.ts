@@ -12,13 +12,10 @@ import {
 } from './schemas'
 
 describe('roomSchema', () => {
-  it('aceita o inventario do seed', () => {
+  it('aceita o inventario do seed e o quarto desativado', () => {
     for (const room of SEED_ROOMS) {
       expect(roomSchema.safeParse(room).success).toBe(true)
     }
-  })
-
-  it('aceita o quarto desativado', () => {
     expect(roomSchema.safeParse(ROOM_301_INACTIVE).success).toBe(true)
   })
 

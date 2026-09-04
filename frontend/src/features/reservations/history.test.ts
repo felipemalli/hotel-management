@@ -28,28 +28,20 @@ describe('historyEntries', () => {
       'Pagamento (Pix)',
     ])
     expect(labels(historyEntries(ANA_CANCELLED))).toEqual(['Criada', 'Cancelamento'])
-  })
 
-  it('nomeia o pagamento sem a forma quando ela nao veio', () => {
-    const withoutMethod = reservation({
-      ...CARLA_PAID,
-      payment_method: null,
-    })
-
+    const withoutMethod = reservation({ ...CARLA_PAID, payment_method: null })
     expect(labels(historyEntries(withoutMethod))).toContain('Pagamento')
   })
 })
 
 describe('describeEntry', () => {
-  it('diz o que houve, quando e por quem', () => {
+  it('diz o que houve, quando e por quem, e atribui ao sistema o que nao tem ator', () => {
     const [created] = historyEntries(ANA_PENDING)
-
     expect(created && describeEntry(created)).toBe('Criada em 01/09/2026 08:00 por atendente')
-  })
 
-  it('atribui ao sistema o que nao tem ator', () => {
-    const [created] = historyEntries(reservation({ created_by: null }))
-
-    expect(created && describeEntry(created)).toBe('Criada em 01/09/2026 08:00 por sistema')
+    const [systemCreated] = historyEntries(reservation({ created_by: null }))
+    expect(systemCreated && describeEntry(systemCreated)).toBe(
+      'Criada em 01/09/2026 08:00 por sistema',
+    )
   })
 })
