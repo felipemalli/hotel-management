@@ -67,6 +67,13 @@ export default tseslint.config(
   },
 
   {
+    // Componentes shadcn/Base UI vendorizados exportam cva variants (buttonVariants,
+    // badgeVariants, tabsListVariants, typographyVariants) ao lado do componente.
+    files: ['src/components/ui/**/*.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
+
+  {
     files: ['src/lib/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
