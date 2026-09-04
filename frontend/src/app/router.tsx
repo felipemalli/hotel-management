@@ -17,6 +17,9 @@ const DashboardPage = lazy(() =>
 const ReservationsPage = lazy(() =>
   import('@/pages/ReservationsPage').then((module) => ({ default: module.ReservationsPage })),
 )
+const PricingPage = lazy(() =>
+  import('@/pages/PricingPage').then((module) => ({ default: module.PricingPage })),
+)
 const RoomsPage = lazy(() =>
   import('@/pages/RoomsPage').then((module) => ({ default: module.RoomsPage })),
 )
@@ -48,6 +51,7 @@ export function AppRoutes() {
           <Route path={ROUTES.reservations} element={<ReservationsPage />} />
           <Route path={`${ROUTES.reservations}/:id`} element={<ReservationDetailPage />} />
           <Route path={ROUTES.rooms} element={<RoomsPage />} />
+          <Route path={ROUTES.pricing} element={<PricingPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to={ROUTES.home} replace />} />

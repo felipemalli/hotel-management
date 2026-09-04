@@ -95,7 +95,7 @@ jobs:
 
       # Espelho da guarda do backend: aqui o dinheiro nunca vira numero.
       - name: Guard - money never becomes a number
-        run: '! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" src/lib/money.ts src/features/reservations/CheckoutStatementDialog.tsx src/features/reservations/components/ReservationSections.tsx'
+        run: '! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" src/lib/money.ts src/features/reservations/CheckoutStatementDialog.tsx src/features/reservations/components/ReservationSections.tsx src/features/pricing'
 
       - name: Tests with coverage floor
         run: npm run test:coverage

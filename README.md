@@ -199,7 +199,16 @@ caminho de escrita deste domínio.
    reserva ativa o servidor recusa no próprio campo) e tente desativar o 102,
    que tem estadia em curso: `409` no aviso, e a confirmação continua aberta.
    Nenhum 403 chega ao atendente, porque o botão nem é renderizado para ele.
-10. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
+10. **Tarifas (`/tarifas`).** Ainda como `admin`: a tarifa vigente aparece com
+    diárias, vagas, fator da multa e horários; o histórico lista o que já
+    valeu, com quem publicou. "Publicar nova tarifa" abre o formulário **já
+    preenchido com a vigente** — mude a abertura do check-in para `23:00` e
+    publique. O próximo check-in responde "Check-in permitido a partir das
+    23:00", e o extrato da Carla continua **R$ 425,00**: a política é amarrada
+    no check-in (D15), então publicar muda o futuro e nunca o passado. O
+    formulário aceita `120,5` e envia `"120.50"` — a normalização é de texto
+    (`toDecimalString`), sem passar por ponto flutuante.
+11. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
    endpoints da seção [6](#6-mapa-da-api), com exemplos de request, de resposta
    e dos erros de cada rota.
 
@@ -307,7 +316,7 @@ dinheiro em ponto flutuante:
 
 # frontend: o módulo que formata dinheiro e o extrato não convertem para número
 ! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" \
-    src/lib/money.ts src/features/reservations/CheckoutStatementDialog.tsx src/features/reservations/components/ReservationSections.tsx
+    src/lib/money.ts src/features/reservations/CheckoutStatementDialog.tsx src/features/reservations/components/ReservationSections.tsx src/features/pricing
 ```
 
 ---
@@ -538,6 +547,8 @@ min, refresh de 12 h). Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 | `GET /api/rooms/` · `/{id}/` | ✔ | Inventário (`?is_active=false` inclui os desativados) |
 | `GET /api/rooms/available/` | ✔ | Quartos livres em `?checkin_date=&checkout_date=&people=` |
 | `POST /api/rooms/` · `PATCH /api/rooms/{id}/` | **admin** | Cadastro e ajuste de capacidade/situação |
+| `GET /api/pricing-policies/` · `/current/` | ✔ | Histórico e tarifa vigente |
+| `POST /api/pricing-policies/` | **admin** | Publica tarifa (append-only; vigência = agora) |
 | `GET/POST /api/guests/` | ✔ | Lista + busca (`?search=`) / cadastro |
 | `GET /api/guests/{id}/` | ✔ | Detalhe (PII completa) |
 | `GET /api/guests/in-hotel/` | ✔ | Hóspedes com reserva `CHECKED_IN` |

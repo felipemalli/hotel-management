@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: ROUTES.home, label: 'Recepção', end: true },
   { to: ROUTES.reservations, label: 'Reservas', end: false },
   { to: ROUTES.rooms, label: 'Quartos', end: false },
+  { to: ROUTES.pricing, label: 'Tarifas', end: false },
 ] as const
 
 function navClassName({ isActive }: { isActive: boolean }): string {
