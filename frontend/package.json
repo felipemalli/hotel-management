@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.25.0",
   "engines": {
     "node": ">=22.12"
   },
@@ -18,7 +19,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run build"
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test:coverage && pnpm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

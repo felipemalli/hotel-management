@@ -248,8 +248,8 @@ uv run python manage.py runserver 0.0.0.0:8000
 
 # 3. frontend nativo (outro terminal, na raiz do repositório)
 cd frontend
-npm ci
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run dev
 ```
 
 Aplicação em <http://localhost:5173>, API em <http://localhost:8000>. O Vite faz
@@ -283,12 +283,12 @@ os comandos abaixo é que valem como verdade, não a contagem.
 docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q
 
 # frontend — o script único, na mesma ordem em que o CI o executa passo a passo
-cd frontend && npm run check
+cd frontend && pnpm run check
 ```
 
-`npm run check` é `typecheck && lint && format:check && test:coverage && build`.
-Os cinco também rodam soltos quando você quer só um (`npm run lint`,
-`npm run test -- --run`, `npm run format` para corrigir a formatação em vez de
+`pnpm run check` é `typecheck && lint && format:check && test:coverage && build`.
+Os cinco também rodam soltos quando você quer só um (`pnpm run lint`,
+`pnpm run test -- --run`, `pnpm run format` para corrigir a formatação em vez de
 apenas conferi-la).
 
 Sem a stack de pé, o mesmo pelo caminho híbrido: `cd backend && uv run pytest -q`
@@ -783,14 +783,15 @@ minha máquina" e "passa no CI" signifiquem a mesma coisa:
 | Ferramenta | Configuração | Papel |
 |---|---|---|
 | **Ruff** | `backend/pyproject.toml` | lint e formatação do Python |
-| **Prettier** | `frontend/.prettierrc` | formatação única do frontend (sem `;`, aspas simples, 100 colunas), com `prettier-plugin-tailwindcss` ordenando as classes utilitárias. `npm run format:check` é passo do CI |
+| **Prettier** | `frontend/.prettierrc` | formatação única do frontend (sem `;`, aspas simples, 100 colunas), com `prettier-plugin-tailwindcss` ordenando as classes utilitárias. `pnpm run format:check` é passo do CI |
 | **ESLint 9**, flat config | `frontend/eslint.config.js` | `typescript-eslint` **type-aware** (`strictTypeChecked`), `jsx-a11y`, `react-hooks`, `simple-import-sort`, `testing-library`/`jest-dom` nos testes — e `no-restricted-imports` por pasta impondo as camadas `lib → components → features → pages → app`: `lib` não importa ninguém, `components` não importa features nem páginas, nenhuma feature alcança `pages` ou `app`, e uma página não alcança `app`. Roda com `--max-warnings 0` |
-| **TypeScript** | `frontend/tsconfig{,.app,.test,.node}.json` | três programas por `references` (aplicação, testes, `vite.config.ts`), para que `node` e os globais de teste não tipem código de produção. `strict` + `noUncheckedIndexedAccess`; `npm run typecheck` é `tsc -b` |
+| **TypeScript** | `frontend/tsconfig{,.app,.test,.node}.json` | três programas por `references` (aplicação, testes, `vite.config.ts`), para que `node` e os globais de teste não tipem código de produção. `strict` + `noUncheckedIndexedAccess`; `pnpm run typecheck` é `tsc -b` |
 | **Vitest** + cobertura v8 | `frontend/vite.config.ts` | `mockReset`/`restoreMocks` globais (nenhum teste herda dublê do vizinho) e **piso de cobertura** que falha o CI ao regredir |
 | **`.editorconfig`** e `.vscode/` | raiz do repositório | fim de linha, indentação e format-on-save iguais para quem clonar; as extensões sugeridas cobrem os dois lados |
 | **Node fixado** | `frontend/.nvmrc` (24) e `engines` no `package.json` | a versão da imagem, do CI e do caminho híbrido é uma só |
+| **pnpm fixado** | `packageManager` no `package.json` (`pnpm@11.25.0`) | `corepack` (embutido no Node) lê o campo e baixa esse exato binário — mesma versão na imagem, no CI e no caminho híbrido |
 
-Um comando cobre o frontend inteiro (`npm run check`, seção
+Um comando cobre o frontend inteiro (`pnpm run check`, seção
 [3](#3-verificação-as-suítes-de-teste)); o job de frontend do CI repete os
 mesmos passos, um por um e nomeados, mais a guarda de dinheiro e o upload do
 relatório de cobertura.

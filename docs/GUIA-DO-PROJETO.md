@@ -75,7 +75,7 @@ docker compose exec backend uv run pytest -q
 # → 369 passed
 
 # frontend (de dentro de frontend/)
-cd frontend && npm run test -- --run
+cd frontend && pnpm run test -- --run
 # → Test Files 54 passed (54) / Tests 372 passed (372)
 ```
 
@@ -112,7 +112,7 @@ hotel-management/
 ```
 backend/
 ├── pyproject.toml   # o "package.json": nome, deps de runtime e de dev
-├── uv.lock          # o "package-lock.json": versões exatas resolvidas
+├── uv.lock          # o "pnpm-lock.yaml": versões exatas resolvidas
 ├── .python-version  # a versão do interpretador, como um .nvmrc
 ├── Dockerfile
 ├── manage.py        # o CLI do projeto
@@ -124,18 +124,18 @@ backend/
 └── tests/           # unit / db / api
 ```
 
-**`uv` é o gerenciador de pacotes**, o `npm` deste projeto. `pyproject.toml` +
-`uv.lock` são o `package.json` + `package-lock.json`. `uv run <comando>` é o
-`npx`: ele resolve o ambiente virtual do projeto (uma pasta `.venv/` com o
+**`uv` é o gerenciador de pacotes**, o `pnpm` deste projeto. `pyproject.toml` +
+`uv.lock` são o `package.json` + `pnpm-lock.yaml`. `uv run <comando>` é o
+`pnpm exec`: ele resolve o ambiente virtual do projeto (uma pasta `.venv/` com o
 interpretador e as dependências, isolada do Python do sistema) e roda o comando
 dentro dele. Por isso todo comando de backend neste repositório começa com
 `uv run`.
 
 As dependências estão declaradas em dois blocos em `backend/pyproject.toml:6-17`
 (runtime) e `:19-27` (desenvolvimento — o equivalente a `devDependencies`).
-`backend/Dockerfile:25` instala com `uv sync --frozen`, que é o `npm ci`: falha
-alto se o lock divergir do `pyproject.toml`, em vez de resolver silenciosamente
-outra versão.
+`backend/Dockerfile:25` instala com `uv sync --frozen`, que é o `pnpm install
+--frozen-lockfile`: falha alto se o lock divergir do `pyproject.toml`, em vez de
+resolver silenciosamente outra versão.
 
 **`manage.py` é o CLI do Django.** Ele não tem lógica: `backend/manage.py:9`
 aponta a variável de ambiente `DJANGO_SETTINGS_MODULE` para `config.settings` e
@@ -1077,18 +1077,18 @@ docker compose exec backend uv run pytest -q -k test_checkout_statement_matches_
 docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q
 
 # frontend (de dentro de frontend/) — tudo, na ordem em que o CI cobra
-npm run check              # typecheck && lint && format:check && test:coverage && build
+pnpm run check              # typecheck && lint && format:check && test:coverage && build
 
 # frontend, uma peça por vez
-npm run test -- --run      # o -- passa o --run para o vitest: uma execução, sem watch
-npm run test               # modo watch, para desenvolver
-npm run test:coverage      # a suíte com o piso de cobertura que o CI aplica
-npm run typecheck          # tsc -b: os três programas (aplicação, testes, vite.config.ts)
-npm run lint               # eslint . --max-warnings 0   (lint:fix corrige o que dá)
-npm run format             # prettier --write .          (format:check apenas confere)
+pnpm run test -- --run      # o -- passa o --run para o vitest: uma execução, sem watch
+pnpm run test               # modo watch, para desenvolver
+pnpm run test:coverage      # a suíte com o piso de cobertura que o CI aplica
+pnpm run typecheck          # tsc -b: os três programas (aplicação, testes, vite.config.ts)
+pnpm run lint               # eslint . --max-warnings 0   (lint:fix corrige o que dá)
+pnpm run format             # prettier --write .          (format:check apenas confere)
 ```
 
-O `npm run check` é o comando único a rodar antes de commitar: se ele passa, o
+O `pnpm run check` é o comando único a rodar antes de commitar: se ele passa, o
 job de frontend do CI passa, porque são os mesmos passos na mesma ordem.
 
 Alterou `pyproject.toml`? O container precisa ser reconstruído
@@ -1108,26 +1108,31 @@ do checkout — o que é, por construção, a simulação de um clone limpo.
 4. `pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q` (`:59-60`) — a
    suíte inteira mais o piso de 85% de cobertura.
 
-**Job `frontend`** (`:62-109`): cada verificação é um **passo nomeado**, para
+**Job `frontend`** (`:65-116`): cada verificação é um **passo nomeado**, para
 que a aba do CI diga o que quebrou sem ninguém abrir o log:
 
-1. `npm ci` (`:81-82`) — falha se `package-lock.json` divergir;
-2. **Typecheck** (`:84-85`) — `tsc -b`; type error é falha de CI;
-3. **Lint** (`:87-88`) — `eslint . --max-warnings 0`, type-aware, com as
+1. `pnpm install --frozen-lockfile` (`:88-89`) — falha se `pnpm-lock.yaml`
+   divergir;
+2. **Typecheck** (`:91-92`) — `tsc -b`; type error é falha de CI;
+3. **Lint** (`:94-95`) — `eslint . --max-warnings 0`, type-aware, com as
    fronteiras de camada;
-4. **Format check** (`:90-91`) — `prettier --check .`;
-5. **a guarda de dinheiro** (`:93-95`) — espelho da do backend: nem
+4. **Format check** (`:97-98`) — `prettier --check .`;
+5. **a guarda de dinheiro** (`:100-102`) — espelho da do backend: nem
    `src/lib/money.ts` nem o diálogo do extrato podem conter `Number(`,
    `parseFloat`, `parseInt`, `toLocaleString` ou `Intl.NumberFormat`;
-6. **Tests with coverage floor** (`:97-98`) — a suíte mais o piso de cobertura
-   declarado em `frontend/vite.config.ts:44`;
-7. **Build** (`:100-101`) — o `vite build` de produção;
-8. o `lcov.info` sobe como artefato (`:103-109`), inclusive quando a suíte
+6. **Tests with coverage floor** (`:104-105`) — a suíte mais o piso de
+   cobertura declarado em `frontend/vite.config.ts:44`;
+7. **Build** (`:107-108`) — o `vite build` de produção;
+8. o `lcov.info` sobe como artefato (`:110-116`), inclusive quando a suíte
    falha.
 
-O job roda com `TZ: America/Sao_Paulo` (`:69-71`): os testes de data comparam
+O job roda com `TZ: America/Sao_Paulo` (`:72-74`): os testes de data comparam
 com o relógio local, então o CI usa o fuso de produção. A versão do Node vem de
-`frontend/.nvmrc` (`:75-79`), a mesma da imagem Docker e do caminho híbrido.
+`frontend/.nvmrc` (`:82-86`), a mesma da imagem Docker e do caminho híbrido. O
+`pnpm/action-setup` (`:78-80`) lê o campo `packageManager` de
+`frontend/package.json` e instala o binário exato do `pnpm` antes do
+`setup-node`, que por sua vez usa `cache: pnpm` para cachear o store entre
+execuções.
 
 ### 7.5 Migrações: o que são e quando você precisa de uma
 
@@ -1194,11 +1199,11 @@ Só os termos que apareceram acima.
 
 | Termo | O que é aqui | Equivalente mental |
 |---|---|---|
-| `uv` | gerenciador de pacotes e de ambiente | `npm` |
+| `uv` | gerenciador de pacotes e de ambiente | `pnpm` |
 | `pyproject.toml` | manifesto do projeto e das dependências | `package.json` |
-| `uv.lock` | versões exatas resolvidas | `package-lock.json` |
-| `uv sync --frozen` | instala travado; falha se o lock divergir | `npm ci` |
-| `uv run <cmd>` | roda no ambiente do projeto | `npx <cmd>` |
+| `uv.lock` | versões exatas resolvidas | `pnpm-lock.yaml` |
+| `uv sync --frozen` | instala travado; falha se o lock divergir | `pnpm install --frozen-lockfile` |
+| `uv run <cmd>` | roda no ambiente do projeto | `pnpm exec <cmd>` |
 | **ambiente virtual** (`.venv/`) | interpretador + dependências isolados do sistema | `node_modules/`, mas incluindo o runtime |
 | `manage.py` | CLI do projeto Django | um `bin/cli.js` de scaffolding |
 | `__init__.py` | marca a pasta como pacote importável | `index.js` de uma pasta, sem re-exports |
