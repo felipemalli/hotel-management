@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import { ErrorState, TableSkeleton } from '@/components/common'
+import { ErrorState, PageHeader } from '@/components/common'
 import {
   Button,
   Dialog,
@@ -12,10 +12,11 @@ import {
   Typography,
 } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
+import { PolicyHistoryTable } from '@/features/pricing/components/PolicyHistoryTable'
 import { CurrentPolicyCard } from '@/features/pricing/CurrentPolicyCard'
+import { CurrentPolicyCardSkeleton } from '@/features/pricing/CurrentPolicyCardSkeleton'
 import { useCurrentPolicy } from '@/features/pricing/hooks'
 import { PolicyForm } from '@/features/pricing/PolicyForm'
-import { PolicyHistoryTable } from '@/features/pricing/PolicyHistoryTable'
 import { errorMessage } from '@/lib/errors/errors'
 import { formatISODateTime } from '@/lib/format/dates'
 import { notifySuccess } from '@/lib/notify/toast'
@@ -31,26 +32,23 @@ export function PricingPage() {
 
   return (
     <section aria-labelledby="tarifas-titulo" className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Typography as="h2" id="tarifas-titulo" variant="pageTitle">
-          Tarifas
-        </Typography>
-        {isAdmin && current.data ? (
-          <Button onClick={() => setPublishing(true)}>Publicar nova tarifa</Button>
-        ) : null}
-      </div>
-
-      <Typography as="p" variant="body" tone="muted">
-        A tarifa é amarrada à estadia no check-in: publicar uma nova muda o futuro e nunca o extrato
-        de quem já entrou.
-      </Typography>
+      <PageHeader
+        title="Tarifas"
+        titleId="tarifas-titulo"
+        description="A tarifa é amarrada à estadia no check-in: publicar uma nova muda o futuro e nunca o extrato de quem já entrou."
+        actions={
+          isAdmin && current.data ? (
+            <Button onClick={() => setPublishing(true)}>Publicar nova tarifa</Button>
+          ) : null
+        }
+      />
 
       <section aria-labelledby="tarifa-vigente" className="flex flex-col gap-2">
         <Typography as="h3" id="tarifa-vigente" variant="sectionTitle">
           Tarifa vigente
         </Typography>
         {current.isPending ? (
-          <TableSkeleton rows={4} columns={2} />
+          <CurrentPolicyCardSkeleton />
         ) : current.isError ? (
           <ErrorState
             message={errorMessage(current.error)}

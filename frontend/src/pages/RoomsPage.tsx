@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import { ErrorState } from '@/components/common'
+import { ErrorState, PageHeader } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import {
   Button,
@@ -12,14 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
   FieldLabel,
-  Typography,
 } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { RoomActions } from '@/features/rooms/components/RoomActions'
 import { RoomCapacityDialog } from '@/features/rooms/components/RoomCapacityDialog'
 import { RoomDeactivateDialog } from '@/features/rooms/components/RoomDeactivateDialog'
+import { RoomsTable } from '@/features/rooms/components/RoomsTable'
 import { RoomForm } from '@/features/rooms/RoomForm'
-import { RoomsTable } from '@/features/rooms/RoomsTable'
 import type { Room } from '@/features/rooms/types'
 import { errorMessage } from '@/lib/errors/errors'
 import { notifySuccess } from '@/lib/notify/toast'
@@ -55,25 +54,40 @@ export function RoomsPage() {
     })
   }
 
+  // Memoizado: uma referência nova a cada render reconstruiria as colunas da
+  // tabela, e a linha da ação remontaria bem debaixo do diálogo que acabou de
+  // abrir — perdendo o foco a que ele volta ao fechar.
+  const renderRoomActions = useCallback(
+    (room: Room) => (
+      <RoomActions
+        room={room}
+        onEditCapacity={(chosen) => setDialog({ kind: 'capacity', room: chosen })}
+        onRequestDeactivate={(chosen) => setDialog({ kind: 'deactivate', room: chosen })}
+      />
+    ),
+    [],
+  )
+
   return (
     <section aria-labelledby="quartos-titulo" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <Typography as="h2" id="quartos-titulo" variant="pageTitle">
-          Quartos
-        </Typography>
-        {isAdmin ? (
-          <Button onClick={() => setDialog({ kind: 'create' })}>Novo quarto</Button>
-        ) : null}
-      </div>
-
-      <FieldLabel htmlFor="rooms-include-inactive" className="flex-row items-center">
-        <Checkbox
-          id="rooms-include-inactive"
-          checked={includeInactive}
-          onCheckedChange={toggleInactive}
-        />
-        Mostrar desativados
-      </FieldLabel>
+      <PageHeader
+        title="Quartos"
+        titleId="quartos-titulo"
+        actions={
+          isAdmin ? (
+            <Button onClick={() => setDialog({ kind: 'create' })}>Novo quarto</Button>
+          ) : null
+        }
+      >
+        <FieldLabel htmlFor="rooms-include-inactive" className="flex-row items-center">
+          <Checkbox
+            id="rooms-include-inactive"
+            checked={includeInactive}
+            onCheckedChange={toggleInactive}
+          />
+          Mostrar desativados
+        </FieldLabel>
+      </PageHeader>
 
       <ErrorBoundary
         scope="rooms-table"
@@ -85,19 +99,7 @@ export function RoomsPage() {
           includeInactive={includeInactive}
           page={page}
           onPageChange={(next) => setSearchParams((previous) => withPage(previous, next))}
-          renderActions={
-            isAdmin
-              ? (room) => (
-                  <RoomActions
-                    room={room}
-                    onEditCapacity={(chosen) => setDialog({ kind: 'capacity', room: chosen })}
-                    onRequestDeactivate={(chosen) =>
-                      setDialog({ kind: 'deactivate', room: chosen })
-                    }
-                  />
-                )
-              : undefined
-          }
+          renderActions={isAdmin ? renderRoomActions : undefined}
         />
       </ErrorBoundary>
 

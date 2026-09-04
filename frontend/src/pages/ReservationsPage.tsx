@@ -1,9 +1,8 @@
-import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/common'
-import { Typography } from '@/components/ui'
+import { ErrorState, PageHeader, Pagination } from '@/components/common'
 import { ReservationFilters } from '@/features/reservations/components/ReservationFilters'
+import { ReservationTable } from '@/features/reservations/components/ReservationTable'
 import { toListParams } from '@/features/reservations/filters'
 import { useReservations } from '@/features/reservations/hooks'
-import { ReservationTable } from '@/features/reservations/ReservationTable'
 import { useReservationFilters } from '@/features/reservations/useReservationFilters'
 import { errorMessage } from '@/lib/errors/errors'
 
@@ -14,42 +13,35 @@ export function ReservationsPage() {
 
   return (
     <section aria-labelledby="reservas-titulo" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Typography as="h2" id="reservas-titulo" variant="pageTitle">
-          Reservas
-        </Typography>
-        {query.isFetching && !query.isPending ? (
-          <Typography as="span" variant="caption">
-            Atualizando…
-          </Typography>
-        ) : null}
-      </div>
-
-      <ReservationFilters filters={filters} onStatusChange={setStatus} onPaidChange={setPaid} />
+      <PageHeader
+        title="Reservas"
+        titleId="reservas-titulo"
+        updating={query.isFetching && !query.isPending}
+      >
+        <ReservationFilters filters={filters} onStatusChange={setStatus} onPaidChange={setPaid} />
+      </PageHeader>
 
       <p aria-live="polite" className="sr-only">
         {query.isSuccess && !query.isPlaceholderData ? announce(query.data.count) : ''}
       </p>
 
-      {query.isPending ? (
-        <TableSkeleton columns={9} />
-      ) : query.isError ? (
+      {query.isError ? (
         // Uma página fora do intervalo responde 404: o retry volta à primeira,
         // porque insistir na página impossível daria o mesmo 404.
         <ErrorState message={errorMessage(query.error)} onRetry={() => setPage(1)} />
-      ) : results.length === 0 ? (
-        <EmptyState message="Nenhuma reserva encontrada" />
       ) : (
-        <>
-          <ReservationTable reservations={results} />
-          <Pagination
-            page={filters.page}
-            count={query.data.count}
-            hasNext={query.data.next !== null}
-            hasPrevious={query.data.previous !== null}
-            onPageChange={setPage}
-          />
-        </>
+        <div className="flex flex-col gap-4">
+          <ReservationTable reservations={results} isLoading={query.isPending} />
+          {query.isSuccess && results.length > 0 ? (
+            <Pagination
+              page={filters.page}
+              count={query.data.count}
+              hasNext={query.data.next !== null}
+              hasPrevious={query.data.previous !== null}
+              onPageChange={setPage}
+            />
+          ) : null}
+        </div>
       )}
     </section>
   )

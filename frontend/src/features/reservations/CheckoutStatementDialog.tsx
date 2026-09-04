@@ -1,6 +1,7 @@
+import { createColumnHelper } from '@tanstack/react-table'
 import { useState } from 'react'
 
-import { Alert, FormField } from '@/components/common'
+import { Alert, DataTable, type dataTableFeatures, FormField } from '@/components/common'
 import {
   Badge,
   Button,
@@ -15,12 +16,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
   Typography,
 } from '@/components/ui'
 import { focusMainContent } from '@/lib/a11y/focus'
@@ -31,7 +26,30 @@ import { formatBRL } from '@/lib/format/money'
 import { usePayReservation, useReservationStatement } from './hooks'
 import { PAYMENT_METHODS } from './payment'
 import { PAYMENT_METHOD_LABELS } from './status'
-import type { CheckoutStatement, PaymentMethod } from './types'
+import type { BillLine, CheckoutStatement, PaymentMethod } from './types'
+
+const dailyLineHelper = createColumnHelper<typeof dataTableFeatures, BillLine>()
+
+const dailyLineColumns = dailyLineHelper.columns([
+  dailyLineHelper.accessor('date', {
+    header: 'Data',
+    cell: ({ getValue }) => <span className="whitespace-nowrap">{formatISODate(getValue())}</span>,
+  }),
+  dailyLineHelper.accessor('weekday', {
+    header: 'Dia da semana',
+    cell: ({ getValue }) => <span className="capitalize">{getValue()}</span>,
+  }),
+  dailyLineHelper.accessor('daily_rate', {
+    header: 'Diária',
+    meta: { align: 'end' },
+    cell: ({ getValue }) => <span className="whitespace-nowrap">{formatBRL(getValue())}</span>,
+  }),
+  dailyLineHelper.accessor('parking_fee', {
+    header: 'Vaga',
+    meta: { align: 'end' },
+    cell: ({ getValue }) => <span className="whitespace-nowrap">{formatBRL(getValue())}</span>,
+  }),
+])
 
 export interface CheckoutStatementDialogProps {
   open: boolean
@@ -127,26 +145,12 @@ export function CheckoutStatementDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <Table caption="Diárias cobradas">
-            <THead>
-              <TR>
-                <TH>Data</TH>
-                <TH>Dia da semana</TH>
-                <TH className="text-right">Diária</TH>
-                <TH className="text-right">Vaga</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {shown.lines.map((line) => (
-                <TR key={line.date}>
-                  <TD className="whitespace-nowrap">{formatISODate(line.date)}</TD>
-                  <TD className="capitalize">{line.weekday}</TD>
-                  <TD className="text-right whitespace-nowrap">{formatBRL(line.daily_rate)}</TD>
-                  <TD className="text-right whitespace-nowrap">{formatBRL(line.parking_fee)}</TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
+          <DataTable
+            columns={dailyLineColumns}
+            data={shown.lines}
+            caption="Diárias cobradas"
+            getRowId={(line) => line.date}
+          />
 
           <div className="rounded-lg bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
             <SummaryRow label="Subtotal diárias" value={formatBRL(shown.subtotal_daily)} />

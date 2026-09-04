@@ -1,10 +1,14 @@
 import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
+import {
+  ALL_RESERVATIONS,
+  BRUNO_CHECKED_IN,
+  CARLA_CHECKED_OUT,
+} from '@/features/reservations/__fixtures__/reservations'
 import { elementAt } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
-import { ALL_RESERVATIONS, BRUNO_CHECKED_IN, CARLA_CHECKED_OUT } from './__fixtures__/reservations'
 import { ReservationTable } from './ReservationTable'
 
 function renderTable(reservations = ALL_RESERVATIONS): void {
