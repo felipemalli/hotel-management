@@ -34,7 +34,7 @@ export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
           <RefreshCw className="size-4" />
           Tentar novamente
         </Button>
-        <Button variant="secondary" onClick={() => window.location.reload()}>
+        <Button variant="outline" onClick={() => window.location.reload()}>
           Recarregar a página
         </Button>
       </div>

@@ -85,7 +85,7 @@ export function ReservationDetailPage() {
         ) : null}
 
         {current.status === 'CHECKED_OUT' ? (
-          <Button variant="secondary" onClick={() => setDialog('statement')}>
+          <Button variant="outline" onClick={() => setDialog('statement')}>
             Ver extrato
           </Button>
         ) : null}

@@ -21,7 +21,7 @@ export function Pagination({ page, count, hasNext, hasPrevious, onPageChange }: 
       </p>
       <div className="flex gap-2">
         <Button
-          variant="secondary"
+          variant="outline"
           size="sm"
           disabled={!hasPrevious}
           onClick={() => onPageChange(page - 1)}
@@ -29,7 +29,7 @@ export function Pagination({ page, count, hasNext, hasPrevious, onPageChange }: 
           Anterior
         </Button>
         <Button
-          variant="secondary"
+          variant="outline"
           size="sm"
           disabled={!hasNext}
           onClick={() => onPageChange(page + 1)}

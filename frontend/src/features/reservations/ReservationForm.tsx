@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useState } from 'react'
-import { useController, useForm } from 'react-hook-form'
+import { Controller, useController, useForm } from 'react-hook-form'
 
-import { Alert } from '@/components/common'
-import { Button, Checkbox, Input, Select } from '@/components/ui'
+import { Alert, FormField } from '@/components/common'
+import { Button, Checkbox, Field, FieldError, FieldLabel, Input, Select } from '@/components/ui'
 import type { GuestRef as GuestSummary } from '@/features/guests/types'
 import { useAvailableRooms } from '@/features/rooms/hooks'
 import { useInvalidateServerState } from '@/lib/api/useInvalidateServerState'
@@ -125,20 +125,21 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input
-          label="Entrada"
-          type="date"
-          min={today}
-          error={errors.checkin_date?.message}
-          {...register('checkin_date')}
-        />
-        <Input
-          label="Saída"
-          type="date"
-          min={addDaysISO(checkinDate || today, 1)}
-          error={errors.checkout_date?.message}
-          {...register('checkout_date')}
-        />
+        <FormField label="Entrada" error={errors.checkin_date?.message}>
+          {(control) => (
+            <Input type="date" min={today} {...control} {...register('checkin_date')} />
+          )}
+        </FormField>
+        <FormField label="Saída" error={errors.checkout_date?.message}>
+          {(control) => (
+            <Input
+              type="date"
+              min={addDaysISO(checkinDate || today, 1)}
+              {...control}
+              {...register('checkout_date')}
+            />
+          )}
+        </FormField>
       </div>
 
       <CompanionPicker
@@ -178,15 +179,31 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
         ))}
       </Select>
 
-      <Checkbox
-        label="Utilizará vaga de estacionamento"
-        error={errors.has_vehicle?.message}
-        {...register('has_vehicle')}
+      <Controller
+        control={control}
+        name="has_vehicle"
+        render={({ field }) => (
+          <Field data-invalid={errors.has_vehicle ? true : undefined}>
+            <FieldLabel htmlFor="has_vehicle" className="flex-row items-center">
+              <Checkbox
+                id="has_vehicle"
+                checked={field.value}
+                onCheckedChange={(checked) => field.onChange(checked)}
+                onBlur={field.onBlur}
+                aria-invalid={errors.has_vehicle ? true : undefined}
+              />
+              Utilizará vaga de estacionamento
+            </FieldLabel>
+            {errors.has_vehicle?.message ? (
+              <FieldError>{errors.has_vehicle.message}</FieldError>
+            ) : null}
+          </Field>
+        )}
       />
 
       <div className="flex justify-end gap-2">
         {onCancel ? (
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel}>
             Cancelar
           </Button>
         ) : null}

@@ -51,7 +51,7 @@ export function PolicyHistoryTable({ page, currentId, onPageChange }: PolicyHist
                 {policy.created_by === null
                   ? 'implantação'
                   : formatISODateTime(policy.effective_from)}{' '}
-                {policy.id === currentId ? <Badge tone="success">Vigente</Badge> : null}
+                {policy.id === currentId ? <Badge variant="success">Vigente</Badge> : null}
               </TD>
               <TD className="whitespace-nowrap">
                 {formatBRL(policy.weekday_rate)} / {formatBRL(policy.weekend_rate)}

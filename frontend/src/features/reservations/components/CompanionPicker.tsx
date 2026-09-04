@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 
-import { DismissButton } from '@/components/common'
+import { DismissButton, FormField } from '@/components/common'
 import { Button, Input } from '@/components/ui'
 import { useGuests } from '@/features/guests/hooks'
 import { DEBOUNCE_MS } from '@/features/guests/tabs'
@@ -60,13 +60,17 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
         </p>
       )}
 
-      <Input
-        label="Buscar acompanhante"
-        type="search"
-        placeholder="Nome, documento ou telefone"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-      />
+      <FormField label="Buscar acompanhante">
+        {(control) => (
+          <Input
+            type="search"
+            placeholder="Nome, documento ou telefone"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            {...control}
+          />
+        )}
+      </FormField>
 
       {term ? renderCandidates() : null}
 
@@ -113,7 +117,7 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
             </span>
             <Button
               size="sm"
-              variant="secondary"
+              variant="outline"
               aria-label={`Adicionar ${guest.full_name}`}
               onClick={() => {
                 onChange([...value, { id: guest.id, full_name: guest.full_name }])

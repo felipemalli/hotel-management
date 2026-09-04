@@ -25,7 +25,7 @@ export function DashboardPage() {
       return (
         <Button
           size="sm"
-          variant="secondary"
+          variant="outline"
           onClick={() => open({ kind: 'reservation', guest: row.guest })}
         >
           Nova reserva

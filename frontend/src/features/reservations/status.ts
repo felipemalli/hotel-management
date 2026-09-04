@@ -1,4 +1,6 @@
-import type { BadgeTone } from '@/components/ui'
+import type { VariantProps } from 'class-variance-authority'
+
+import type { badgeVariants } from '@/components/ui'
 
 import type { PaymentMethod, Reservation, ReservationStatus } from './types'
 
@@ -9,11 +11,13 @@ export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   CANCELLED: 'Cancelada',
 }
 
-export const RESERVATION_STATUS_TONES: Record<ReservationStatus, BadgeTone> = {
+export type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>
+
+export const RESERVATION_STATUS_TONES: Record<ReservationStatus, BadgeVariant> = {
   PENDING: 'warning',
   CHECKED_IN: 'success',
-  CHECKED_OUT: 'neutral',
-  CANCELLED: 'error',
+  CHECKED_OUT: 'secondary',
+  CANCELLED: 'destructive',
 }
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {

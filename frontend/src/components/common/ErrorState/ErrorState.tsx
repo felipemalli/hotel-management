@@ -8,7 +8,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
     >
       <span>{message}</span>
       {onRetry ? (
-        <Button variant="secondary" size="sm" onClick={onRetry}>
+        <Button variant="outline" size="sm" onClick={onRetry}>
           Tentar novamente
         </Button>
       ) : null}

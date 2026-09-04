@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
-import { Alert } from '@/components/common'
+import { Alert, FormField } from '@/components/common'
 import { Button, Input, Select } from '@/components/ui'
 import { AiFillGuest } from '@/features/ai/AiFillGuest'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
@@ -68,19 +68,19 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
           clearErrors()
         }}
       />
-      <Input label="Nome completo" error={errors.full_name?.message} {...register('full_name')} />
-      <Input
+      <FormField label="Nome completo" error={errors.full_name?.message}>
+        {(control) => <Input {...control} {...register('full_name')} />}
+      </FormField>
+      <FormField
         label="Documento"
         hint="CPF, RG ou passaporte — com ou sem pontuação."
         error={errors.document?.message}
-        {...register('document')}
-      />
-      <Input
-        label="Telefone"
-        hint={PHONE_HINT}
-        error={errors.phone?.message}
-        {...register('phone')}
-      />
+      >
+        {(control) => <Input {...control} {...register('document')} />}
+      </FormField>
+      <FormField label="Telefone" hint={PHONE_HINT} error={errors.phone?.message}>
+        {(control) => <Input {...control} {...register('phone')} />}
+      </FormField>
       <Select
         label="Nacionalidade"
         error={errors.nationality?.message}
@@ -96,7 +96,7 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
 
       <div className="flex justify-end gap-2">
         {onCancel ? (
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel}>
             Cancelar
           </Button>
         ) : null}

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Button, Checkbox, Dialog } from '@/components/ui'
+import { Button, Checkbox, Dialog, FieldLabel } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { RoomActions } from '@/features/rooms/components/RoomActions'
 import { RoomCapacityDialog } from '@/features/rooms/components/RoomCapacityDialog'
@@ -57,11 +57,14 @@ export function RoomsPage() {
         ) : null}
       </div>
 
-      <Checkbox
-        label="Mostrar desativados"
-        checked={includeInactive}
-        onChange={(event) => toggleInactive(event.target.checked)}
-      />
+      <FieldLabel htmlFor="rooms-include-inactive" className="flex-row items-center">
+        <Checkbox
+          id="rooms-include-inactive"
+          checked={includeInactive}
+          onCheckedChange={toggleInactive}
+        />
+        Mostrar desativados
+      </FieldLabel>
 
       <ErrorBoundary
         scope="rooms-table"

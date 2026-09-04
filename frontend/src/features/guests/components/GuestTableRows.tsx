@@ -62,7 +62,7 @@ function GuestCells({ guest, role = 'holder' }: { guest: Guest; role?: PartyRole
       <TD className="font-medium text-slate-900">
         <span className="flex flex-wrap items-center gap-2">
           <span>{guest.full_name}</span>
-          {role === 'companion' ? <Badge tone="info">Acompanhante</Badge> : null}
+          {role === 'companion' ? <Badge variant="info">Acompanhante</Badge> : null}
         </span>
       </TD>
       <TD className="font-mono text-xs">{formatDocument(guest.document)}</TD>

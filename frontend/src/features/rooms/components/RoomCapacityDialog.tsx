@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
+import { FormField } from '@/components/common'
 import { Button, Dialog, Input } from '@/components/ui'
 import { applyServerErrors } from '@/lib/forms/forms'
 
@@ -55,17 +56,20 @@ export function RoomCapacityDialog({ room, onClose, onUpdated }: RoomCapacityDia
       onClose={onClose}
     >
       <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-        <Input
-          label="Capacidade"
-          type="number"
-          min={1}
-          step={1}
-          inputMode="numeric"
-          error={errors.capacity?.message}
-          {...register('capacity', { valueAsNumber: true })}
-        />
+        <FormField label="Capacidade" error={errors.capacity?.message}>
+          {(control) => (
+            <Input
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              {...control}
+              {...register('capacity', { valueAsNumber: true })}
+            />
+          )}
+        </FormField>
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose} disabled={updateRoom.isPending}>
+          <Button variant="outline" onClick={onClose} disabled={updateRoom.isPending}>
             Cancelar
           </Button>
           <Button type="submit" disabled={updateRoom.isPending}>

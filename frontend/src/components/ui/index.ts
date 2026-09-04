@@ -1,6 +1,6 @@
-export { Badge, type BadgeProps, type BadgeTone } from './Badge'
-export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button'
-export { Checkbox, type CheckboxProps } from './Checkbox'
+export { Badge, badgeVariants } from './badge'
+export { Button, buttonVariants } from './button'
+export { Checkbox } from './checkbox'
 export { Dialog, type DialogProps } from './Dialog'
 export {
   DropdownMenu,
@@ -30,12 +30,12 @@ export {
   FieldSet,
   FieldTitle,
 } from './field'
-export { Input, type InputProps } from './Input'
+export { Input } from './input'
 export { Label } from './label'
 export { Select, type SelectProps } from './Select'
 export { Skeleton } from './skeleton'
 export { tabId, tabPanelId } from './tabIds'
 export { Table, TBody, TD, TH, THead, TR } from './Table'
 export { type TabItem, Tabs, type TabsProps } from './Tabs'
-export { Textarea, type TextareaProps } from './Textarea'
+export { Textarea } from './textarea'
 export { Typography, type TypographyProps, typographyVariants } from './typography'

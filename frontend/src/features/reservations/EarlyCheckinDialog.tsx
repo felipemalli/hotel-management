@@ -31,7 +31,7 @@ export function EarlyCheckinDialog({
       onClose={onCancel}
       footer={
         <>
-          <Button variant="secondary" onClick={onCancel} disabled={pending}>
+          <Button variant="outline" onClick={onCancel} disabled={pending}>
             Cancelar
           </Button>
           <Button onClick={onConfirm} disabled={pending}>

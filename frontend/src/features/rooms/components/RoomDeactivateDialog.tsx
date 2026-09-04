@@ -22,11 +22,11 @@ export function RoomDeactivateDialog({ room, onClose, onDeactivated }: RoomDeact
       onClose={onClose}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={updateRoom.isPending}>
+          <Button variant="outline" onClick={onClose} disabled={updateRoom.isPending}>
             Voltar
           </Button>
           <Button
-            variant="danger"
+            variant="destructive"
             disabled={updateRoom.isPending}
             onClick={() => {
               // O 409 do quarto ocupado fica com o toast global, e o diálogo

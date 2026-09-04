@@ -1,3 +1,4 @@
+import { FormField } from '@/components/common'
 import { Input, Tabs } from '@/components/ui'
 
 import { GUEST_TAB_ITEMS, type GuestTab } from '../tabs'
@@ -31,14 +32,20 @@ export function GuestTableToolbar({
 
       {tab === 'all' ? (
         <div className="w-full sm:w-80">
-          <Input
+          <FormField
             label="Buscar hóspede"
-            type="search"
-            placeholder="Nome, documento ou telefone"
-            value={search}
             hint="Nome, documento ou telefone — busca por fragmento."
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
+          >
+            {(control) => (
+              <Input
+                type="search"
+                placeholder="Nome, documento ou telefone"
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                {...control}
+              />
+            )}
+          </FormField>
         </div>
       ) : null}
     </div>

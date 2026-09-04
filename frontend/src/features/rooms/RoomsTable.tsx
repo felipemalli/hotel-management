@@ -60,7 +60,7 @@ export function RoomsTable({
               <TD className="font-mono text-sm font-medium text-slate-900">{room.number}</TD>
               <TD>{room.capacity === 1 ? '1 pessoa' : `${room.capacity} pessoas`}</TD>
               <TD>
-                <Badge tone={room.is_active ? 'success' : 'neutral'}>
+                <Badge variant={room.is_active ? 'success' : 'secondary'}>
                   {room.is_active ? 'Ativo' : 'Desativado'}
                 </Badge>
               </TD>

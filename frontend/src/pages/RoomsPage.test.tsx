@@ -64,7 +64,7 @@ describe('RoomsPage', () => {
     await screen.findByRole('table', { name: 'Quartos do hotel' })
 
     vi.mocked(fetchRooms).mockResolvedValue(page([...SEED_ROOMS, ROOM_301_INACTIVE]))
-    await user.click(screen.getByLabelText('Mostrar desativados'))
+    await user.click(screen.getByRole('checkbox', { name: 'Mostrar desativados' }))
 
     await waitFor(() =>
       expect(fetchRooms).toHaveBeenLastCalledWith({ includeInactive: true, page: 1 }),

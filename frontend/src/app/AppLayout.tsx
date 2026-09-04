@@ -64,7 +64,7 @@ export function AppLayout() {
           <nav aria-label="Sessão" className="flex items-center gap-3">
             <p className="flex items-center gap-2 text-xs text-slate-500">
               <span className="font-medium text-slate-700">{username ?? 'atendente'}</span>
-              {isAdmin ? <Badge tone="info">admin</Badge> : null}
+              {isAdmin ? <Badge variant="info">admin</Badge> : null}
             </p>
             <Button variant="ghost" size="sm" onClick={onSignOut}>
               Sair

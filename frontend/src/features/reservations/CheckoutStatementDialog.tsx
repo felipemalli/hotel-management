@@ -122,7 +122,7 @@ export function CheckoutStatementDialog({
           <div className="mt-3 flex flex-col gap-2 border-t border-slate-200 pt-3">
             {payment ? (
               <p className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
-                <Badge tone="success">Pago</Badge>
+                <Badge variant="success">Pago</Badge>
                 <span>
                   Pago em {formatISODateTime(payment.paid_at)} ·{' '}
                   {PAYMENT_METHOD_LABELS[payment.method]} · por {payment.paid_by.username}
@@ -131,7 +131,7 @@ export function CheckoutStatementDialog({
             ) : (
               <>
                 <p className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
-                  <Badge tone="warning">Em aberto</Badge>
+                  <Badge variant="warning">Em aberto</Badge>
                   <span>Pagamento ainda não registrado.</span>
                 </p>
                 {allowPayment ? (

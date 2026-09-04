@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
-import { Alert } from '@/components/common'
+import { Alert, FormField } from '@/components/common'
 import { Button, Input } from '@/components/ui'
 import { applyServerErrors } from '@/lib/forms/forms'
 
@@ -63,67 +63,52 @@ export function PolicyForm({ current, onSuccess, onCancel }: PolicyFormProps) {
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input
+        <FormField
           label="Diária (seg–sex)"
-          inputMode="decimal"
           hint="Em reais: 120 ou 120,50."
           error={errors.weekday_rate?.message}
-          {...register('weekday_rate')}
-        />
-        <Input
-          label="Diária (sáb–dom)"
-          inputMode="decimal"
-          error={errors.weekend_rate?.message}
-          {...register('weekend_rate')}
-        />
-        <Input
-          label="Vaga (seg–sex)"
-          inputMode="decimal"
-          error={errors.weekday_park?.message}
-          {...register('weekday_park')}
-        />
-        <Input
-          label="Vaga (sáb–dom)"
-          inputMode="decimal"
-          error={errors.weekend_park?.message}
-          {...register('weekend_park')}
-        />
+        >
+          {(control) => <Input inputMode="decimal" {...control} {...register('weekday_rate')} />}
+        </FormField>
+        <FormField label="Diária (sáb–dom)" error={errors.weekend_rate?.message}>
+          {(control) => <Input inputMode="decimal" {...control} {...register('weekend_rate')} />}
+        </FormField>
+        <FormField label="Vaga (seg–sex)" error={errors.weekday_park?.message}>
+          {(control) => <Input inputMode="decimal" {...control} {...register('weekday_park')} />}
+        </FormField>
+        <FormField label="Vaga (sáb–dom)" error={errors.weekend_park?.message}>
+          {(control) => <Input inputMode="decimal" {...control} {...register('weekend_park')} />}
+        </FormField>
       </div>
 
-      <Input
+      <FormField
         label="Fator da multa de checkout tardio"
-        inputMode="decimal"
         hint="Fração da diária do dia da saída: 0,5 é metade."
         error={errors.late_fee_factor?.message}
-        {...register('late_fee_factor')}
-      />
+      >
+        {(control) => <Input inputMode="decimal" {...control} {...register('late_fee_factor')} />}
+      </FormField>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input
-          label="Abertura do check-in"
-          type="time"
-          error={errors.checkin_opens?.message}
-          {...register('checkin_opens')}
-        />
-        <Input
+        <FormField label="Abertura do check-in" error={errors.checkin_opens?.message}>
+          {(control) => <Input type="time" {...control} {...register('checkin_opens')} />}
+        </FormField>
+        <FormField
           label="Limite de checkout"
-          type="time"
           hint="Igual ou anterior à abertura do check-in."
           error={errors.checkout_limit?.message}
-          {...register('checkout_limit')}
-        />
+        >
+          {(control) => <Input type="time" {...control} {...register('checkout_limit')} />}
+        </FormField>
       </div>
 
-      <Input
-        label="Nota (opcional)"
-        hint="Até 200 caracteres."
-        error={errors.note?.message}
-        {...register('note')}
-      />
+      <FormField label="Nota (opcional)" hint="Até 200 caracteres." error={errors.note?.message}>
+        {(control) => <Input {...control} {...register('note')} />}
+      </FormField>
 
       <div className="flex justify-end gap-2">
         {onCancel ? (
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel}>
             Cancelar
           </Button>
         ) : null}

@@ -77,7 +77,7 @@ export function ReservationActions({
             <Button size="sm" disabled={checkIn.isPending} onClick={() => runCheckIn(false)}>
               {checkIn.isPending ? 'Registrando…' : 'Check-in'}
             </Button>
-            <Button size="sm" variant="danger" onClick={onRequestCancel}>
+            <Button size="sm" variant="destructive" onClick={onRequestCancel}>
               Cancelar
             </Button>
           </>

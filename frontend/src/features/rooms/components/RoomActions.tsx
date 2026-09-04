@@ -20,17 +20,17 @@ export function RoomActions({ room, onEditCapacity, onRequestDeactivate }: RoomA
 
   return (
     <div className="flex flex-wrap gap-2">
-      <Button size="sm" variant="secondary" onClick={() => onEditCapacity(room)}>
+      <Button size="sm" variant="outline" onClick={() => onEditCapacity(room)}>
         Editar capacidade
       </Button>
       {room.is_active ? (
-        <Button size="sm" variant="danger" onClick={() => onRequestDeactivate(room)}>
+        <Button size="sm" variant="destructive" onClick={() => onRequestDeactivate(room)}>
           Desativar
         </Button>
       ) : (
         <Button
           size="sm"
-          variant="secondary"
+          variant="outline"
           disabled={reactivate.isPending}
           onClick={() => reactivate.mutate({ id: room.id, patch: { is_active: true } })}
         >

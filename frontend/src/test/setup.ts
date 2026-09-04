@@ -33,6 +33,47 @@ if (!('getAnimations' in Element.prototype)) {
   Element.prototype.getAnimations = (): Animation[] => []
 }
 
+// jsdom nao implementa PointerEvent: o Checkbox do Base UI redispara o clique
+// num input nativo oculto via `new window.PointerEvent(...)` para manter os
+// dois em sincronia, e sem isto o clique explode com "not a constructor".
+if (typeof globalThis.PointerEvent === 'undefined') {
+  class PointerEventPolyfill extends MouseEvent implements PointerEvent {
+    readonly pointerId: number
+    readonly pointerType: string
+    readonly isPrimary: boolean
+    readonly width: number
+    readonly height: number
+    readonly pressure: number
+    readonly tangentialPressure: number
+    readonly tiltX: number
+    readonly tiltY: number
+    readonly twist: number
+    readonly altitudeAngle: number
+    readonly azimuthAngle: number
+
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params)
+      this.pointerId = params.pointerId ?? 0
+      this.pointerType = params.pointerType ?? ''
+      this.isPrimary = params.isPrimary ?? false
+      this.width = params.width ?? 1
+      this.height = params.height ?? 1
+      this.pressure = params.pressure ?? 0
+      this.tangentialPressure = params.tangentialPressure ?? 0
+      this.tiltX = params.tiltX ?? 0
+      this.tiltY = params.tiltY ?? 0
+      this.twist = params.twist ?? 0
+      this.altitudeAngle = params.altitudeAngle ?? 0
+      this.azimuthAngle = params.azimuthAngle ?? 0
+    }
+
+    getCoalescedEvents = (): PointerEvent[] => []
+    getPredictedEvents = (): PointerEvent[] => []
+  }
+
+  globalThis.PointerEvent = PointerEventPolyfill as unknown as typeof PointerEvent
+}
+
 // O sink de console é útil no navegador e só ruído aqui: quem afirma sobre o
 // log instala o próprio sink no caso.
 errorLogger.use({ capture: () => undefined })

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
-import { Alert } from '@/components/common'
+import { Alert, FormField } from '@/components/common'
 import { Button, Input } from '@/components/ui'
 import { applyServerErrors } from '@/lib/forms/forms'
 
@@ -54,27 +54,33 @@ export function RoomForm({ onSuccess, onCancel }: RoomFormProps) {
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
       {rootError ? <Alert tone="error">{rootError}</Alert> : null}
 
-      <Input
+      <FormField
         label="Número"
         hint="Até 10 caracteres — “101”, “12A”."
-        autoComplete="off"
         error={errors.number?.message}
-        {...register('number')}
-      />
-      <Input
+      >
+        {(control) => <Input autoComplete="off" {...control} {...register('number')} />}
+      </FormField>
+      <FormField
         label="Capacidade"
-        type="number"
-        min={1}
-        step={1}
-        inputMode="numeric"
         hint="Pessoas por quarto (titular + acompanhantes)."
         error={errors.capacity?.message}
-        {...register('capacity', { valueAsNumber: true })}
-      />
+      >
+        {(control) => (
+          <Input
+            type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
+            {...control}
+            {...register('capacity', { valueAsNumber: true })}
+          />
+        )}
+      </FormField>
 
       <div className="flex justify-end gap-2">
         {onCancel ? (
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel}>
             Cancelar
           </Button>
         ) : null}

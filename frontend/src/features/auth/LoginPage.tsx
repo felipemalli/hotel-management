@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Navigate } from 'react-router-dom'
 
-import { Alert } from '@/components/common'
+import { Alert, FormField } from '@/components/common'
 import { Button, Input } from '@/components/ui'
 import { isLocallyPresented } from '@/lib/api/queryClient'
 import { errorMessage } from '@/lib/errors/errors'
@@ -58,19 +58,19 @@ export function LoginPage() {
 
         <form className="mt-6 flex flex-col gap-4" onSubmit={submit} noValidate>
           {rootError ? <Alert tone="error">{rootError}</Alert> : null}
-          <Input
-            label="Usuário"
-            autoComplete="username"
-            error={errors.username?.message}
-            {...register('username')}
-          />
-          <Input
-            label="Senha"
-            type="password"
-            autoComplete="current-password"
-            error={errors.password?.message}
-            {...register('password')}
-          />
+          <FormField label="Usuário" error={errors.username?.message}>
+            {(control) => <Input autoComplete="username" {...control} {...register('username')} />}
+          </FormField>
+          <FormField label="Senha" error={errors.password?.message}>
+            {(control) => (
+              <Input
+                type="password"
+                autoComplete="current-password"
+                {...control}
+                {...register('password')}
+              />
+            )}
+          </FormField>
           <Button type="submit" disabled={signIn.isPending}>
             {signIn.isPending ? 'Entrando…' : 'Entrar'}
           </Button>

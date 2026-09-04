@@ -81,7 +81,7 @@ describe('ReservationForm', () => {
     )
     await chooseRoom()
 
-    await user.click(screen.getByLabelText('Utilizará vaga de estacionamento'))
+    await user.click(screen.getByRole('checkbox', { name: 'Utilizará vaga de estacionamento' }))
     await user.click(screen.getByRole('button', { name: 'Criar reserva' }))
 
     expect(createReservation).toHaveBeenCalledTimes(1)

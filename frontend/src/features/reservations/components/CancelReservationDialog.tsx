@@ -27,11 +27,11 @@ export function CancelReservationDialog({
       onClose={onClose}
       footer={
         <>
-          <Button variant="secondary" disabled={cancel.isPending} onClick={onClose}>
+          <Button variant="outline" disabled={cancel.isPending} onClick={onClose}>
             Voltar
           </Button>
           <Button
-            variant="danger"
+            variant="destructive"
             disabled={cancel.isPending}
             onClick={() => cancel.mutate(reservationId)}
           >
