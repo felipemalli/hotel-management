@@ -1,18 +1,7 @@
 import { useState } from 'react'
 
-import {
-  Alert,
-  Badge,
-  Button,
-  Dialog,
-  Select,
-  Table,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-} from '@/components/ui'
+import { Alert } from '@/components/common'
+import { Badge, Button, Dialog, Select, Table, TBody, TD, TH, THead, TR } from '@/components/ui'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { formatISODate, formatISODateTime } from '@/lib/format/dates'
 import { formatBRL } from '@/lib/format/money'

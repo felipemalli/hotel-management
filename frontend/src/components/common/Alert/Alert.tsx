@@ -1,14 +1,16 @@
 import type { ReactNode } from 'react'
 
-import { DismissButton } from './DismissButton'
+import { cn } from '@/lib/utils'
+
+import { DismissButton } from '../DismissButton'
 
 export type AlertTone = 'error' | 'warning' | 'success' | 'info'
 
 const TONES: Record<AlertTone, string> = {
-  error: 'bg-red-50 text-red-800 ring-red-200',
-  warning: 'bg-amber-50 text-amber-900 ring-amber-200',
-  success: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-  info: 'bg-slate-50 text-slate-700 ring-slate-200',
+  error: 'bg-destructive/10 text-destructive ring-destructive/20',
+  warning: 'bg-amber-500/10 text-amber-700 ring-amber-500/20',
+  success: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20',
+  info: 'bg-muted text-muted-foreground ring-border',
 }
 
 const ROLES: Record<AlertTone, 'alert' | 'status'> = {
@@ -28,7 +30,10 @@ export function Alert({ tone = 'error', children, onDismiss }: AlertProps) {
   return (
     <div
       role={ROLES[tone]}
-      className={`flex items-start gap-3 rounded-md px-3 py-2 text-sm ring-1 ring-inset ${TONES[tone]}`}
+      className={cn(
+        'flex items-start gap-3 rounded-md px-3 py-2 text-sm ring-1 ring-inset',
+        TONES[tone],
+      )}
     >
       <span className="grow">{children}</span>
       {onDismiss ? <DismissButton onClick={onDismiss} /> : null}

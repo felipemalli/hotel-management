@@ -1,16 +1,5 @@
-import {
-  Badge,
-  EmptyState,
-  ErrorState,
-  Pagination,
-  Table,
-  TableSkeleton,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-} from '@/components/ui'
+import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/common'
+import { Badge, Table, TBody, TD, TH, THead, TR } from '@/components/ui'
 import { errorMessage } from '@/lib/errors/errors'
 import { formatISODateTime } from '@/lib/format/dates'
 import { formatBRL, formatDecimalBR } from '@/lib/format/money'

@@ -1,8 +1,8 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 
+import { Toaster } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Toaster } from '@/components/ui'
 import { createQueryClient } from '@/lib/api/queryClient'
 import { session } from '@/lib/auth/session'
 

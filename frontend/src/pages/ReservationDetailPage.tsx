@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { Alert, Button, EmptyState, ErrorState, TableSkeleton } from '@/components/ui'
+import { Alert, EmptyState, ErrorState, TableSkeleton } from '@/components/common'
+import { Button } from '@/components/ui'
 import { useGuest } from '@/features/guests/hooks'
 import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStatementDialog'
 import { CancelReservationDialog } from '@/features/reservations/components/CancelReservationDialog'

@@ -1,4 +1,4 @@
-import { DescriptionList } from '@/components/ui'
+import { DescriptionList } from '@/components/common'
 import { formatISODateTime } from '@/lib/format/dates'
 import { formatBRL, formatDecimalBR } from '@/lib/format/money'
 

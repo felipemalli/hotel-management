@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
-import { Alert, Button, Input } from '@/components/ui'
+import { Alert } from '@/components/common'
+import { Button, Input } from '@/components/ui'
 import { applyServerErrors } from '@/lib/forms/forms'
 
 import { useCreateRoom } from './hooks'

@@ -1,8 +1,9 @@
 import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
+import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Badge, Button, ErrorState } from '@/components/ui'
+import { Badge, Button } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { useAuth } from '@/features/auth/useAuth'
 import { MAIN_CONTENT_ID } from '@/lib/a11y/focus'

@@ -1,8 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 
 import { type Toast, toastStore, type ToastTone } from '@/lib/notify/toast'
+import { cn } from '@/lib/utils'
 
-import { DismissButton } from './DismissButton'
+import { DismissButton } from '../DismissButton'
 
 const AUTO_DISMISS_MS: Record<ToastTone, number> = {
   error: 8_000,
@@ -11,9 +12,9 @@ const AUTO_DISMISS_MS: Record<ToastTone, number> = {
 }
 
 const TONES: Record<ToastTone, string> = {
-  error: 'bg-red-50 text-red-900 ring-red-300',
-  success: 'bg-emerald-50 text-emerald-900 ring-emerald-300',
-  info: 'bg-slate-50 text-slate-900 ring-slate-300',
+  error: 'bg-destructive/10 text-destructive ring-destructive/20',
+  success: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20',
+  info: 'bg-card text-foreground ring-border',
 }
 
 function ToastCard({ toast }: { toast: Toast }) {
@@ -34,7 +35,10 @@ function ToastCard({ toast }: { toast: Toast }) {
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className={`pointer-events-auto flex items-start gap-3 rounded-md px-4 py-3 text-sm shadow-lg ring-1 ring-inset ${TONES[toast.tone]}`}
+      className={cn(
+        'pointer-events-auto flex items-start gap-3 rounded-md px-4 py-3 text-sm shadow-lg ring-1 ring-inset',
+        TONES[toast.tone],
+      )}
     >
       <span className="grow">{toast.message}</span>
       <DismissButton onClick={() => toastStore.dismiss(toast.id)} />

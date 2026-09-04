@@ -1,5 +1,6 @@
+import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Button, Dialog, ErrorState } from '@/components/ui'
+import { Button, Dialog } from '@/components/ui'
 import { GuestForm } from '@/features/guests/GuestForm'
 import { GuestTable } from '@/features/guests/GuestTable'
 import type { GuestRow } from '@/features/guests/tabs'

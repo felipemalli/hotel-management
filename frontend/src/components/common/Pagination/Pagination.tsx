@@ -1,4 +1,4 @@
-import { Button } from './Button'
+import { Button } from '@/components/ui'
 
 export interface PaginationProps {
   page: number
@@ -16,7 +16,7 @@ export function Pagination({ page, count, hasNext, hasPrevious, onPageChange }: 
 
   return (
     <nav aria-label="Paginação" className="flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted-foreground">
         Página {page} · {count} {count === 1 ? 'registro' : 'registros'}
       </p>
       <div className="flex gap-2">

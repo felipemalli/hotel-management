@@ -1,6 +1,6 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 
-import { DescriptionList, ErrorState } from '@/components/ui'
+import { DescriptionList, ErrorState } from '@/components/common'
 import type { Guest } from '@/features/guests/types'
 import { errorMessage } from '@/lib/errors/errors'
 import { countryName } from '@/lib/format/countries'

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import { Button, Dialog, ErrorState, TableSkeleton } from '@/components/ui'
+import { ErrorState, TableSkeleton } from '@/components/common'
+import { Button, Dialog } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { CurrentPolicyCard } from '@/features/pricing/CurrentPolicyCard'
 import { useCurrentPolicy } from '@/features/pricing/hooks'

@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
-import { Alert, Button, Input, Select } from '@/components/ui'
+import { Alert } from '@/components/common'
+import { Button, Input, Select } from '@/components/ui'
 import { AiFillGuest } from '@/features/ai/AiFillGuest'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { COUNTRY_OPTIONS } from '@/lib/format/countries'

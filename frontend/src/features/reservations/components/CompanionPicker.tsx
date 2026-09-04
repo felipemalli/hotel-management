@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 
-import { Button, DismissButton, Input } from '@/components/ui'
+import { DismissButton } from '@/components/common'
+import { Button, Input } from '@/components/ui'
 import { useGuests } from '@/features/guests/hooks'
 import { DEBOUNCE_MS } from '@/features/guests/tabs'
 import { errorMessage } from '@/lib/errors/errors'

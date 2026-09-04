@@ -1,6 +1,6 @@
+import { RefreshCw, TriangleAlert } from 'lucide-react'
 import type { FallbackProps } from 'react-error-boundary'
 
-import { AlertIcon, RefreshIcon } from '@/components/icons'
 import { Button } from '@/components/ui'
 import { isApiErrorCode } from '@/lib/errors/errors'
 
@@ -24,14 +24,14 @@ export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
       role="alert"
       className="flex flex-col items-center gap-4 rounded-lg bg-white px-4 py-10 text-center text-sm text-red-900 ring-1 ring-red-200"
     >
-      <AlertIcon className="text-2xl text-red-600" />
+      <TriangleAlert className="size-6 text-red-600" />
       <div className="flex flex-col gap-1">
         <p className="text-base font-semibold">Algo deu errado</p>
         <p className="text-slate-600">{describe(error)}</p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
         <Button onClick={resetErrorBoundary}>
-          <RefreshIcon />
+          <RefreshCw className="size-4" />
           Tentar novamente
         </Button>
         <Button variant="secondary" onClick={() => window.location.reload()}>

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
+import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Button, Checkbox, Dialog, ErrorState } from '@/components/ui'
+import { Button, Checkbox, Dialog } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { RoomActions } from '@/features/rooms/components/RoomActions'
 import { RoomCapacityDialog } from '@/features/rooms/components/RoomCapacityDialog'

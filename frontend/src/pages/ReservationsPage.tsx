@@ -1,4 +1,4 @@
-import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/ui'
+import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/common'
 import { ReservationFilters } from '@/features/reservations/components/ReservationFilters'
 import { toListParams } from '@/features/reservations/filters'
 import { useReservations } from '@/features/reservations/hooks'

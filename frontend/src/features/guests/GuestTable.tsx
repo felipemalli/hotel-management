@@ -1,18 +1,7 @@
 import { type ReactNode, useState } from 'react'
 
-import {
-  EmptyState,
-  ErrorState,
-  Pagination,
-  tabId,
-  Table,
-  TableSkeleton,
-  tabPanelId,
-  TBody,
-  TH,
-  THead,
-  TR,
-} from '@/components/ui'
+import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/common'
+import { tabId, Table, tabPanelId, TBody, TH, THead, TR } from '@/components/ui'
 import { errorMessage } from '@/lib/errors/errors'
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 
