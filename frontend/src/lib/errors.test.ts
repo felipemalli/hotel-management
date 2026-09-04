@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ApiError,
+  earlyCheckinInfo,
   earlyCheckinServerTime,
   errorMessage,
   isApiError,
   isApiErrorCode,
   isErrorCode,
   isServerFault,
+  roomUnavailableInfo,
 } from './errors'
 
 function apiError(code: Parameters<typeof isApiErrorCode>[1], status: number, detail = 'detalhe') {
@@ -20,6 +22,11 @@ describe('isErrorCode', () => {
     expect(isErrorCode('THROTTLED')).toBe(true)
     expect(isErrorCode('NETWORK_ERROR')).toBe(true)
     expect(isErrorCode('CONTRACT_ERROR')).toBe(true)
+  })
+
+  it('conhece os codigos das rotas administrativas e de quarto', () => {
+    expect(isErrorCode('PERMISSION_DENIED')).toBe(true)
+    expect(isErrorCode('ROOM_UNAVAILABLE')).toBe(true)
   })
 
   it('recusa um codigo que a uniao nao conhece', () => {
@@ -92,5 +99,80 @@ describe('errorMessage', () => {
   it('sobrevive ao que nao e ApiError', () => {
     expect(errorMessage(new Error('falha de render'))).toBe('falha de render')
     expect(errorMessage('texto solto')).toBe('Erro inesperado. Tente novamente.')
+  })
+})
+
+describe('earlyCheckinInfo', () => {
+  it('devolve a hora do servidor e a abertura da politica', () => {
+    const error = new ApiError({
+      code: 'EARLY_CHECKIN',
+      detail: 'Check-in permitido a partir das 15:00.',
+      status: 409,
+      extra: { server_time: '13:45', opens_at: '15:00' },
+    })
+
+    expect(earlyCheckinInfo(error)).toEqual({ serverTime: '13:45', opensAt: '15:00' })
+  })
+
+  it('devolve nulo quando falta uma das horas', () => {
+    const error = new ApiError({
+      code: 'EARLY_CHECKIN',
+      detail: 'Check-in permitido a partir das 14:00.',
+      status: 409,
+      extra: { server_time: '13:45' },
+    })
+
+    expect(earlyCheckinInfo(error)).toBeNull()
+  })
+
+  it('devolve nulo para outro codigo', () => {
+    expect(earlyCheckinInfo(apiError('INVALID_STATUS', 409))).toBeNull()
+    expect(earlyCheckinInfo(new Error('qualquer'))).toBeNull()
+  })
+})
+
+describe('roomUnavailableInfo', () => {
+  it('devolve a data da reserva conflitante quando o servidor a conhece', () => {
+    const error = new ApiError({
+      code: 'ROOM_UNAVAILABLE',
+      detail: 'Quarto 101 indisponivel no periodo solicitado.',
+      status: 409,
+      extra: { room_id: 1, conflicting_reservation_id: 7, conflicting_checkin_date: '2026-09-10' },
+    })
+
+    expect(roomUnavailableInfo(error)).toEqual({ conflictingCheckinDate: '2026-09-10' })
+  })
+
+  it('devolve data nula no caminho da corrida, em que so ha room_id', () => {
+    const error = new ApiError({
+      code: 'ROOM_UNAVAILABLE',
+      detail: 'Quarto indisponivel para o periodo.',
+      status: 409,
+      extra: { room_id: 1 },
+    })
+
+    expect(roomUnavailableInfo(error)).toEqual({ conflictingCheckinDate: null })
+  })
+
+  it('devolve nulo para outro codigo', () => {
+    expect(roomUnavailableInfo(apiError('INVALID_STATUS', 409))).toBeNull()
+  })
+})
+
+describe('errorMessage para autorizacao', () => {
+  it('fala a lingua do balcao mesmo quando o DRF responde em ingles', () => {
+    const error = apiError(
+      'PERMISSION_DENIED',
+      403,
+      'You do not have permission to perform this action.',
+    )
+
+    expect(errorMessage(error)).toBe('Ação restrita ao administrador do hotel.')
+  })
+
+  it('mantem o detail do servidor para o codigo de dominio', () => {
+    const error = apiError('ROOM_UNAVAILABLE', 409, 'Quarto 101 indisponivel no periodo.')
+
+    expect(errorMessage(error)).toBe('Quarto 101 indisponivel no periodo.')
   })
 })

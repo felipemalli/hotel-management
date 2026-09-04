@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { normalizeDocument, normalizePhone } from './normalize'
+import { isInternationalPhone, normalizeDocument, normalizePhone } from './normalize'
 
 describe('normalizeDocument', () => {
   it('remove pontuacao e mantem os digitos do CPF', () => {
@@ -27,5 +27,21 @@ describe('normalizePhone', () => {
 
   it('normaliza um fragmento de busca com mascara parcial', () => {
     expect(normalizePhone('(21) 98888')).toBe('2198888')
+  })
+})
+
+describe('isInternationalPhone', () => {
+  it('aceita o numero com codigo do pais e digitos suficientes', () => {
+    expect(isInternationalPhone('+55 21 98888-7777')).toBe(true)
+    expect(isInternationalPhone('  +54 11 5555-4444  ')).toBe(true)
+  })
+
+  it('recusa o numero sem o codigo do pais', () => {
+    expect(isInternationalPhone('(21) 98888-7777')).toBe(false)
+    expect(isInternationalPhone('21988887777')).toBe(false)
+  })
+
+  it('recusa o numero curto demais para qualquer plano', () => {
+    expect(isInternationalPhone('+55 21')).toBe(false)
   })
 })

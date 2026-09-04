@@ -15,16 +15,24 @@ describe('formatDocument', () => {
 })
 
 describe('formatPhone', () => {
-  it('aplica mascara de celular em 11 digitos', () => {
-    expect(formatPhone('21988887777')).toBe('(21) 98888-7777')
+  it('veste o celular brasileiro guardado em E.164', () => {
+    expect(formatPhone('5521988887777')).toBe('+55 (21) 98888-7777')
   })
 
-  it('aplica mascara de fixo em 10 digitos', () => {
-    expect(formatPhone('2133334444')).toBe('(21) 3333-4444')
+  it('veste o fixo brasileiro de oito digitos', () => {
+    expect(formatPhone('552133334444')).toBe('+55 (21) 3333-4444')
   })
 
-  it('devolve demais tamanhos crus', () => {
-    expect(formatPhone('988887777')).toBe('988887777')
-    expect(formatPhone('5521988887777')).toBe('5521988887777')
+  it('veste o plano norte-americano', () => {
+    expect(formatPhone('12125550100')).toBe('+1 (212) 555-0100')
+  })
+
+  it('agrupa mecanicamente o pais sem mascara conhecida', () => {
+    expect(formatPhone('541155554444')).toBe('+5411 5555-4444')
+  })
+
+  it('devolve cru o que nao parece um numero E.164', () => {
+    expect(formatPhone('+55 21')).toBe('+55 21')
+    expect(formatPhone('1234567')).toBe('1234567')
   })
 })

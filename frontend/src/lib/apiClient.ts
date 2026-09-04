@@ -16,6 +16,9 @@ export interface Paginated<T> {
 export const AUTH_PATHS = {
   token: '/auth/token/',
   refresh: '/auth/token/refresh/',
+  // Sem isenção de Bearer: `isAuthPath` só compara com `token` e `refresh`, e
+  // esta rota precisa do token justamente para dizer quem é o usuário.
+  me: '/auth/me/',
 } as const
 
 type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean }

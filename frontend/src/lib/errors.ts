@@ -6,6 +6,8 @@ export const API_ERROR_CODES = [
   'EARLY_CHECKIN',
   'INVALID_STATUS',
   'DUPLICATE_DOCUMENT',
+  'PERMISSION_DENIED',
+  'ROOM_UNAVAILABLE',
   'AI_DISABLED',
   'AI_UPSTREAM_ERROR',
 ] as const
@@ -73,11 +75,40 @@ export function isServerFault(error: unknown): boolean {
 }
 
 // `EARLY_CHECKIN` traz `extra.server_time` no formato "HH:MM" — é o texto do
-// alerta, e o acessor existe para que o fluxo não adivinhe o formato.
+// alerta, e o acessor existe para que o fluxo não adivinhe o formato. Some em
+// favor de `earlyCheckinInfo` assim que o diálogo passar a ler `opens_at`.
 export function earlyCheckinServerTime(error: unknown): string | null {
   if (!isApiErrorCode(error, 'EARLY_CHECKIN')) return null
   const time = error.extra.server_time
   return typeof time === 'string' ? time : null
+}
+
+export interface EarlyCheckinInfo {
+  serverTime: string
+  opensAt: string
+}
+
+// `EARLY_CHECKIN` traz `server_time` e `opens_at` em "HH:MM". `opens_at` vem da
+// política vigente, e é por isso que nenhuma tela pode gravar "14:00" no texto:
+// um admin publica outra abertura e a frase mentiria.
+export function earlyCheckinInfo(error: unknown): EarlyCheckinInfo | null {
+  if (!isApiErrorCode(error, 'EARLY_CHECKIN')) return null
+  const { server_time: serverTime, opens_at: opensAt } = error.extra
+  if (typeof serverTime !== 'string' || typeof opensAt !== 'string') return null
+  return { serverTime, opensAt }
+}
+
+export interface RoomUnavailableInfo {
+  conflictingCheckinDate: string | null
+}
+
+// Só `room_id` é garantido no `extra`: quando o 409 vem da tradução da
+// constraint (corrida), não há reserva conflitante conhecida. A data existe no
+// caminho da guarda de leitura, e é o que a tela consegue dizer a mais.
+export function roomUnavailableInfo(error: unknown): RoomUnavailableInfo | null {
+  if (!isApiErrorCode(error, 'ROOM_UNAVAILABLE')) return null
+  const date = error.extra.conflicting_checkin_date
+  return { conflictingCheckinDate: typeof date === 'string' ? date : null }
 }
 
 // Transporte e autenticação falam a língua do balcão; código de domínio usa o
@@ -86,6 +117,9 @@ const MESSAGES: Partial<Record<ErrorCode, string>> = {
   NOT_AUTHENTICATED: 'Sua sessão expirou. Entre novamente.',
   NOT_FOUND: 'Registro não encontrado. Atualize a listagem.',
   THROTTLED: 'Muitas tentativas em pouco tempo. Aguarde um instante.',
+  // Autorização fala a língua do balcão e é determinística: o DRF pode devolver
+  // o texto em inglês quando outra permission class recusa.
+  PERMISSION_DENIED: 'Ação restrita ao administrador do hotel.',
   NETWORK_ERROR: 'Não foi possível falar com o servidor.',
   CONTRACT_ERROR: 'Resposta inesperada do servidor.',
   UNKNOWN_ERROR: 'Erro inesperado. Tente novamente.',

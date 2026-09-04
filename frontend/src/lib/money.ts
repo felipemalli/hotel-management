@@ -17,3 +17,33 @@ export function formatBRL(value: string): string {
   const [, sign = '', reais = '', centavos = ''] = parts
   return `R$ ${sign}${groupThousands(reais)},${centavos}`
 }
+
+// Entrada humana → string decimal do contrato, por manipulação de texto:
+// "120" → "120.00", "120,5" → "120.50", "0,5" com 4 casas → "0.5000".
+// Nunca arredonda: fração mais longa que `places` é inválida, porque arredondar
+// é aritmética e o admin precisa ver exatamente o que digitou.
+const DECIMAL_INPUT = /^(-?)(\d+)(?:[.,](\d*))?$/
+const LEADING_ZEROS = /^0+(?=\d)/
+const DECIMAL = /^-?\d+\.\d+$/
+
+export function toDecimalString(input: string, places: number): string | null {
+  const parts = DECIMAL_INPUT.exec(input.trim())
+  if (!parts) return null
+
+  const [, sign = '', integer = '', fraction = ''] = parts
+  if (fraction.length > places) return null
+
+  return `${sign}${integer.replace(LEADING_ZEROS, '')}.${fraction.padEnd(places, '0')}`
+}
+
+export function toMoneyString(input: string): string | null {
+  return toDecimalString(input, 2)
+}
+
+// "0.5000" → "0,5000": a vírgula do balcão, sem passar por número.
+export function formatDecimalBR(value: string): string {
+  if (!DECIMAL.test(value)) {
+    throw new TypeError(`Valor decimal fora do contrato: ${JSON.stringify(value)}`)
+  }
+  return value.replace('.', ',')
+}

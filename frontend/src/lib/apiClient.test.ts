@@ -24,6 +24,7 @@ interface RecordedRequest {
 const GUESTS = '/guests/'
 const REFRESH = '/auth/token/refresh/'
 const TOKEN = '/auth/token/'
+const ME = '/auth/me/'
 
 function responseFor(
   config: InternalAxiosRequestConfig,
@@ -136,6 +137,17 @@ describe('apiClient · injecao do token', () => {
 
     expect(callsTo(GUESTS)[0]?.authorization).toBe('Bearer access-1')
     expect(callsTo(TOKEN)[0]?.authorization).toBeUndefined()
+  })
+
+  // `/auth/me/` mora sob `/auth/` mas nao e rota de autenticacao: e ela que diz
+  // quem e o usuario, entao precisa do token. A isencao compara por prefixo com
+  // `token` e `refresh`, e nao com a pasta.
+  it('manda o Bearer na rota do usuario corrente', async () => {
+    on(ME, ok({ id: 1, username: 'recepcao', role: 'ATTENDANT' }))
+
+    await apiClient.get(ME)
+
+    expect(callsTo(ME)[0]?.authorization).toBe('Bearer access-1')
   })
 })
 
