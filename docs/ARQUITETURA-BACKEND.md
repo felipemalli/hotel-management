@@ -4,6 +4,12 @@
 **Objetivo:** dar base para decidir, não prescrever reescrita.
 **Data da análise:** 2026-09-01. Commit base: `2a9caea`.
 
+> **Documento histórico.** Vale como registro de *como* as decisões foram
+> tomadas, não como retrato do sistema. Várias tensões que ele analisa já
+> foram fechadas depois desta data — quartos, tarifa versionada, ator nas
+> transições, extrato persistido, pagamento. O retrato as-built está no
+> `README.md`; em divergência, o código e a suíte ganham.
+
 > **Atualização 2026-09.** A cifra Fernet de `document`/`phone` foi revertida.
 > Campo cifrado + `LIKE` são objetivos incompatíveis; o briefing pede localizar
 > por fragmento, e criptografia de campo é excesso que o negócio não usa (D5).

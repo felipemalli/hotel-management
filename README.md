@@ -273,9 +273,9 @@ Três notas honestas sobre esse caminho:
 
 ## 3. Verificação: as suítes de teste
 
-Retrato de 03/09/2026: **191 testes de backend** (unitários puros do motor
+Retrato de 04/09/2026: **369 testes de backend** (unitários puros do motor
 financeiro, testes de banco com PostgreSQL real e testes de API ponta a ponta) e
-**174 testes de frontend** em 32 arquivos. O número sobe conforme testes entram —
+**372 testes de frontend** em 54 arquivos. O número sobe conforme testes entram —
 os comandos abaixo é que valem como verdade, não a contagem.
 
 ```bash
@@ -692,10 +692,27 @@ serve o volume de um hotel com folga, e os selectors de leitura já resolvem as
 abas em 2 queries, sem N+1. Escalar em código e em time é o que a estrutura
 acima endereça — e o que ela deliberadamente **não** antecipa:
 
+**O que já cresceu.** Sete expansões entraram depois da primeira entrega, cada
+uma com a sua tela — o que segue é o mapa de uma para a outra:
+
+| Expansão do backend | Onde ela aparece na tela |
+|---|---|
+| `Room` + `EXCLUDE` gist e unique parcial (D16) | `/quartos` e o seletor de quarto na reserva, alimentado por `/rooms/available/` |
+| `PricingPolicy` append-only, amarrada no check-in (D15) | `/tarifas`: vigente, histórico e publicação; o extrato de quem já entrou não muda |
+| Ator em cada transição (`created_by`, `checked_in_by`, …) | O histórico em `/reservas/:id`, e o "Publicada por" das tarifas |
+| Pagamento único da conta fechada (D18) | O bloco "Em aberto → Pago" no extrato, e o filtro `?paid=` |
+| Titular + acompanhantes (D19) | O seletor de acompanhantes na reserva e as linhas marcadas nas abas |
+| Nacionalidade e telefone com DDI (D9) | Os dois campos novos no cadastro, e a máscara E.164 na tabela |
+| Papéis `ATTENDANT`/`ADMIN` | O chip no cabeçalho e a existência (não o desabilitar) dos controles de escrita |
+
+**O que ainda não foi construído**, e o gatilho de cada coisa:
+
 | Se acontecer isto… | …a resposta é |
 |---|---|
-| Primeira mudança de tarifa | Persistir a versão da tabela na reserva (`calculate_bill` já recebe `RateTable`; falta só a coluna) |
-| Pergunta de auditoria que o banco não responde ("quem fez este checkout?") | Livro-caixa append-only + ator nas transições |
+| Tarifa que varia por quarto, e não só por dia da semana | `RoomType` (ou preço no `Room`), consumido por `catalog.rate_table_of` |
+| Vigência futura agendada de tarifa | `effective_from` no futuro já é suportado pelo modelo; falta a tela e a leitura por data |
+| Troca de quarto no meio da estadia | Tabela de ocupação por trecho — a reserva deixa de ser a unidade de alocação |
+| Estorno ou pagamento parcial | Livro-caixa append-only: a primeira transição repetível quebra as três colunas de D18 |
 | Segundo hotel no negócio | Constraint composta de `document` **antes** da coluna de tenant |
 | Segundo cliente da API (mobile, integrador) | Versionar a rota antes de ele existir, nunca depois |
 | Efeito externo que não pode ser perdido (e-mail, channel manager) | Outbox transacional — não um broker no caminho crítico |
@@ -708,9 +725,11 @@ resumo da recusa: `pricing.py` já é o hexágono, e o que sobra em
 ports & adapters abstrai pior. Comprar essas camadas agora seria vender curva de
 aprendizado como robustez.
 
-Uma hipótese fica registrada por honestidade: o extrato é recomputado dos fatos,
-não guardado. Isso é determinístico **enquanto a tabela de tarifas não mudar** —
-por isso a tarifa virou parâmetro, e por isso a linha da tabela acima existe.
+A hipótese que essa tabela registrava — "o extrato é recomputado dos fatos, e
+isso só é determinístico enquanto a tarifa não mudar" — **deixou de valer por
+construção**: o extrato é persistido linha a linha no checkout e `statement()`
+hidrata, nunca recalcula. A tarifa pode mudar amanhã e a 2ª via de ontem sai
+igual.
 
 Segurança, em uma linha cada: JWT com permissão global fechada
 (`IsAuthenticated`) e exceções explícitas; documento e telefone em claro
@@ -734,12 +753,19 @@ registrado como evolução, não escondido como defeito.
 
 ## 8. Escopo deliberadamente fora
 
-O briefing não pede — logo, não foi construído: inventário de quartos, tarifas
-dinâmicas/sazonais, gestão de usuários via API (o atendente nasce do seed),
-recuperação de senha, edição/exclusão de hóspede ou reserva via API (registros
-imutáveis após criação, exceto as transições de status — o briefing pede
-armazenar e localizar, não editar), no-show automático de reservas vencidas
-(D14), Celery/Redis, WebSockets, i18n, multi-tenancy, tema dark, Storybook.
+A tese desta entrega é **briefing + evolução declarada**: o que o briefing pede
+está construído e testado, e o que veio depois (quartos, tarifa versionada,
+acompanhantes, pagamento, papéis) entrou com contrato documentado e teste que o
+comprova — nunca por antecipação. A seção 7 mapeia cada expansão à sua tela.
+
+O que continua **fora**, e por quê: tarifa por quarto e vigência futura
+agendada (o gatilho está na tabela da seção 7), troca de quarto no meio da
+estadia, estorno e pagamento parcial (quebrariam as três colunas de D18),
+edição ou exclusão de hóspede e reserva via API (registros imutáveis após a
+criação, exceto as transições de status — o briefing pede armazenar e
+localizar, não editar), no-show automático de reservas vencidas (D14), gestão
+de usuários via API (os dois usuários nascem do seed), recuperação de senha,
+WebSockets, i18n, multi-tenancy, tema dark, Storybook.
 
 Cada um desses adicionaria superfície de bug sem adicionar ponto na avaliação.
 Em conflito entre "mais feature" e "mais qualidade", venceu a qualidade.

@@ -43,8 +43,13 @@ Três listagens cobrem o dia do balcão: todos os hóspedes (busca por nome,
 documento ou telefone), quem **está no hotel** agora, e quem **tem reserva e
 ainda não fez check-in**.
 
-Isso é o escopo inteiro. Não existe inventário de quartos, tarifa sazonal, nem
-edição de hóspede — de propósito (`README.md` §8).
+Depois da primeira entrega o sistema ganhou **inventário de quartos** (a reserva
+aloca um quarto, e a capacidade freia o número de pessoas), **tarifa versionada**
+(um admin publica; a estadia amarra a vigente no seu check-in), **acompanhantes**,
+**pagamento da conta fechada** e os papéis atendente/admin.
+
+Continua não existindo tarifa por quarto, troca de quarto no meio da estadia,
+estorno nem edição de hóspede — de propósito (`README.md` §8).
 
 ---
 
@@ -67,15 +72,15 @@ As duas suítes — é assim que você sabe que não quebrou nada:
 ```bash
 # backend (dentro do container)
 docker compose exec backend uv run pytest -q
-# → 191 passed
+# → 369 passed
 
 # frontend (de dentro de frontend/)
 cd frontend && npm run test -- --run
-# → Test Files 32 passed (32) / Tests 174 passed (174)
+# → Test Files 54 passed (54) / Tests 372 passed (372)
 ```
 
-Os números acima são os da execução em 03/09/2026; o total sobe a cada teste
-novo, e o que importa é estar verde, não o número. Os 191 do backend se dividem
+Os números acima são os da execução em 04/09/2026; o total sobe a cada teste
+novo, e o que importa é estar verde, não o número. Os 369 do backend se dividem
 em três camadas, e a divisão importa para o §7:
 
 | Suíte | Testes | Precisa de banco? | Prova |
@@ -229,12 +234,16 @@ frontend/src/
 ├── app/                  # a casca; é o único lugar que compõe mais de uma feature
 │   ├── App.tsx           # AppProviders > BrowserRouter > AppRoutes
 │   ├── providers.tsx     # ErrorBoundary raiz, QueryClientProvider, Toaster, devtools (dev)
-│   ├── router.tsx        # /login eager, / com o dashboard em chunk lazy
-│   ├── routes.ts         # ROUTES = { login, home }
-│   ├── AppLayout.tsx     # skip-link, <header> com "Sair", <main id="main">
-│   ├── PageFallback.tsx  # o fallback do Suspense da rota
-│   ├── DashboardPage.tsx # composição: GuestTable + ações + os quatro diálogos
-│   └── useDashboardDialog.ts   # qual diálogo está aberto, em união discriminada
+│   ├── router.tsx        # /login eager; as páginas protegidas sob uma rota de layout, em chunks lazy
+│   ├── AppLayout.tsx     # skip-link, <header> com o menu e o chip do papel, <main id="main">
+│   └── PageFallback.tsx  # o fallback do Suspense, dentro do <main>
+├── pages/                # uma composição fina por rota; não conhece `app/`
+│   ├── DashboardPage.tsx # recepção: GuestTable + ações + os quatro diálogos
+│   ├── useDashboardDialog.ts   # qual diálogo está aberto, em união discriminada
+│   ├── ReservationsPage.tsx    # lista com filtros na URL
+│   ├── ReservationDetailPage.tsx  # ficha, histórico com ator, conta e ações
+│   ├── RoomsPage.tsx     # inventário; escrita só para o admin
+│   └── PricingPage.tsx   # tarifa vigente, histórico e publicação
 ├── lib/                  # infraestrutura sem UI (nada aqui importa componente ou feature)
 │   ├── apiClient.ts      # axios: baseURL /api, Bearer, refresh-once em 401, parseResponse
 │   ├── errors.ts         # ApiError com união de códigos fechada, a partir do envelope
@@ -274,8 +283,12 @@ Três regras de importação, impostas por lint e não por combinado: um único 
 (`@/`), com relativo apenas dentro da própria pasta; barrel (`index.ts`) só na
 camada compartilhada — `components/ui`, `components/icons` e
 `components/ErrorBoundary` —, nunca em `lib/` nem nas features; e camadas em uma
-direção só, `lib` → `components` → `features` → `app`, com uma única aresta
-documentada entre features (`guests` → `ai`).
+direção só, `lib` → `components` → `features` → `pages` → `app`. Entre as
+features o grafo também é dirigido e sem ciclo: `rooms` é folha (não importa
+ninguém), `guests` lê `rooms` (o quarto vem embutido no resumo da reserva) e
+`ai`, e `reservations` lê `guests` e `rooms` (o seletor de acompanhantes e o de
+quartos). O que compõe features irmãs sem uma conhecer a outra é a camada
+`pages`.
 
 **Não existe CORS neste projeto.** O Vite serve o frontend em `:5173` e faz
 proxy de tudo sob `/api` para o backend (`frontend/vite.config.ts:19-25`). No
@@ -284,14 +297,16 @@ menos.
 
 #### Decisões do frontend
 
-Sete escolhas que um revisor pergunta, com o motivo — que é o que não está
+Nove escolhas que um revisor pergunta, com o motivo — que é o que não está
 escrito no código:
 
-- **O dashboard é uma tela com abas, não três rotas.** As três listagens do
-  balcão (todos, no hotel, check-in pendente) são recortes do mesmo trabalho, e
-  o atendente alterna entre elas dezenas de vezes por turno; rota separada
-  custaria uma navegação a cada troca e não ganharia nada — o `/` e o `/login`
-  são as duas rotas do sistema.
+- **A recepção é uma tela com abas; o que não é o turno do balcão virou rota.**
+  As três listagens (todos, no hotel, check-in pendente) são recortes do mesmo
+  trabalho, e o atendente alterna entre elas dezenas de vezes por turno: rota
+  separada custaria uma navegação a cada troca e não ganharia nada. Reservas,
+  quartos e tarifas são trabalhos diferentes, consultados de vez em quando e
+  compartilháveis por link — esses ganharam `/reservas`, `/quartos` e
+  `/tarifas`.
 - **Nem Redux nem Zustand.** O servidor é a fonte de estado e o TanStack Query é
   o cache dessa fonte (`frontend/src/app/providers.tsx:22-46`); o que sobra de
   estado de cliente é qual diálogo está aberto e o conteúdo dos formulários, e
@@ -327,7 +342,21 @@ escrito no código:
   checkout, confirmação de cancelamento — vivem na página, não na linha: o
   checkout tira o hóspede da aba, a linha desmonta, e um diálogo montado dentro
   dela iria embora no meio da mutation
-  (`frontend/src/app/DashboardPage.tsx:16-19`).
+  (`frontend/src/pages/DashboardPage.tsx`).
+- **Uma camada `pages` entre as features e a casca.** Uma página compõe várias
+  features — a reserva usa `reservations`, `rooms` e `guests` ao mesmo tempo —
+  e nenhuma feature pode importar outra para isso sem virar um novelo. `pages/`
+  é onde essa composição mora, e `app/` fica só com casca, roteador e
+  providers. A regra é imposta por lint, não por combinado: `pages` não importa
+  `@/app`. É dela que sai a rota de layout — uma página não pode importar
+  `AppLayout`, então o layout a envolve de cima, com `<Outlet/>`.
+- **O papel vem do servidor, nunca do token.** `GET /api/auth/me/` decide se os
+  controles de escrita existem (`frontend/src/features/auth/hooks.ts`). O token
+  é opaco para o cliente, e uma claim de papel não expiraria junto com uma
+  mudança feita fora desta sessão. Enquanto a resposta não chega, `useIsAdmin()`
+  é `false`: um botão que o atendente não pode usar não pode piscar na tela
+  dele. Um `403` inesperado vira toast — e é inesperado justamente porque o
+  botão não deveria estar ali.
 
 ---
 
@@ -957,6 +986,8 @@ Decida pela natureza da mudança, não pelo arquivo que você abriu primeiro:
 | uma rota, um status code, um parâmetro de query | `hotel/views/` (+ `config/urls.py` se for rota nova) | `tests/api/` |
 | a forma de um erro | `hotel/exceptions.py` | `tests/api/` |
 | tela, tabela, diálogo | `frontend/src/features/<x>/` | `<Componente>.test.tsx` ao lado |
+| uma página nova (rota) | `frontend/src/pages/<Página>.tsx` + rota em `app/router.tsx` + `ROUTES` em `lib/routes.ts` | `<Página>.test.tsx` ao lado, montada com `renderPage` |
+| normalização de valor digitado (dinheiro, fator) | `frontend/src/lib/money.ts` (`toDecimalString`) | `lib/money.test.ts` |
 | uma regra de formulário (campo obrigatório, mínimo, comparação de datas) | `frontend/src/features/<x>/schemas.ts` | `schemas.test.ts` ao lado, sem montar componente |
 | a forma de uma resposta da API | `frontend/src/features/<x>/schemas.ts` (+ `types.ts` por `z.infer`) | `schemas.test.ts`, e o teste do componente que a consome |
 | onde um erro do servidor aparece na tela | `frontend/src/lib/forms.ts` (campo × alerta) ou `frontend/src/lib/queryClient.ts` (toast × inline × boundary) | `lib/forms.test.ts` · `lib/errors.test.ts` |
