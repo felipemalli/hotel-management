@@ -20,7 +20,9 @@ const layer = (name, groups) => ({
 })
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules'] },
+  {
+    ignores: ['dist', 'coverage', 'node_modules', 'playwright-report', 'test-results', 'e2e/.auth'],
+  },
 
   {
     languageOptions: {
@@ -143,6 +145,12 @@ export default tseslint.config(
     files: ['**/*.js'],
     extends: [js.configs.recommended, tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
+  },
+
+  {
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    languageOptions: { globals: globals.node },
+    rules: { 'no-restricted-imports': 'off' },
   },
 
   prettier,
