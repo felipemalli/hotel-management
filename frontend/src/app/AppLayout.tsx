@@ -1,13 +1,34 @@
-import type { ReactNode } from 'react'
+import { Suspense } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
-import { Button } from '@/components/ui'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { Button, ErrorState } from '@/components/ui'
 import { useAuth } from '@/features/auth/useAuth'
+import { errorMessage } from '@/lib/errors'
+import { MAIN_CONTENT_ID } from '@/lib/focus'
+import { ROUTES } from '@/lib/routes'
 import { toastStore } from '@/lib/toast'
 
-export const MAIN_CONTENT_ID = 'main'
+import { PageFallback } from './PageFallback'
 
-export function AppLayout({ children }: { children: ReactNode }) {
+// `end` só na recepção: as demais precisam continuar ativas nas suas subrotas
+// (`/reservas/7` ainda é "Reservas").
+const NAV_ITEMS = [
+  { to: ROUTES.home, label: 'Recepção', end: true },
+  { to: ROUTES.reservations, label: 'Reservas', end: false },
+] as const
+
+function navClassName({ isActive }: { isActive: boolean }): string {
+  return [
+    'rounded-md px-3 py-1.5 text-sm font-medium transition motion-reduce:transition-none',
+    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900',
+    isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-200 hover:text-slate-900',
+  ].join(' ')
+}
+
+export function AppLayout() {
   const { username, signOut } = useAuth()
+  const { pathname } = useLocation()
 
   function onSignOut() {
     signOut()
@@ -24,11 +45,19 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </a>
 
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
-          <h1 className="text-lg font-semibold text-slate-900">Gestão de Hóspedes</h1>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <div className="flex flex-wrap items-center gap-6">
+            <h1 className="text-lg font-semibold text-slate-900">Gestão de Hóspedes</h1>
+            <nav aria-label="Principal" className="flex flex-wrap gap-1">
+              {NAV_ITEMS.map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.end} className={navClassName}>
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
           <nav aria-label="Sessão" className="flex items-center gap-3">
             <p className="text-xs text-slate-500">
-              Recepção ·{' '}
               <span className="font-medium text-slate-700">{username ?? 'atendente'}</span>
             </p>
             <Button variant="ghost" size="sm" onClick={onSignOut}>
@@ -43,7 +72,19 @@ export function AppLayout({ children }: { children: ReactNode }) {
         tabIndex={-1}
         className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 focus:outline-none"
       >
-        {children}
+        {/* Boundary por página: uma quebra na tela deixa o cabeçalho e o menu de
+            pé, e o atendente sai dela pelo menu em vez de recarregar tudo. */}
+        <ErrorBoundary
+          scope="page"
+          resetKeys={[pathname]}
+          fallback={({ error, resetErrorBoundary }) => (
+            <ErrorState message={errorMessage(error)} onRetry={resetErrorBoundary} />
+          )}
+        >
+          <Suspense fallback={<PageFallback />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   )

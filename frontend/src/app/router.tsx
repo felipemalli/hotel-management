@@ -1,18 +1,18 @@
-import { lazy, Suspense } from 'react'
+import { lazy } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
+import { ROUTES } from '@/lib/routes'
 
-import { PageFallback } from './PageFallback'
-import { ROUTES } from './routes'
+import { AppLayout } from './AppLayout'
 
 // O login é o primeiro paint de quem chega sem sessão, então fica no bundle
-// inicial; o dashboard, que só existe depois da autenticação, vem em um chunk
-// próprio carregado dentro do `ProtectedRoute` (o anônimo nunca o baixa).
+// inicial; cada página autenticada vem num chunk próprio, carregado dentro do
+// `ProtectedRoute` (o anônimo nunca baixa nenhum deles).
 const DashboardPage = lazy(() =>
-  import('./DashboardPage').then((module) => ({ default: module.DashboardPage })),
+  import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })),
 )
 
 export function AppRoutes() {
@@ -22,16 +22,20 @@ export function AppRoutes() {
     <ErrorBoundary scope="route" resetKeys={[pathname]}>
       <Routes>
         <Route path={ROUTES.login} element={<LoginPage />} />
+
+        {/* Rota de layout: cabeçalho e menu pintam uma vez e sobrevivem à troca
+            de página. É também o que a regra de camadas exige — uma página não
+            pode importar `app/`, logo não pode envolver a si mesma no layout. */}
         <Route
-          path={ROUTES.home}
           element={
             <ProtectedRoute>
-              <Suspense fallback={<PageFallback />}>
-                <DashboardPage />
-              </Suspense>
+              <AppLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route path={ROUTES.home} element={<DashboardPage />} />
+        </Route>
+
         <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
       </Routes>
     </ErrorBoundary>

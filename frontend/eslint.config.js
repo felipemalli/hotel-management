@@ -11,8 +11,9 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 // Camadas: `lib` nao conhece ninguem, `components` conhece `lib`, as features
-// conhecem `lib` e `components`, e so `app` conhece tudo. Os testes ficam de
-// fora: eles montam a arvore real e compartilham fixtures entre features.
+// conhecem `lib` e `components`, `pages` compoe features, e so `app` conhece
+// tudo. Os testes ficam de fora: eles montam a arvore real e compartilham
+// fixtures entre features.
 const layer = (name, groups) => ({
   message: `A camada ${name} nao importa desta pasta (veja as camadas no GUIA).`,
   group: groups.flatMap((prefix) => [prefix, `${prefix}/**`]),
@@ -70,7 +71,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [layer('lib', ['@/app', '@/components', '@/features'])] },
+        { patterns: [layer('lib', ['@/app', '@/pages', '@/components', '@/features'])] },
       ],
     },
   },
@@ -80,7 +81,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [layer('components', ['@/app', '@/features'])] },
+        { patterns: [layer('components', ['@/app', '@/pages', '@/features'])] },
       ],
     },
   },
@@ -92,7 +93,25 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            layer('features', ['@/app']),
+            layer('features', ['@/app', '@/pages']),
+            {
+              message: 'Cruzar pasta de topo e sempre pelo alias `@/`, nunca por `../../`.',
+              group: ['../../*'],
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    files: ['src/pages/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            layer('pages', ['@/app']),
             {
               message: 'Cruzar pasta de topo e sempre pelo alias `@/`, nunca por `../../`.',
               group: ['../../*'],

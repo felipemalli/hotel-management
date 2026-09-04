@@ -557,15 +557,17 @@ hotel-management/
 │   ├── ai/                     # diferencial opcional (5.4), zero acoplamento
 │   └── tests/{unit,db,api}/
 └── frontend/src/
-    ├── app/                    # casca: App, providers, router, AppLayout, DashboardPage
+    ├── app/                    # casca: App, providers, router (rota de layout),
+    │                           #   AppLayout com o menu, PageFallback
+    ├── pages/                  # uma composição fina por rota; não conhece `app/`
     ├── lib/                    # sem UI: apiClient (Bearer + refresh-once), errors,
     │                           #   errorLogger, schemas/forms/normalize (zod), money,
-    │                           #   pii, dates, useInvalidateServerState
+    │                           #   pii, dates, routes, focus, useInvalidateServerState
     ├── components/
     │   ├── ErrorBoundary/      # boundary + fallback "Algo deu errado", com retry
     │   ├── icons/              # AlertIcon, CloseIcon, RefreshIcon, SpinnerIcon
     │   └── ui/                 # primitivos Tailwind mínimos, expostos por barrel
-    └── features/{auth,guests,reservations,ai}/
+    └── features/{auth,guests,reservations,rooms,ai}/
                                 # api · hooks · schemas · types · componentes + testes
 ```
 
@@ -706,7 +708,7 @@ minha máquina" e "passa no CI" signifiquem a mesma coisa:
 |---|---|---|
 | **Ruff** | `backend/pyproject.toml` | lint e formatação do Python |
 | **Prettier** | `frontend/.prettierrc` | formatação única do frontend (sem `;`, aspas simples, 100 colunas), com `prettier-plugin-tailwindcss` ordenando as classes utilitárias. `npm run format:check` é passo do CI |
-| **ESLint 9**, flat config | `frontend/eslint.config.js` | `typescript-eslint` **type-aware** (`strictTypeChecked`), `jsx-a11y`, `react-hooks`, `simple-import-sort`, `testing-library`/`jest-dom` nos testes — e `no-restricted-imports` por pasta impondo as camadas: `lib` não importa `components` nem `features`, `components` não importa `features`, nenhuma feature alcança `app`. Roda com `--max-warnings 0` |
+| **ESLint 9**, flat config | `frontend/eslint.config.js` | `typescript-eslint` **type-aware** (`strictTypeChecked`), `jsx-a11y`, `react-hooks`, `simple-import-sort`, `testing-library`/`jest-dom` nos testes — e `no-restricted-imports` por pasta impondo as camadas `lib → components → features → pages → app`: `lib` não importa ninguém, `components` não importa features nem páginas, nenhuma feature alcança `pages` ou `app`, e uma página não alcança `app`. Roda com `--max-warnings 0` |
 | **TypeScript** | `frontend/tsconfig{,.app,.test,.node}.json` | três programas por `references` (aplicação, testes, `vite.config.ts`), para que `node` e os globais de teste não tipem código de produção. `strict` + `noUncheckedIndexedAccess`; `npm run typecheck` é `tsc -b` |
 | **Vitest** + cobertura v8 | `frontend/vite.config.ts` | `mockReset`/`restoreMocks` globais (nenhum teste herda dublê do vizinho) e **piso de cobertura** que falha o CI ao regredir |
 | **`.editorconfig`** e `.vscode/` | raiz do repositório | fim de linha, indentação e format-on-save iguais para quem clonar; as extensões sugeridas cobrem os dois lados |

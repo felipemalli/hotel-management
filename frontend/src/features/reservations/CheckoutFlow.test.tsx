@@ -2,12 +2,12 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { DashboardPage } from '@/app/DashboardPage'
 import { CARLA, inHotel } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import { checkOut } from '@/features/reservations/api'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { page } from '@/test/fixtures'
-import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
+import { renderPage, signInForTest } from '@/test/renderWithProviders'
 
 import { T7_STATEMENT } from './__fixtures__/bills'
 
@@ -43,7 +43,7 @@ describe('CheckoutFlow', () => {
       return T7_STATEMENT
     })
 
-    renderWithProviders(<DashboardPage />)
+    renderPage(<DashboardPage />, { route: '/' })
 
     await user.click(screen.getByRole('tab', { name: /No hotel/ }))
     await screen.findByText(GUEST_NAME)

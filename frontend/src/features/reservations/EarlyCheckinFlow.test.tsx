@@ -2,14 +2,14 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { DashboardPage } from '@/app/DashboardPage'
 import { ANA, inHotel, pendingCheckin } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import { checkIn } from '@/features/reservations/api'
 import { ApiError } from '@/lib/errors'
 import { toastStore } from '@/lib/toast'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { elementAt, page } from '@/test/fixtures'
-import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
+import { renderPage, renderWithProviders, signInForTest } from '@/test/renderWithProviders'
 
 import { reservation } from './__fixtures__/reservations'
 import { ReservationActions } from './ReservationActions'
@@ -117,7 +117,7 @@ describe('EarlyCheckinFlow', () => {
       return checkedInReservation()
     })
 
-    renderWithProviders(<DashboardPage />)
+    renderPage(<DashboardPage />, { route: '/' })
 
     await user.click(screen.getByRole('tab', { name: /Check-in pendente/ }))
     await screen.findByText(GUEST_NAME)

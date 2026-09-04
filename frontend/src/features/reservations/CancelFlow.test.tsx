@@ -2,13 +2,13 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { DashboardPage } from '@/app/DashboardPage'
 import { ANA, pendingCheckin } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import { cancelReservation } from '@/features/reservations/api'
 import { toastStore } from '@/lib/toast'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { page } from '@/test/fixtures'
-import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
+import { renderPage, signInForTest } from '@/test/renderWithProviders'
 
 import { reservation } from './__fixtures__/reservations'
 import type { Reservation } from './types'
@@ -59,7 +59,7 @@ describe('CancelFlow', () => {
       return cancelledReservation()
     })
 
-    renderWithProviders(<DashboardPage />)
+    renderPage(<DashboardPage />, { route: '/' })
 
     const confirmation = await openConfirmation(user)
     expect(confirmation).toHaveTextContent(GUEST_NAME)
@@ -101,7 +101,7 @@ describe('CancelFlow', () => {
       return cancelledReservation()
     })
 
-    const { queryClient } = renderWithProviders(<DashboardPage />)
+    const { queryClient } = renderPage(<DashboardPage />, { route: '/' })
 
     const confirmation = await openConfirmation(user)
     await user.click(within(confirmation).getByRole('button', { name: 'Cancelar reserva' }))
@@ -127,7 +127,7 @@ describe('CancelFlow', () => {
 
     arrangeDashboard(() => true)
 
-    renderWithProviders(<DashboardPage />)
+    renderPage(<DashboardPage />, { route: '/' })
 
     const confirmation = await openConfirmation(user)
     await user.click(within(confirmation).getByRole('button', { name: 'Voltar' }))

@@ -8,9 +8,9 @@ import { CancelReservationDialog } from '@/features/reservations/components/Canc
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ReservationForm } from '@/features/reservations/ReservationForm'
 import { errorMessage } from '@/lib/errors'
+import { returnFocusToContent } from '@/lib/focus'
 import { notifySuccess } from '@/lib/toast'
 
-import { AppLayout, MAIN_CONTENT_ID } from './AppLayout'
 import { useDashboardDialog } from './useDashboardDialog'
 
 // Os dialogs disparados por uma linha vivem aqui, e não na linha: checkout e
@@ -50,7 +50,7 @@ export function DashboardPage() {
   }
 
   return (
-    <AppLayout>
+    <>
       <div className="flex justify-end">
         <Button onClick={() => open({ kind: 'guest' })}>Novo hóspede</Button>
       </div>
@@ -123,13 +123,6 @@ export function DashboardPage() {
           }}
         />
       ) : null}
-    </AppLayout>
+    </>
   )
-}
-
-// O botão que abriu o dialog acabou de sair da listagem junto com a linha: sem
-// um alvo vivo, o foco de volta cairia no `<body>` e o teclado recomeçaria do
-// topo do documento.
-function returnFocusToContent(): void {
-  document.getElementById(MAIN_CONTENT_ID)?.focus()
 }
