@@ -1,11 +1,15 @@
 import { useState } from 'react'
 
-import { Alert } from '@/components/common'
+import { Alert, FormField } from '@/components/common'
 import {
   Badge,
   Button,
   Dialog,
   Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TBody,
   TD,
@@ -19,7 +23,7 @@ import { formatISODate, formatISODateTime } from '@/lib/format/dates'
 import { formatBRL } from '@/lib/format/money'
 
 import { usePayReservation, useReservationStatement } from './hooks'
-import { isPaymentMethod, PAYMENT_METHODS } from './payment'
+import { PAYMENT_METHODS } from './payment'
 import { PAYMENT_METHOD_LABELS } from './status'
 import type { CheckoutStatement, PaymentMethod } from './types'
 
@@ -75,10 +79,14 @@ export function CheckoutStatementDialog({
   // (outro atendente pagou antes) e, por fim, o que veio do checkout.
   const shown = pay.data ?? refreshed.data ?? statement
   const { late_fee: lateFee, payment } = shown
-  const [method, setMethod] = useState<PaymentMethod | ''>('')
+  const [method, setMethod] = useState<PaymentMethod | null>(null)
+  const paymentItems = PAYMENT_METHODS.map((option) => ({
+    value: option,
+    label: PAYMENT_METHOD_LABELS[option],
+  }))
 
   function registerPayment() {
-    if (method === '') return
+    if (method === null) return
 
     pay.mutate(
       { id: shown.reservation_id, payment_method: method },
@@ -156,22 +164,23 @@ export function CheckoutStatementDialog({
                 </Typography>
                 {allowPayment ? (
                   <div className="flex flex-wrap items-end gap-2">
-                    <Select
-                      label="Forma de pagamento"
-                      value={method}
-                      onChange={(event) => {
-                        const chosen = event.target.value
-                        setMethod(isPaymentMethod(chosen) ? chosen : '')
-                      }}
-                    >
-                      <option value="">Selecione…</option>
-                      {PAYMENT_METHODS.map((option) => (
-                        <option key={option} value={option}>
-                          {PAYMENT_METHOD_LABELS[option]}
-                        </option>
-                      ))}
-                    </Select>
-                    <Button onClick={registerPayment} disabled={method === '' || pay.isPending}>
+                    <FormField label="Forma de pagamento" htmlFor="payment-method">
+                      {(selectControl) => (
+                        <Select items={paymentItems} value={method} onValueChange={setMethod}>
+                          <SelectTrigger {...selectControl} className="w-full">
+                            <SelectValue placeholder="Selecione…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {paymentItems.map((item) => (
+                              <SelectItem key={item.value} value={item.value}>
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </FormField>
+                    <Button onClick={registerPayment} disabled={method === null || pay.isPending}>
                       {pay.isPending ? 'Registrando…' : 'Registrar pagamento'}
                     </Button>
                   </div>

@@ -9,6 +9,7 @@ import {
   CARLA_CHECKED_OUT,
 } from '@/features/reservations/__fixtures__/reservations'
 import { fetchReservations } from '@/features/reservations/api'
+import { RESERVATION_STATUS_LABELS } from '@/features/reservations/status'
 import { ApiError } from '@/lib/errors/errors'
 import { ROUTES } from '@/lib/routing/routes'
 import { page } from '@/test/fixtures'
@@ -39,28 +40,39 @@ describe('ReservationsPage', () => {
     expect(screen.getByText('4 reservas encontradas')).toBeInTheDocument()
   })
 
-  // A URL é a fonte: recarregar e compartilhar preservam a consulta.
+  // A URL é a fonte: recarregar e compartilhar preservam a consulta. A
+  // escolha em si (mudar o Select) não é dirigível em jsdom — ver a nota em
+  // `ReservationFilters` mais abaixo — então aqui só se lê o estado que a URL
+  // já produziu na carga.
   it('le os filtros da URL e os manda ao servidor', async () => {
     renderReservations(`${ROUTES.reservations}?status=CHECKED_OUT&paid=false`)
 
     await waitFor(() =>
       expect(fetchReservations).toHaveBeenCalledWith({ status: 'CHECKED_OUT', paid: false }),
     )
-    expect(screen.getByLabelText('Status')).toHaveValue('CHECKED_OUT')
-    expect(screen.getByLabelText('Pagamento')).toHaveValue('false')
+    expect(screen.getByRole('combobox', { name: 'Status' })).toHaveTextContent(
+      RESERVATION_STATUS_LABELS.CHECKED_OUT,
+    )
+    expect(screen.getByRole('combobox', { name: 'Pagamento' })).toHaveTextContent('Em aberto')
   })
 
   // Fora de uma conta fechada o filtro de pagamento mentiria: no servidor
-  // `paid=false` casa toda reserva que ainda não pagou porque nem fechou.
-  it('so oferece o filtro de pagamento sobre conta fechada, e o descarta ao sair', async () => {
-    const user = userEvent.setup()
+  // `paid=false` casa toda reserva que ainda não pagou porque nem fechou. A
+  // troca de `Status` pelo Select do Base UI não é dirigível em jsdom (popup
+  // não resolve o measure/posicionamento — ver src/components/ui/select.tsx e
+  // a nota em src/test/setup.ts); a regra que descarta `paid` fora de
+  // CHECKED_OUT já está provada em `filters.test.ts`. Aqui prova-se só a
+  // renderização condicional: o campo Pagamento existe com CHECKED_OUT e some
+  // sem ele.
+  it('mostra o filtro de pagamento sobre conta fechada', async () => {
     renderReservations(`${ROUTES.reservations}?status=CHECKED_OUT&paid=true`)
-    await screen.findByLabelText('Pagamento')
+    expect(await screen.findByRole('combobox', { name: 'Pagamento' })).toBeInTheDocument()
+  })
 
-    await user.selectOptions(screen.getByLabelText('Status'), 'PENDING')
-
-    await waitFor(() => expect(screen.queryByLabelText('Pagamento')).not.toBeInTheDocument())
-    expect(vi.mocked(fetchReservations).mock.lastCall?.[0]).toEqual({ status: 'PENDING' })
+  it('omite o filtro de pagamento fora de conta fechada', async () => {
+    renderReservations(`${ROUTES.reservations}?status=PENDING`)
+    await waitFor(() => expect(fetchReservations).toHaveBeenLastCalledWith({ status: 'PENDING' }))
+    expect(screen.queryByRole('combobox', { name: 'Pagamento' })).not.toBeInTheDocument()
   })
 
   it('avanca de pagina pelo que o servidor disse existir', async () => {

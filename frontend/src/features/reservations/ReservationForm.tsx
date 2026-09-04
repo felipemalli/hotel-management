@@ -11,6 +11,10 @@ import {
   FieldLabel,
   Input,
   Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Typography,
 } from '@/components/ui'
 import type { GuestRef as GuestSummary } from '@/features/guests/types'
@@ -92,6 +96,10 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
   // dependência do efeito que limpa o quarto, e um array novo a cada passagem
   // faria o efeito rodar sem que nada tivesse mudado.
   const rooms = useMemo(() => availability.data?.results ?? [], [availability.data])
+  const roomItems = rooms.map((candidate) => ({
+    value: candidate.id,
+    label: `${candidate.number} · capacidade ${candidate.capacity}`,
+  }))
   const roomId = room.field.value
   const roomField = room.field
 
@@ -164,32 +172,34 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
         }}
       />
 
-      <Select
+      <FormField
         label="Quarto"
-        name={roomField.name}
-        ref={roomField.ref}
-        onBlur={roomField.onBlur}
-        value={roomId ?? ''}
-        disabled={!datesValid || availability.isPending}
         hint={roomHint()}
         error={
           errors.room_id?.message ??
           (availability.isError ? errorMessage(availability.error) : undefined)
         }
-        onChange={(event) => {
-          // O id volta do próprio objeto da lista: nada de converter o texto da
-          // opção de volta para número.
-          const chosen = rooms.find((candidate) => String(candidate.id) === event.target.value)
-          roomField.onChange(chosen?.id ?? null)
-        }}
       >
-        <option value="">Selecione um quarto</option>
-        {rooms.map((candidate) => (
-          <option key={candidate.id} value={candidate.id}>
-            {`${candidate.number} · capacidade ${candidate.capacity}`}
-          </option>
-        ))}
-      </Select>
+        {(selectControl) => (
+          <Select
+            items={roomItems}
+            value={roomId}
+            disabled={!datesValid || availability.isPending}
+            onValueChange={(value) => roomField.onChange(value)}
+          >
+            <SelectTrigger {...selectControl} onBlur={roomField.onBlur} className="w-full">
+              <SelectValue placeholder="Selecione um quarto" />
+            </SelectTrigger>
+            <SelectContent>
+              {roomItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </FormField>
 
       <Controller
         control={control}

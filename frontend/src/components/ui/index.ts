@@ -32,7 +32,18 @@ export {
 } from './field'
 export { Input } from './input'
 export { Label } from './label'
-export { Select, type SelectProps } from './Select'
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectScrollDownButton,
+  SelectScrollUpButton,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from './select'
 export { Skeleton } from './skeleton'
 export { tabId, tabPanelId } from './tabIds'
 export { Table, TBody, TD, TH, THead, TR } from './Table'

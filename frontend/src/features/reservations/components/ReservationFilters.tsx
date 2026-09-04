@@ -1,9 +1,24 @@
-import { Select } from '@/components/ui'
+import { FormField } from '@/components/common'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui'
 
 import type { ReservationFilters as Filters } from '../filters'
 import { reservationStatusSchema } from '../schemas'
 import { RESERVATION_STATUS_LABELS } from '../status'
 import type { ReservationStatus } from '../types'
+
+const STATUS_ITEMS: readonly { value: ReservationStatus | null; label: string }[] = [
+  { value: null, label: 'Todos' },
+  ...reservationStatusSchema.options.map((status) => ({
+    value: status,
+    label: RESERVATION_STATUS_LABELS[status],
+  })),
+]
+
+const PAID_ITEMS: readonly { value: boolean | null; label: string }[] = [
+  { value: null, label: 'Todas' },
+  { value: true, label: 'Pagas' },
+  { value: false, label: 'Em aberto' },
+]
 
 export interface ReservationFiltersProps {
   filters: Filters
@@ -19,39 +34,44 @@ export function ReservationFilters({
   return (
     <div className="flex flex-wrap items-end gap-4">
       <div className="w-full sm:w-56">
-        <Select
-          label="Status"
-          value={filters.status ?? ''}
-          onChange={(event) => {
-            const parsed = reservationStatusSchema.safeParse(event.target.value)
-            onStatusChange(parsed.success ? parsed.data : null)
-          }}
-        >
-          <option value="">Todos</option>
-          {reservationStatusSchema.options.map((status) => (
-            <option key={status} value={status}>
-              {RESERVATION_STATUS_LABELS[status]}
-            </option>
-          ))}
-        </Select>
+        <FormField label="Status">
+          {(control) => (
+            <Select items={STATUS_ITEMS} value={filters.status} onValueChange={onStatusChange}>
+              <SelectTrigger {...control} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_ITEMS.map((item) => (
+                  <SelectItem key={item.label} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </FormField>
       </div>
 
       {/* Só sobre conta fechada: antes do checkout toda reserva está "em
           aberto" por definição, e o filtro diria uma coisa por outra. */}
       {filters.status === 'CHECKED_OUT' ? (
         <div className="w-full sm:w-56">
-          <Select
-            label="Pagamento"
-            value={filters.paid === null ? '' : String(filters.paid)}
-            onChange={(event) => {
-              const chosen = event.target.value
-              onPaidChange(chosen === 'true' ? true : chosen === 'false' ? false : null)
-            }}
-          >
-            <option value="">Todas</option>
-            <option value="true">Pagas</option>
-            <option value="false">Em aberto</option>
-          </Select>
+          <FormField label="Pagamento">
+            {(control) => (
+              <Select items={PAID_ITEMS} value={filters.paid} onValueChange={onPaidChange}>
+                <SelectTrigger {...control} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAID_ITEMS.map((item) => (
+                    <SelectItem key={item.label} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </FormField>
         </div>
       ) : null}
     </div>

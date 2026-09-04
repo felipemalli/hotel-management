@@ -1,8 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 
 import { Alert, FormField } from '@/components/common'
-import { Button, Input, Select } from '@/components/ui'
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui'
 import { AiFillGuest } from '@/features/ai/AiFillGuest'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { COUNTRY_OPTIONS } from '@/lib/format/countries'
@@ -14,6 +22,13 @@ import type { CreateGuestPayload, Guest } from './types'
 
 const FIELDS = ['full_name', 'document', 'phone', 'nationality'] as const
 
+// Brasil primeiro (D-do-countries.ts): a maioria dos cadastros é de hóspede
+// brasileiro, e a rolagem não deveria começar em "Afeganistão".
+const NATIONALITY_ITEMS = COUNTRY_OPTIONS.map((option) => ({
+  value: option.code,
+  label: option.name,
+}))
+
 export interface GuestFormProps {
   onSuccess?: (guest: Guest) => void
   onCancel?: () => void
@@ -21,6 +36,7 @@ export interface GuestFormProps {
 
 export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
   const {
+    control,
     clearErrors,
     formState: { errors },
     handleSubmit,
@@ -81,18 +97,32 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
       <FormField label="Telefone" hint={PHONE_HINT} error={errors.phone?.message}>
         {(control) => <Input {...control} {...register('phone')} />}
       </FormField>
-      <Select
-        label="Nacionalidade"
-        error={errors.nationality?.message}
-        {...register('nationality')}
-      >
-        <option value="">Selecione…</option>
-        {COUNTRY_OPTIONS.map((option) => (
-          <option key={option.code} value={option.code}>
-            {option.name}
-          </option>
-        ))}
-      </Select>
+      <FormField label="Nacionalidade" error={errors.nationality?.message}>
+        {(selectControl) => (
+          <Controller
+            control={control}
+            name="nationality"
+            render={({ field }) => (
+              <Select
+                items={NATIONALITY_ITEMS}
+                value={field.value === '' ? null : field.value}
+                onValueChange={(value) => field.onChange(value ?? '')}
+              >
+                <SelectTrigger {...selectControl} onBlur={field.onBlur} className="w-full">
+                  <SelectValue placeholder="Selecione…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {NATIONALITY_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        )}
+      </FormField>
 
       <div className="flex justify-end gap-2">
         {onCancel ? (
