@@ -5,7 +5,7 @@ por nome/documento/telefone, check-in com alerta antes das 14h, checkout com
 extrato detalhado (diária a diária, taxa de vaga e multa de saída após as 12h).
 
 **Stack:** Python 3.13 · Django 5.2 LTS · DRF · PostgreSQL 17 · React 18 · Vite ·
-TypeScript · Tailwind · `uv` · Docker Compose.
+TypeScript · Tailwind · Base UI (shadcn) · `uv` · Docker Compose · Playwright.
 
 Princípio de projeto: **escopo mínimo do briefing, executado com acabamento
 sênior.** Nada entra sem contrato documentado e sem teste que o comprove — e o
@@ -25,6 +25,7 @@ que o briefing não pede fica de fora de propósito (§ [8](#8-escopo-deliberada
 1. [Quickstart com Docker (caminho canônico)](#1-quickstart-com-docker-caminho-canônico)
 2. [Execução sem Docker completo (caminho híbrido)](#2-execução-sem-docker-completo-caminho-híbrido)
 3. [Verificação: as suítes de teste](#3-verificação-as-suítes-de-teste)
+   - 3.1. [Matriz de rastreabilidade (RF/RN → prova)](#31-matriz-de-rastreabilidade-rfrn--prova)
 4. [Decisões de interpretação](#4-decisões-de-interpretação)
 5. [Chaves, variáveis de ambiente e privacidade](#5-chaves-variáveis-de-ambiente-e-privacidade)
 6. [Mapa da API](#6-mapa-da-api)
@@ -194,11 +195,13 @@ caminho de escrita deste domínio.
    uma reserva cancelada não oferece nenhuma.
 9. **Quartos (`/quartos`).** O atendente vê o inventário em leitura — número,
    capacidade e situação —, o que ajuda no balcão. Saia e entre como **`admin`
-   / `admin123`**: aparecem o chip "admin" no cabeçalho e os controles de
-   escrita. Cadastre o 301, edite uma capacidade (abaixo do maior grupo com
-   reserva ativa o servidor recusa no próprio campo) e tente desativar o 102,
-   que tem estadia em curso: `409` no aviso, e a confirmação continua aberta.
-   Nenhum 403 chega ao atendente, porque o botão nem é renderizado para ele.
+   / `admin123`**: aparecem o chip "admin" no cabeçalho, "Novo quarto" e, em
+   cada linha, o menu **"⋯"** ("Ações do quarto 101") com "Editar capacidade" e
+   "Desativar"/"Reativar". Cadastre o 301, edite uma capacidade pelo menu
+   (abaixo do maior grupo com reserva ativa o servidor recusa no próprio
+   campo) e tente desativar o 102, que tem estadia em curso: `409` no aviso, e
+   a confirmação continua aberta. Nenhum 403 chega ao atendente, porque nem o
+   menu nem "Novo quarto" são renderizados para ele.
 10. **Tarifas (`/tarifas`).** Ainda como `admin`: a tarifa vigente aparece com
     diárias, vagas, fator da multa e horários; o histórico lista o que já
     valeu, com quem publicou. "Publicar nova tarifa" abre o formulário **já
@@ -274,9 +277,11 @@ Três notas honestas sobre esse caminho:
 ## 3. Verificação: as suítes de teste
 
 Retrato de 04/09/2026: **369 testes de backend** (unitários puros do motor
-financeiro, testes de banco com PostgreSQL real e testes de API ponta a ponta) e
-**372 testes de frontend** em 54 arquivos. O número sobe conforme testes entram —
-os comandos abaixo é que valem como verdade, não a contagem.
+financeiro, testes de banco com PostgreSQL real e testes de API ponta a ponta),
+**309 testes de frontend** em 47 arquivos (Vitest + Testing Library) e **7
+cenários de e2e** (Playwright, 4 arquivos) contra o backend real. O número sobe
+conforme testes entram — os comandos abaixo é que valem como verdade, não a
+contagem.
 
 ```bash
 # backend — comando canônico, com o piso de cobertura
@@ -284,6 +289,9 @@ docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov-fail-
 
 # frontend — o script único, na mesma ordem em que o CI o executa passo a passo
 cd frontend && pnpm run check
+
+# e2e — sobe backend (gunicorn) e frontend (vite) sozinho, contra o banco real
+cd frontend && pnpm exec playwright install chromium && pnpm run e2e
 ```
 
 `pnpm run check` é `typecheck && lint && format:check && test:coverage && build`.
@@ -293,6 +301,26 @@ apenas conferi-la).
 
 Sem a stack de pé, o mesmo pelo caminho híbrido: `cd backend && uv run pytest -q`
 (precisa do `db` no ar e das variáveis exportadas, como na seção 2).
+
+**O que é "integração" aqui, e por que MSW foi rejeitado.** A maioria dos testes
+de frontend monta a página ou o componente real com `QueryClient`, roteador e
+RHF de verdade; o único ponto dublado é `@/features/*/api.ts` (`vi.mock`, zero
+mock de hook, de axios ou de router). MSW foi cogitado e recusado: ele dublaria
+a mesma camada uma porta mais abaixo, sem provar nada que o mock de API já não
+prove, pelo custo de manter handlers sincronizados com o contrato. Unitário
+puro fica para lógica sem UI (dinheiro, PII, datas, schemas com regra); e2e
+fica para o fluxo real contra o backend — só Chromium, porque o objetivo é
+provar o contrato ponta a ponta, não compatibilidade entre motores de
+navegador (nenhuma regra de negócio depende de um `overflow` ou de uma
+API do WebKit).
+
+**Cobertura condicionada ao que importa, não perseguida como meta.** O piso
+global é propositalmente baixo (80% de linhas) — é um alarme contra regressão
+grosseira, não uma barra a escalar. Pinos altos (95–100%) ficam só onde há
+regra ou contrato: `money.ts`, `dates.ts`, `normalize.ts` e os `schemas.ts` de
+cada feature. Percentual não prova requisito — a **matriz de rastreabilidade**
+abaixo prova, e o CI a guarda com um teste próprio (ela não pode divergir do
+código sem que a suíte quebre).
 
 Duas garantias que valem mencionar porque são incomuns:
 
@@ -304,11 +332,40 @@ Duas garantias que valem mencionar porque são incomuns:
 - **Nenhum teste toca a rede.** A feature de IA da seção 5.4 é testada com o
   cliente HTTP dublado; o caminho sem chave é testado de verdade.
 
-O CI (`.github/workflows/ci.yml`) roda os dois jobs em `ubuntu-latest` a partir
-do checkout — que é, por construção, a simulação contínua do clone limpo do
-avaliador. Cada verificação é um passo nomeado, para que a falha aponte o
-culpado sem abrir o log; duas delas são guardas de texto, uma por lado, contra
-dinheiro em ponto flutuante:
+### 3.1 Matriz de rastreabilidade (RF/RN → prova)
+
+Os ids abaixo são **normativos** (RESUMO-DO-PROJETO.md §10, local e fonte
+única): um arquivo pode mudar de pasta, mas o nome do arquivo e o id do caso
+não mudam sem que a matriz mude primeiro. `describe(...)` no frontend carrega
+a mesma tag (`'CheckoutStatementDialog · RF7 · RN1 · RN2 · RN3 · RN5 · RN6'`),
+o que permite rodar só uma fatia: `pnpm test -- --run -t "RN5"` no frontend,
+`pnpm e2e --grep @RN5` no e2e.
+
+| ID | Prova backend | Prova frontend (unitário/integração) | Prova e2e |
+| --- | --- | --- | --- |
+| RF1 | `test_create_guest_persists_normalized_pii` | `GuestForm.test.tsx::test_requires_name_document_phone` | `reception.spec.ts` |
+| RF2 | `test_create_reservation_persists_pending` | `ReservationForm.test.tsx::test_submits_dates_and_vehicle_flag` | `reception.spec.ts` |
+| RF3 | `test_search_name_fragment` e afins | `GuestTable.test.tsx::test_search_input_debounces_and_queries` | `reception.spec.ts` |
+| RF4 | `test_in_hotel_only_checked_in` | `GuestTable.test.tsx::test_tab_in_hotel_switches_dataset` | — |
+| RF5 | `test_pending_checkin_lists_pending` | `GuestTable.test.tsx::test_tab_pending_switches_dataset` | `reception.spec.ts` |
+| RF6 | `test_checkin_after_14_succeeds` | `EarlyCheckinFlow.test.tsx::test_checkin_success_updates_row` | `reception.spec.ts` |
+| RF7 | `test_checkout_freezes_totals` | `CheckoutStatementDialog.test.tsx::test_T7_full_statement` | `reception.spec.ts`, `checkout.spec.ts` |
+| RF8 | `test_login_returns_access_refresh` | `ProtectedRoute.test.tsx::test_redirects_anonymous_to_login` | `login.spec.ts`, `admin.spec.ts` |
+| RN1 | `test_truth_table[T1]`, `[T4]` | `test_T1_no_late_fee_line` | `checkout.spec.ts` |
+| RN2 | `test_truth_table[T2]` | `test_T7_full_statement` | `checkout.spec.ts` |
+| RN3 | `test_truth_table[T2]`, `[T3]`, `[T9]` | `test_T7_full_statement` | `checkout.spec.ts` |
+| RN4 | `test_early_checkin_boundaries` | `EarlyCheckinFlow.test.tsx::test_409_opens_dialog_and_retry_allow_early` | `reception.spec.ts` (fronteira 14h não afirmada ponta a ponta — relógio real) |
+| RN5 | `test_truth_table[T5]`, `[T7]`, `[T8]` | `test_T7_full_statement` (+ `test_T1_no_late_fee_line`) | `checkout.spec.ts` |
+| RN6 | `test_checkout_statement_matches_T7` | `test_T7_full_statement` (prova primária de exibição) | `checkout.spec.ts` |
+
+O CI (`.github/workflows/ci.yml`) roda três jobs em `ubuntu-latest` a partir do
+checkout — que é, por construção, a simulação contínua do clone limpo do
+avaliador — e o `e2e` só começa depois que `backend` e `frontend` passam. Cada
+verificação é um passo nomeado, para que a falha aponte o culpado sem abrir o
+log; duas delas são guardas de texto contra dinheiro em ponto flutuante (uma
+por lado), e o frontend tem mais duas guardas próprias — os ids normativos
+acima existem de verdade, e os arquivos que os pinos de cobertura apontam
+também existem (glob sem arquivo passa em silêncio: mapa vazio é 100%):
 
 ```bash
 # backend: nada em hotel/ ou accounts/ constrói um float
@@ -316,7 +373,9 @@ dinheiro em ponto flutuante:
 
 # frontend: o módulo que formata dinheiro e o extrato não convertem para número
 ! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" \
-    src/lib/money.ts src/features/reservations/CheckoutStatementDialog.tsx src/features/reservations/components/ReservationSections.tsx src/features/pricing
+    src/lib/format/money.ts src/features/reservations/components/CheckoutStatementDialog \
+    src/features/reservations/components/ReservationSections \
+    src/features/reservations/components/ReservationTable src/features/pricing
 ```
 
 ---
@@ -592,7 +651,8 @@ nunca por texto:
 ```
 hotel-management/
 ├── docker-compose.yml          # db (PG 17) · backend (gunicorn) · frontend (Vite)
-├── .github/workflows/ci.yml    # dois jobs: backend (com PG de serviço) e frontend
+├── .github/workflows/ci.yml    # três jobs: backend (com PG de serviço), frontend, e2e
+├── .claude/skills/              # testing-frontend · frontend-ui-components · adding-shadcn-component
 ├── backend/
 │   ├── config/                 # settings, urls, health
 │   ├── accounts/               # CustomUser (o atendente nasce do seed)
@@ -606,19 +666,29 @@ hotel-management/
 │   │   └── management/commands/seed_demo.py
 │   ├── ai/                     # diferencial opcional (5.4), zero acoplamento
 │   └── tests/{unit,db,api}/
-└── frontend/src/
-    ├── app/                    # casca: App, providers, router (rota de layout),
-    │                           #   AppLayout com o menu, PageFallback
-    ├── pages/                  # uma composição fina por rota; não conhece `app/`
-    ├── lib/                    # sem UI: apiClient (Bearer + refresh-once), errors,
-    │                           #   errorLogger, schemas/forms/normalize (zod), money,
-    │                           #   pii, dates, routes, focus, useInvalidateServerState
-    ├── components/
-    │   ├── ErrorBoundary/      # boundary + fallback "Algo deu errado", com retry
-    │   ├── icons/              # AlertIcon, CloseIcon, RefreshIcon, SpinnerIcon
-    │   └── ui/                 # primitivos Tailwind mínimos, expostos por barrel
-    └── features/{auth,guests,reservations,rooms,ai}/
-                                # api · hooks · schemas · types · componentes + testes
+└── frontend/
+    ├── e2e/                    # Playwright: support · auth.setup · 4 specs contra o backend real
+    ├── playwright.config.ts
+    └── src/
+        ├── app/                # casca: App, providers, router (rota de layout)
+        │                       #   e app/layout/: AppLayout (menu), SessionMenu, PageFallback
+        ├── pages/              # uma pasta por rota (Página.tsx + testes + index.ts);
+        │                       #   não conhece `app/`
+        ├── lib/                # sem UI: api (apiClient, Bearer + refresh-once),
+        │                       #   errors, format (money, dates, pii, countries),
+        │                       #   forms (schemas/normalize, zod), a11y (foco),
+        │                       #   auth (sessão), notify (toast), routing, utils (cn)
+        ├── components/
+        │   ├── ErrorBoundary/  # boundary + fallback "Algo deu errado", com retry
+        │   ├── ui/             # shadcn (Base UI): button, input, select, dialog,
+        │   │                   #   alert-dialog, dropdown-menu, tabs, table, typography…
+        │   │                   #   vendorizados, sem teste próprio
+        │   └── common/         # compostos autorais: DataTable, PageHeader, FormField,
+        │                       #   Toaster, Pagination, Alert, EmptyState, ErrorState…
+        └── features/{auth,guests,reservations,rooms,pricing,ai}/
+                                # api · hooks · schemas · types · lib (lógica pura) ·
+                                # components/<Componente>/ (Componente.tsx + teste + index.ts)
+                                # · __fixtures__
 ```
 
 **O estilo tem nome.** Isto é um monólito Django modular com **camada de
@@ -783,10 +853,11 @@ minha máquina" e "passa no CI" signifiquem a mesma coisa:
 | Ferramenta | Configuração | Papel |
 |---|---|---|
 | **Ruff** | `backend/pyproject.toml` | lint e formatação do Python |
-| **Prettier** | `frontend/.prettierrc` | formatação única do frontend (sem `;`, aspas simples, 100 colunas), com `prettier-plugin-tailwindcss` ordenando as classes utilitárias. `pnpm run format:check` é passo do CI |
-| **ESLint 9**, flat config | `frontend/eslint.config.js` | `typescript-eslint` **type-aware** (`strictTypeChecked`), `jsx-a11y`, `react-hooks`, `simple-import-sort`, `testing-library`/`jest-dom` nos testes — e `no-restricted-imports` por pasta impondo as camadas `lib → components → features → pages → app`: `lib` não importa ninguém, `components` não importa features nem páginas, nenhuma feature alcança `pages` ou `app`, e uma página não alcança `app`. Roda com `--max-warnings 0` |
-| **TypeScript** | `frontend/tsconfig{,.app,.test,.node}.json` | três programas por `references` (aplicação, testes, `vite.config.ts`), para que `node` e os globais de teste não tipem código de produção. `strict` + `noUncheckedIndexedAccess`; `pnpm run typecheck` é `tsc -b` |
-| **Vitest** + cobertura v8 | `frontend/vite.config.ts` | `mockReset`/`restoreMocks` globais (nenhum teste herda dublê do vizinho) e **piso de cobertura** que falha o CI ao regredir |
+| **Prettier** | `frontend/.prettierrc` | formatação única do frontend (sem `;`, aspas simples, 100 colunas), com `prettier-plugin-tailwindcss` ordenando as classes utilitárias — inclusive dentro de `cn()`/`cva()` (`tailwindFunctions`). `pnpm run format:check` é passo do CI |
+| **ESLint 9**, flat config | `frontend/eslint.config.js` | `typescript-eslint` **type-aware** (`strictTypeChecked`), `jsx-a11y`, `react-hooks`, `simple-import-sort`, `testing-library`/`jest-dom` nos testes — e `no-restricted-imports` por pasta impondo as camadas `lib → components → features → pages → app`: `lib` não importa ninguém, `components` não importa features nem páginas, nenhuma feature alcança `pages` ou `app`, e uma página não alcança `app`; dentro de `features/**`/`pages/**` também é proibido `../../*` (sempre `@/`). Roda com `--max-warnings 0` |
+| **TypeScript** | `frontend/tsconfig{,.app,.test,.node,.e2e}.json` | quatro programas por `references` (aplicação, testes, `vite.config.ts`, `e2e/` + `playwright.config.ts`), para que `node`, os globais de teste e o Playwright não tipem código de produção. `strict` + `noUncheckedIndexedAccess`; `pnpm run typecheck` é `tsc -b` |
+| **Vitest** + cobertura v8 | `frontend/vite.config.ts` | `mockReset`/`restoreMocks` globais (nenhum teste herda dublê do vizinho) e **piso de cobertura** condicionado (§3) que falha o CI ao regredir |
+| **Playwright** | `frontend/playwright.config.ts` | e2e só Chromium, `workers: 1`; `webServer` sobe gunicorn e o Vite dev sozinho; `pnpm run e2e` / `e2e:ui` / `e2e:report` |
 | **`.editorconfig`** e `.vscode/` | raiz do repositório | fim de linha, indentação e format-on-save iguais para quem clonar; as extensões sugeridas cobrem os dois lados |
 | **Node fixado** | `frontend/.nvmrc` (24) e `engines` no `package.json` | a versão da imagem, do CI e do caminho híbrido é uma só |
 | **pnpm fixado** | `packageManager` no `package.json` (`pnpm@11.25.0`) | `corepack` (embutido no Node) lê o campo e baixa esse exato binário — mesma versão na imagem, no CI e no caminho híbrido |

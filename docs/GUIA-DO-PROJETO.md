@@ -76,7 +76,11 @@ docker compose exec backend uv run pytest -q
 
 # frontend (de dentro de frontend/)
 cd frontend && pnpm run test -- --run
-# → Test Files 54 passed (54) / Tests 372 passed (372)
+# → Test Files 47 passed (47) / Tests 309 passed (309)
+
+# e2e (contra o backend real, de dentro de frontend/)
+pnpm exec playwright install chromium && pnpm run e2e
+# → 7 passed
 ```
 
 Os números acima são os da execução em 04/09/2026; o total sobe a cada teste
@@ -237,56 +241,62 @@ frontend/src/
 │   ├── router.tsx        # /login eager; as páginas protegidas sob uma rota de layout, em chunks lazy
 │   ├── AppLayout.tsx     # skip-link, <header> com o menu e o chip do papel, <main id="main">
 │   └── PageFallback.tsx  # o fallback do Suspense, dentro do <main>
-├── pages/                # uma composição fina por rota; não conhece `app/`
-│   ├── DashboardPage.tsx # recepção: GuestTable + ações + os quatro diálogos
-│   ├── useDashboardDialog.ts   # qual diálogo está aberto, em união discriminada
-│   ├── ReservationsPage.tsx    # lista com filtros na URL
-│   ├── ReservationDetailPage.tsx  # ficha, histórico com ator, conta e ações
-│   ├── RoomsPage.tsx     # inventário; escrita só para o admin
-│   └── PricingPage.tsx   # tarifa vigente, histórico e publicação
-├── lib/                  # infraestrutura sem UI (nada aqui importa componente ou feature)
-│   ├── apiClient.ts      # axios: baseURL /api, Bearer, refresh-once em 401, parseResponse
-│   ├── errors.ts         # ApiError com união de códigos fechada, a partir do envelope
-│   ├── errorLogger.ts    # destino dos erros: console em DEV, silencioso em produção
-│   ├── schemas.ts        # zod compartilhado: moneyString, isoDate, isoDateTime, paginated
-│   ├── forms.ts          # requiredString + applyServerErrors (erro do servidor → campo)
-│   ├── normalize.ts      # documento alfanumérico, telefone dígitos (espelho de D9)
-│   ├── money.ts          # formatBRL — formata, nunca calcula
-│   ├── pii.ts            # máscara de exibição de CPF e telefone
-│   ├── dates.ts          # formatação de data por manipulação de string
-│   ├── queryKeys.ts      # as raízes de cache, só constantes
-│   ├── queryClient.ts    # a política de roteamento de erro (toast × inline × boundary)
-│   ├── useInvalidateServerState.ts   # a invalidação cruzada, num hook só
-│   ├── session.ts        # store observável dos tokens
-│   ├── toast.ts          # store observável dos avisos
-│   └── useDebouncedValue.ts    # o atraso de 300 ms da busca
+├── pages/                # uma pasta por rota (Página.tsx + teste + index.ts); não conhece `app/`
+│   ├── DashboardPage/    # recepção: GuestTable + ações + os quatro diálogos
+│   │                     #   (+ useDashboardDialog.ts, + 3 flows de teste)
+│   ├── LoginPage/        # veio de features/auth: é rota, não feature
+│   ├── ReservationsPage/       # lista com filtros na URL
+│   ├── ReservationDetailPage/  # ficha, histórico com ator, conta e ações (+ skeleton)
+│   ├── RoomsPage/        # inventário; escrita só para o admin
+│   └── PricingPage/      # tarifa vigente, histórico e publicação
+├── lib/                  # infraestrutura sem UI (nada aqui importa componente ou feature),
+│   │                     #   organizada por preocupação; imports entre subpastas são relativos
+│   ├── api/              # apiClient (Bearer + refresh-once), queryClient, queryKeys, schemas
+│   ├── auth/             # session.ts — store observável dos tokens
+│   ├── errors/           # errors.ts (ApiError), errorLogger.ts
+│   ├── format/           # money.ts (formata, nunca calcula), dates.ts, pii.ts, countries.ts
+│   ├── forms/            # forms.ts (applyServerErrors), normalize.ts (espelho de D9)
+│   ├── hooks/            # useDebouncedValue.ts (300 ms da busca)
+│   ├── a11y/             # focus.ts — foco após fechar diálogos
+│   ├── notify/           # toast.ts — store observável dos avisos
+│   ├── routing/          # routes.ts, pagination.ts
+│   └── utils/            # cn.ts (clsx + tailwind-merge)
 ├── components/
 │   ├── ErrorBoundary/    # ErrorBoundary + ErrorFallback ("Algo deu errado" com retry)
-│   ├── icons/            # AlertIcon, CloseIcon, RefreshIcon, SpinnerIcon
-│   └── ui/               # primitivos: Button, Input, Checkbox, Textarea, Dialog, Table,
-│                         #   Tabs, Alert, Toaster, DismissButton, States, + index.ts
+│   ├── ui/               # shadcn (Base UI), vendorizados, sem teste próprio: button, input,
+│   │                     #   select, checkbox, dialog, alert-dialog, dropdown-menu, tabs,
+│   │                     #   table, skeleton, badge, typography, field, label + index.ts
+│   └── common/           # compostos autorais, com teste quando há lógica: DataTable,
+│                         #   PageHeader, FormField, Toaster, Pagination, Alert,
+│                         #   DismissButton, EmptyState, ErrorState, DescriptionList
 ├── features/
-│   ├── auth/             # LoginPage, ProtectedRoute, useAuth, api, hooks, schemas
-│   ├── guests/           # GuestTable, GuestForm, tabs.ts, components/, __fixtures__
-│   ├── reservations/     # ReservationForm, ReservationActions, os três diálogos, __fixtures__
+│   ├── auth/             # ProtectedRoute (components/), useAuth, api, hooks, schemas
+│   ├── guests/           # GuestForm, GuestTable (components/), __fixtures__
+│   ├── reservations/     # ReservationForm e os diálogos (components/), lib pura
+│   │                     #   (status, history, filters, payment), __fixtures__
+│   ├── rooms/            # RoomForm, RoomActions e os diálogos (components/), __fixtures__
+│   ├── pricing/          # PolicyForm, CurrentPolicyCard, PolicyHistoryTable (components/)
 │   └── ai/               # AiFillGuest, api, hooks, schemas, types
-└── test/                 # renderWithProviders, fixtures, setup
+└── test/                 # renderWithProviders, renderPage, fixtures, setup
 ```
 
-Cada `features/<x>/` segue o mesmo **quinteto**: `types.ts` (o contrato tipado),
-`schemas.ts` (os schemas zod de onde esses tipos saem, por `z.infer`), `api.ts`
-(as chamadas HTTP), `hooks.ts` (as queries e mutations do TanStack Query), e os
-componentes. Os testes moram ao lado do arquivo testado (`GuestTable.test.tsx`
-vizinho de `GuestTable.tsx`).
+Cada `features/<x>/` segue o mesmo **quinteto** na raiz: `types.ts` (o contrato
+tipado), `schemas.ts` (os schemas zod de onde esses tipos saem, por `z.infer`),
+`api.ts` (as chamadas HTTP), `hooks.ts` (as queries e mutations do TanStack
+Query) — e os componentes moram em `components/<Componente>/`, uma pasta por
+componente (`Componente.tsx` + `Componente.test.tsx` quando há teste próprio +
+`index.ts`). Os testes que montam a página inteira (os "flows") moram ao lado
+da página em `pages/`, não da feature.
 
 Três regras de importação, impostas por lint e não por combinado: um único alias
-(`@/`), com relativo apenas dentro da própria pasta; barrel (`index.ts`) só na
-camada compartilhada — `components/ui`, `components/icons` e
-`components/ErrorBoundary` —, nunca em `lib/` nem nas features; e camadas em uma
-direção só, `lib` → `components` → `features` → `pages` → `app`. Entre as
-features o grafo também é dirigido e sem ciclo: `rooms` é folha (não importa
-ninguém), `guests` lê `rooms` (o quarto vem embutido no resumo da reserva) e
-`ai`, e `reservations` lê `guests` e `rooms` (o seletor de acompanhantes e o de
+(`@/`) entre pastas de topo — dentro de `features/**` e `pages/**` é proibido
+até `../../` (relativo só dentro do próprio componente); barrel (`index.ts`) em
+toda pasta de componente e em `components/ui`, `components/common` e
+`components/ErrorBoundary`, nunca solto em `lib/`; e camadas em uma direção só,
+`lib` → `components` → `features` → `pages` → `app`. Entre as features o grafo
+também é dirigido e sem ciclo: `rooms` é folha (não importa ninguém), `guests`
+lê `rooms` (o quarto vem embutido no resumo da reserva) e `ai`, e
+`reservations` lê `guests` e `rooms` (o seletor de acompanhantes e o de
 quartos). O que compõe features irmãs sem uma conhecer a outra é a camada
 `pages`.
 
@@ -335,14 +345,14 @@ escrito no código:
   aparecer antes da rede — e o `400 VALIDATION_ERROR` continua sendo remapeado
   campo a campo quando chega (`frontend/src/lib/forms.ts:24-56`). Duplicidade
   deliberada, com a autoridade em um lado só.
-- **Abas com o padrão ARIA completo, e o extrato fora da linha.** As abas usam
-  `role="tablist"` com *roving tabindex* e navegação por setas
-  (`frontend/src/components/ui/Tabs.tsx:25-64`), porque meia implementação de
-  ARIA é pior que nenhuma. E os diálogos disparados por uma linha — extrato de
-  checkout, confirmação de cancelamento — vivem na página, não na linha: o
-  checkout tira o hóspede da aba, a linha desmonta, e um diálogo montado dentro
-  dela iria embora no meio da mutation
-  (`frontend/src/pages/DashboardPage.tsx`).
+- **Abas do Base UI, e o extrato fora da linha.** As abas são o primitivo
+  `Tabs` do shadcn/Base UI (`frontend/src/components/ui/tabs.tsx`) — o padrão
+  ARIA completo (`role="tablist"`, *roving tabindex*, navegação por setas) vem
+  da biblioteca, não de uma reimplementação autoral. E os diálogos disparados
+  por uma linha — extrato de checkout, confirmação de cancelamento — vivem na
+  página, não na linha: o checkout tira o hóspede da aba, a linha desmonta, e
+  um diálogo montado dentro dela iria embora no meio da mutation
+  (`frontend/src/pages/DashboardPage/DashboardPage.tsx`).
 - **Uma camada `pages` entre as features e a casca.** Uma página compõe várias
   features — a reserva usa `reservations`, `rooms` e `guests` ao mesmo tempo —
   e nenhuma feature pode importar outra para isso sem virar um novelo. `pages/`
@@ -985,14 +995,16 @@ Decida pela natureza da mudança, não pelo arquivo que você abriu primeiro:
 | validação de entrada, ou forma da resposta | `hotel/serializers/` | `tests/api/test_guests.py` ou `test_reservation_flow.py` |
 | uma rota, um status code, um parâmetro de query | `hotel/views/` (+ `config/urls.py` se for rota nova) | `tests/api/` |
 | a forma de um erro | `hotel/exceptions.py` | `tests/api/` |
-| tela, tabela, diálogo | `frontend/src/features/<x>/` | `<Componente>.test.tsx` ao lado |
-| uma página nova (rota) | `frontend/src/pages/<Página>.tsx` + rota em `app/router.tsx` + `ROUTES` em `lib/routes.ts` | `<Página>.test.tsx` ao lado, montada com `renderPage` |
-| normalização de valor digitado (dinheiro, fator) | `frontend/src/lib/money.ts` (`toDecimalString`) | `lib/money.test.ts` |
+| tela, tabela, diálogo | `frontend/src/features/<x>/components/<Componente>/` | `<Componente>.test.tsx` ao lado, quando há lógica própria |
+| uma página nova (rota) | `frontend/src/pages/<Página>/<Página>.tsx` + rota em `app/router.tsx` + `ROUTES` em `lib/routing/routes.ts` | `<Página>.test.tsx` ao lado, montada com `renderPage` |
+| normalização de valor digitado (dinheiro, fator) | `frontend/src/lib/format/money.ts` (`toDecimalString`) | `lib/format/money.test.ts` |
 | uma regra de formulário (campo obrigatório, mínimo, comparação de datas) | `frontend/src/features/<x>/schemas.ts` | `schemas.test.ts` ao lado, sem montar componente |
 | a forma de uma resposta da API | `frontend/src/features/<x>/schemas.ts` (+ `types.ts` por `z.infer`) | `schemas.test.ts`, e o teste do componente que a consome |
-| onde um erro do servidor aparece na tela | `frontend/src/lib/forms.ts` (campo × alerta) ou `frontend/src/lib/queryClient.ts` (toast × inline × boundary) | `lib/forms.test.ts` · `lib/errors.test.ts` |
-| formatação de dinheiro, data ou PII | `frontend/src/lib/` | `lib/*.test.ts` |
-| um primitivo de UI novo, ou um ícone | `frontend/src/components/ui/` (+ `index.ts`) ou `frontend/src/components/icons/` | `<Primitivo>.test.tsx` ao lado |
+| onde um erro do servidor aparece na tela | `frontend/src/lib/forms/forms.ts` (campo × alerta) ou `frontend/src/lib/api/queryClient.ts` (toast × inline × boundary) | `lib/forms/forms.test.ts` · `lib/errors/errors.test.ts` |
+| formatação de dinheiro, data ou PII | `frontend/src/lib/format/` | `lib/format/*.test.ts` |
+| um primitivo shadcn/Base UI novo | `frontend/src/components/ui/` (+ `index.ts`) — skill `adding-shadcn-component` | sem teste próprio (vendorizado) |
+| um composto autoral novo (DataTable, PageHeader…) | `frontend/src/components/common/<Composto>/` | `<Composto>.test.tsx` ao lado, quando há lógica |
+| um fluxo real contra o backend | `frontend/e2e/<fluxo>.spec.ts` | `pnpm run e2e` — ver README §3.1 para a tag `@RFn`/`@RNn` |
 
 Regra prática: se a sua mudança precisa de banco para ser testada, ela
 provavelmente está na camada errada. A camada `tests/unit/` tem 44 testes e
