@@ -6,7 +6,7 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { ROUTES } from '@/lib/routing/routes'
 
-import { AppLayout } from './AppLayout'
+import { AppLayout } from './layout/AppLayout'
 
 // O login é o primeiro paint de quem chega sem sessão, então fica no bundle
 // inicial; cada página autenticada vem num chunk próprio, carregado dentro do

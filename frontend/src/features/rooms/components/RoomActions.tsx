@@ -1,4 +1,12 @@
-import { Button } from '@/components/ui'
+import { EllipsisIcon } from 'lucide-react'
+
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui'
 import { notifySuccess } from '@/lib/notify/toast'
 
 import { useUpdateRoom } from '../hooks'
@@ -19,24 +27,29 @@ export function RoomActions({ room, onEditCapacity, onRequestDeactivate }: RoomA
   })
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button size="sm" variant="outline" onClick={() => onEditCapacity(room)}>
-        Editar capacidade
-      </Button>
-      {room.is_active ? (
-        <Button size="sm" variant="destructive" onClick={() => onRequestDeactivate(room)}>
-          Desativar
-        </Button>
-      ) : (
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={reactivate.isPending}
-          onClick={() => reactivate.mutate({ id: room.id, patch: { is_active: true } })}
-        >
-          {reactivate.isPending ? 'Reativando…' : 'Reativar'}
-        </Button>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon" aria-label={`Ações do quarto ${room.number}`} />
+        }
+      >
+        <EllipsisIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem onClick={() => onEditCapacity(room)}>Editar capacidade</DropdownMenuItem>
+        {room.is_active ? (
+          <DropdownMenuItem variant="destructive" onClick={() => onRequestDeactivate(room)}>
+            Desativar
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            disabled={reactivate.isPending}
+            onClick={() => reactivate.mutate({ id: room.id, patch: { is_active: true } })}
+          >
+            {reactivate.isPending ? 'Reativando…' : 'Reativar'}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Badge, Button, Typography } from '@/components/ui'
+import { Typography } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { useAuth } from '@/features/auth/useAuth'
 import { MAIN_CONTENT_ID } from '@/lib/a11y/focus'
@@ -11,7 +11,8 @@ import { errorMessage } from '@/lib/errors/errors'
 import { toastStore } from '@/lib/notify/toast'
 import { ROUTES } from '@/lib/routing/routes'
 
-import { PageFallback } from './PageFallback'
+import { PageFallback } from '../PageFallback'
+import { SessionMenu } from '../SessionMenu'
 
 // `end` só na recepção: as demais precisam continuar ativas nas suas subrotas
 // (`/reservas/7` ainda é "Reservas").
@@ -40,6 +41,8 @@ export function AppLayout() {
     toastStore.clear()
   }
 
+  const displayName = username ?? 'atendente'
+
   return (
     <div className="min-h-screen bg-slate-100">
       <a
@@ -64,15 +67,7 @@ export function AppLayout() {
             </nav>
           </div>
           <nav aria-label="Sessão" className="flex items-center gap-3">
-            <Typography as="p" variant="caption" className="flex items-center gap-2">
-              <Typography as="span" variant="caption" weight="medium" className="text-foreground">
-                {username ?? 'atendente'}
-              </Typography>
-              {isAdmin ? <Badge variant="info">admin</Badge> : null}
-            </Typography>
-            <Button variant="ghost" size="sm" onClick={onSignOut}>
-              Sair
-            </Button>
+            <SessionMenu username={displayName} isAdmin={isAdmin} onSignOut={onSignOut} />
           </nav>
         </div>
       </header>

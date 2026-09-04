@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchGuests } from '@/features/guests/api'
+import { session } from '@/lib/auth/session'
 import { signInForTest } from '@/test/renderWithProviders'
 
 import { App } from './App'
@@ -39,19 +39,23 @@ describe('App', () => {
       await screen.findByRole('tablist', { name: 'Listagens de hóspedes' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Novo hóspede' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Menu da sessão' })).toBeInTheDocument()
   })
 
+  // "Sair" é um `menuitem` dentro do `Menu` do Base UI, cujo popup não resolve
+  // em jsdom (mesma limitação já documentada para o `Select`): o clique em si
+  // fica para o e2e, e aqui se afirma a reação real ao encerramento da sessão
+  // — `session.clear()`, o que o botão de fato dispara — que é o comportamento
+  // sob teste.
   it('nao entrega ao proximo atendente a listagem do anterior', async () => {
-    const user = userEvent.setup()
     signInForTest('recepcao')
     render(<App />)
 
     await screen.findByRole('tablist', { name: 'Listagens de hóspedes' })
     expect(fetchGuests).toHaveBeenCalledTimes(1)
 
-    await user.click(screen.getByRole('button', { name: 'Sair' }))
-    expect(screen.getByLabelText('Usuário')).toBeInTheDocument()
+    session.clear()
+    expect(await screen.findByLabelText('Usuário')).toBeInTheDocument()
 
     signInForTest('gerencia')
 
