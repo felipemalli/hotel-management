@@ -1,3 +1,5 @@
+// TODO: Rever
+
 // Trade-off assumido: os tokens vivem em `localStorage`, logo um XSS os lê. O
 // access dura 60 min, o refresh 12 h e a página não carrega script de terceiro.
 // A alternativa (cookie HttpOnly + CSRF) exigiria endpoint que a API não expõe.

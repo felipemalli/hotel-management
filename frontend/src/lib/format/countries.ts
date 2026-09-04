@@ -1,3 +1,4 @@
+// TODO: rever
 // Espelho de `backend/hotel/normalization.py::ISO_3166_ALPHA2`: os 249 códigos
 // oficialmente atribuídos, na mesma ordem. Mudou lá, muda aqui — a lista do
 // `select` é trabalho do frontend por decisão declarada no backend.
