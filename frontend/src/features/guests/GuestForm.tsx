@@ -1,16 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
-import { Alert, Button, Input } from '@/components/ui'
+import { Alert, Button, Input, Select } from '@/components/ui'
 import { AiFillGuest } from '@/features/ai/AiFillGuest'
+import { COUNTRY_OPTIONS } from '@/lib/countries'
 import { errorMessage, isApiErrorCode } from '@/lib/errors'
 import { applyServerErrors } from '@/lib/forms'
 
 import { useCreateGuest } from './hooks'
-import { guestFormSchema } from './schemas'
+import { guestFormSchema, PHONE_HINT } from './schemas'
 import type { CreateGuestPayload, Guest } from './types'
 
-const FIELDS = ['full_name', 'document', 'phone'] as const
+const FIELDS = ['full_name', 'document', 'phone', 'nationality'] as const
 
 export interface GuestFormProps {
   onSuccess?: (guest: Guest) => void
@@ -30,7 +31,7 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
     resolver: zodResolver(guestFormSchema),
     mode: 'onSubmit',
     reValidateMode: 'onChange',
-    defaultValues: { full_name: '', document: '', phone: '' },
+    defaultValues: { full_name: '', document: '', phone: '', nationality: '' },
   })
 
   const createGuest = useCreateGuest({
@@ -75,10 +76,22 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
       />
       <Input
         label="Telefone"
-        hint="Com DDD."
+        hint={PHONE_HINT}
         error={errors.phone?.message}
         {...register('phone')}
       />
+      <Select
+        label="Nacionalidade"
+        error={errors.nationality?.message}
+        {...register('nationality')}
+      >
+        <option value="">Selecione…</option>
+        {COUNTRY_OPTIONS.map((option) => (
+          <option key={option.code} value={option.code}>
+            {option.name}
+          </option>
+        ))}
+      </Select>
 
       <div className="flex justify-end gap-2">
         {onCancel ? (

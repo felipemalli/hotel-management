@@ -21,4 +21,5 @@ export interface CreateGuestPayload {
   full_name: string
   document: string
   phone: string
+  nationality: string
 }

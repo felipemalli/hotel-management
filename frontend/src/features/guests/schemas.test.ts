@@ -7,21 +7,34 @@ import {
   guestInHotelPageSchema,
   guestPageSchema,
   guestPendingCheckinPageSchema,
+  NATIONALITY_MESSAGE,
+  PHONE_FORMAT_MESSAGE,
 } from './schemas'
 
-const VALID = { full_name: 'Ana Souza', document: '123.456.789-01', phone: '(21) 98888-7777' }
+const VALID = {
+  full_name: 'Ana Souza',
+  document: '123.456.789-01',
+  phone: '+55 21 98888-7777',
+  nationality: 'BR',
+}
 
 describe('guestFormSchema', () => {
-  it('aceita nome, documento e telefone validos', () => {
+  it('aceita nome, documento, telefone com DDI e nacionalidade validos', () => {
     expect(guestFormSchema.safeParse(VALID).success).toBe(true)
   })
 
   it('devolve exatamente um problema por campo vazio, nunca dois', () => {
-    const result = guestFormSchema.safeParse({ full_name: '', document: '', phone: '' })
+    const result = guestFormSchema.safeParse({
+      full_name: '',
+      document: '',
+      phone: '',
+      nationality: '',
+    })
 
     expect(result.success).toBe(false)
-    expect(result.error?.issues).toHaveLength(3)
+    expect(result.error?.issues).toHaveLength(4)
     expect(result.error?.issues.map((issue) => issue.message)).toEqual([
+      'Campo obrigatório.',
       'Campo obrigatório.',
       'Campo obrigatório.',
       'Campo obrigatório.',
@@ -37,11 +50,25 @@ describe('guestFormSchema', () => {
     )
   })
 
-  it('barra telefone curto demais apos normalizar', () => {
-    const result = guestFormSchema.safeParse({ ...VALID, phone: '2199' })
+  it('barra telefone sem o codigo do pais com a frase do servidor', () => {
+    const result = guestFormSchema.safeParse({ ...VALID, phone: '(21) 98888-7777' })
 
     expect(result.success).toBe(false)
-    expect(result.error?.issues[0]?.message).toBe('Telefone exige ao menos 8 dígitos.')
+    expect(result.error?.issues[0]?.message).toBe(PHONE_FORMAT_MESSAGE)
+  })
+
+  it('barra telefone curto demais mesmo com o DDI', () => {
+    const result = guestFormSchema.safeParse({ ...VALID, phone: '+55 21' })
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe(PHONE_FORMAT_MESSAGE)
+  })
+
+  it('barra nacionalidade fora da lista ISO', () => {
+    const result = guestFormSchema.safeParse({ ...VALID, nationality: 'ZZ' })
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe(NATIONALITY_MESSAGE)
   })
 })
 
@@ -53,16 +80,17 @@ describe('guestFormSchema pelo resolver do formulario', () => {
     const resolver = zodResolver(guestFormSchema)
 
     const { errors, values } = await resolver(
-      { full_name: '', document: '', phone: '' },
+      { full_name: '', document: '', phone: '', nationality: '' },
       undefined,
       { fields: {}, shouldUseNativeValidation: false },
     )
 
     expect(values).toEqual({})
-    expect(Object.keys(errors)).toEqual(['full_name', 'document', 'phone'])
+    expect(Object.keys(errors)).toEqual(['full_name', 'document', 'phone', 'nationality'])
     expect(errors.full_name?.message).toBe('Campo obrigatório.')
     expect(errors.document?.message).toBe('Campo obrigatório.')
     expect(errors.phone?.message).toBe('Campo obrigatório.')
+    expect(errors.nationality?.message).toBe('Campo obrigatório.')
   })
 
   it('mantem a mensagem de formato quando o documento e curto demais', async () => {

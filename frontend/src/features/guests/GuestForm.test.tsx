@@ -8,16 +8,20 @@ import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { ANA } from './__fixtures__/guests'
 import { GuestForm } from './GuestForm'
+import { PHONE_FORMAT_MESSAGE } from './schemas'
 
 vi.mock('@/features/guests/api')
 // O formulário carrega o slot de IA, que consulta o status da feature. Dublado
 // para que nenhum teste toque a rede: sem `enabled: true` o slot não renderiza.
 vi.mock('@/features/ai/api')
 
+const VALID_PHONE = '+55 21 98888-7777'
+
 async function fillValidGuest(user: UserEvent) {
   await user.type(screen.getByLabelText('Nome completo'), 'Ana Souza')
   await user.type(screen.getByLabelText('Documento'), '123.456.789-01')
-  await user.type(screen.getByLabelText('Telefone'), '(21) 98888-7777')
+  await user.type(screen.getByLabelText('Telefone'), VALID_PHONE)
+  await user.selectOptions(screen.getByLabelText('Nacionalidade'), 'BR')
 }
 
 describe('GuestForm', () => {
@@ -33,21 +37,20 @@ describe('GuestForm', () => {
     await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
 
     expect(createGuest).not.toHaveBeenCalled()
-    expect(await screen.findAllByText('Campo obrigatório.')).toHaveLength(3)
-    for (const label of ['Nome completo', 'Documento', 'Telefone']) {
+    expect(await screen.findAllByText('Campo obrigatório.')).toHaveLength(4)
+    for (const label of ['Nome completo', 'Documento', 'Telefone', 'Nacionalidade']) {
       expect(screen.getByLabelText(label)).toHaveAttribute('aria-invalid', 'true')
     }
 
-    await user.type(screen.getByLabelText('Nome completo'), 'Ana Souza')
-    await user.type(screen.getByLabelText('Documento'), '123.456.789-01')
-    await user.type(screen.getByLabelText('Telefone'), '(21) 98888-7777')
+    await fillValidGuest(user)
     await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
 
     expect(createGuest).toHaveBeenCalledTimes(1)
     expect(createGuest).toHaveBeenCalledWith({
       full_name: 'Ana Souza',
       document: '123.456.789-01',
-      phone: '(21) 98888-7777',
+      phone: VALID_PHONE,
+      nationality: 'BR',
     })
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(ANA))
@@ -64,9 +67,7 @@ describe('GuestForm', () => {
     )
     renderWithProviders(<GuestForm />)
 
-    await user.type(screen.getByLabelText('Nome completo'), 'Ana Souza')
-    await user.type(screen.getByLabelText('Documento'), '123.456.789-01')
-    await user.type(screen.getByLabelText('Telefone'), '(21) 98888-7777')
+    await fillValidGuest(user)
     await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
 
     const document = await screen.findByLabelText('Documento')
@@ -95,17 +96,61 @@ describe('GuestForm', () => {
     expect(screen.getByLabelText('Telefone')).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('barra o telefone curto pela regra do cliente, antes de chamar a API', async () => {
+  // O servidor exige o DDI e recusa sem ele: barrar aqui poupa a viagem e diz a
+  // mesma frase que ele diria.
+  it('barra o telefone sem o codigo do pais, antes de chamar a API', async () => {
     const user = userEvent.setup()
     renderWithProviders(<GuestForm />)
 
     await user.type(screen.getByLabelText('Nome completo'), 'Ana Souza')
     await user.type(screen.getByLabelText('Documento'), '123.456.789-01')
-    await user.type(screen.getByLabelText('Telefone'), '21 9')
+    await user.type(screen.getByLabelText('Telefone'), '(21) 98888-7777')
+    await user.selectOptions(screen.getByLabelText('Nacionalidade'), 'BR')
     await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
 
     expect(createGuest).not.toHaveBeenCalled()
-    expect(await screen.findByText('Telefone exige ao menos 8 dígitos.')).toBeInTheDocument()
+    expect(await screen.findByText(PHONE_FORMAT_MESSAGE)).toBeInTheDocument()
+  })
+
+  it('devolve o VALIDATION_ERROR de nacionalidade ao select', async () => {
+    const user = userEvent.setup()
+    vi.mocked(createGuest).mockRejectedValue(
+      new ApiError({
+        code: 'VALIDATION_ERROR',
+        detail: 'Dados inválidos.',
+        status: 400,
+        extra: {
+          nationality: ['Informe a nacionalidade como código ISO 3166-1 alpha-2, ex.: BR.'],
+        },
+      }),
+    )
+    renderWithProviders(<GuestForm />)
+
+    await fillValidGuest(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
+
+    expect(
+      await screen.findByText('Informe a nacionalidade como código ISO 3166-1 alpha-2, ex.: BR.'),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Nacionalidade')).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('exige a nacionalidade e lista o Brasil como primeira opcao', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<GuestForm />)
+
+    await user.type(screen.getByLabelText('Nome completo'), 'Ana Souza')
+    await user.type(screen.getByLabelText('Documento'), '123.456.789-01')
+    await user.type(screen.getByLabelText('Telefone'), VALID_PHONE)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
+
+    expect(createGuest).not.toHaveBeenCalled()
+    expect(await screen.findByText('Campo obrigatório.')).toBeInTheDocument()
+
+    const options = screen.getAllByRole('option')
+    expect(options[0]).toHaveValue('')
+    expect(options[1]).toHaveValue('BR')
+    expect(options[1]).toHaveTextContent('Brasil')
   })
 
   it('mostra no alerta do topo o erro que não pertence a nenhum campo', async () => {

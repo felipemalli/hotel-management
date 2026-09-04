@@ -9,6 +9,8 @@ export const GUEST_TABS = ['all', 'in-hotel', 'pending-checkin'] as const
 
 export type GuestTab = (typeof GUEST_TABS)[number]
 
+export type PartyRole = 'holder' | 'companion'
+
 export type GuestRow =
   | { tab: 'all'; guest: Guest }
   | {
@@ -16,13 +18,21 @@ export type GuestRow =
       guest: GuestInHotel
       reservation: ReservationSummary
       reservationStatus: 'CHECKED_IN'
+      role: PartyRole
     }
   | {
       tab: 'pending-checkin'
       guest: GuestPendingCheckin
       reservation: ReservationSummary
       reservationStatus: 'PENDING'
+      role: PartyRole
     }
+
+// O contrato não tem campo de papel: acompanhante é quem aparece numa reserva
+// cujo titular (`guest_id`) é outra pessoa.
+function roleOf(guest: Guest, reservation: ReservationSummary): PartyRole {
+  return reservation.guest_id === guest.id ? 'holder' : 'companion'
+}
 
 interface GuestTabConfig {
   label: string
@@ -36,19 +46,19 @@ export const GUEST_TAB_CONFIG = {
     label: 'Todos',
     caption: 'Todos os hóspedes cadastrados',
     emptyMessage: 'Nenhum hóspede encontrado',
-    headers: ['Nome', 'Documento', 'Telefone', 'Cadastro', 'Ações'],
+    headers: ['Nome', 'Documento', 'Telefone', 'Nacionalidade', 'Cadastro', 'Ações'],
   },
   'in-hotel': {
     label: 'No hotel',
     caption: 'Hóspedes no hotel',
     emptyMessage: 'Nenhum hóspede no hotel',
-    headers: ['Nome', 'Documento', 'Telefone', 'Estadia', 'Vaga', 'Check-in', 'Ações'],
+    headers: ['Nome', 'Documento', 'Telefone', 'Quarto', 'Estadia', 'Vaga', 'Check-in', 'Ações'],
   },
   'pending-checkin': {
     label: 'Check-in pendente',
     caption: 'Hóspedes com reserva pendente de check-in',
     emptyMessage: 'Nenhuma reserva aguardando check-in',
-    headers: ['Nome', 'Documento', 'Telefone', 'Reserva', 'Vaga', 'Ações'],
+    headers: ['Nome', 'Documento', 'Telefone', 'Quarto', 'Reserva', 'Vaga', 'Ações'],
   },
 } satisfies Record<GuestTab, GuestTabConfig>
 
@@ -73,6 +83,7 @@ export function toGuestRows(tab: GuestTab, datasets: GuestTabDatasets): GuestRow
         guest,
         reservation: guest.active_reservation,
         reservationStatus: 'CHECKED_IN',
+        role: roleOf(guest, guest.active_reservation),
       }))
     case 'pending-checkin':
       return (datasets['pending-checkin']?.results ?? []).flatMap((guest) =>
@@ -81,11 +92,16 @@ export function toGuestRows(tab: GuestTab, datasets: GuestTabDatasets): GuestRow
           guest,
           reservation,
           reservationStatus: 'PENDING',
+          role: roleOf(guest, reservation),
         })),
       )
   }
 }
 
-export function guestRowKey(row: GuestRow): number {
-  return row.tab === 'all' ? row.guest.id : row.reservation.id
+// Titular e acompanhante da MESMA reserva são duas linhas: a chave precisa dos
+// dois ids, senão o React recicla uma linha na outra.
+export function guestRowKey(row: GuestRow): string {
+  return row.tab === 'all'
+    ? `guest-${row.guest.id}`
+    : `reservation-${row.reservation.id}-guest-${row.guest.id}`
 }

@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 
-import { TD } from '@/components/ui'
+import { Badge, TD } from '@/components/ui'
+import { countryName } from '@/lib/countries'
 import { formatISODate, formatISODateTime } from '@/lib/dates'
 import { formatDocument, formatPhone } from '@/lib/pii'
 
-import type { GuestRow } from '../tabs'
+import type { GuestRow, PartyRole } from '../tabs'
 import type { Guest, ReservationSummary } from '../types'
 
 export interface GuestRowCellsProps {
@@ -18,6 +19,7 @@ export function GuestRowCells({ row, renderActions }: GuestRowCellsProps) {
       return (
         <>
           <GuestCells guest={row.guest} />
+          <NationalityCell guest={row.guest} />
           <TD className="text-xs text-slate-500">{formatISODateTime(row.guest.created_at)}</TD>
           <TD>{renderActions?.(row)}</TD>
         </>
@@ -25,7 +27,8 @@ export function GuestRowCells({ row, renderActions }: GuestRowCellsProps) {
     case 'in-hotel':
       return (
         <>
-          <GuestCells guest={row.guest} />
+          <GuestCells guest={row.guest} role={row.role} />
+          <RoomCell reservation={row.reservation} />
           <StayCell reservation={row.reservation} />
           <VehicleCell reservation={row.reservation} />
           <TD className="text-xs text-slate-500">
@@ -37,7 +40,8 @@ export function GuestRowCells({ row, renderActions }: GuestRowCellsProps) {
     case 'pending-checkin':
       return (
         <>
-          <GuestCells guest={row.guest} />
+          <GuestCells guest={row.guest} role={row.role} />
+          <RoomCell reservation={row.reservation} />
           <StayCell reservation={row.reservation} />
           <VehicleCell reservation={row.reservation} />
           <TD>{renderActions?.(row)}</TD>
@@ -50,14 +54,35 @@ export function GuestRowCells({ row, renderActions }: GuestRowCellsProps) {
   }
 }
 
-function GuestCells({ guest }: { guest: Guest }) {
+// O nome fica no próprio `<span>`: a etiqueta ao lado não pode entrar na busca
+// por texto exato que os testes e o atendente fazem pelo nome.
+function GuestCells({ guest, role = 'holder' }: { guest: Guest; role?: PartyRole }) {
   return (
     <>
-      <TD className="font-medium text-slate-900">{guest.full_name}</TD>
+      <TD className="font-medium text-slate-900">
+        <span className="flex flex-wrap items-center gap-2">
+          <span>{guest.full_name}</span>
+          {role === 'companion' ? <Badge tone="info">Acompanhante</Badge> : null}
+        </span>
+      </TD>
       <TD className="font-mono text-xs">{formatDocument(guest.document)}</TD>
       <TD className="font-mono text-xs">{formatPhone(guest.phone)}</TD>
     </>
   )
+}
+
+// O código cabe na coluna e é o que a API grava; o nome por extenso fica no
+// `title` para quem não reconhece a sigla.
+function NationalityCell({ guest }: { guest: Guest }) {
+  return (
+    <TD className="font-mono text-xs" title={countryName(guest.nationality)}>
+      {guest.nationality}
+    </TD>
+  )
+}
+
+function RoomCell({ reservation }: { reservation: ReservationSummary }) {
+  return <TD className="font-mono text-xs">{reservation.room.number}</TD>
 }
 
 function StayCell({ reservation }: { reservation: ReservationSummary }) {

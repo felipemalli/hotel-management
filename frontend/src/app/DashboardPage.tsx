@@ -69,7 +69,7 @@ export function DashboardPage() {
       <Dialog
         open={current?.kind === 'guest'}
         title="Novo hóspede"
-        description="Nome, documento e telefone são obrigatórios."
+        description="Nome, documento, telefone e nacionalidade são obrigatórios."
         onClose={close}
       >
         <GuestForm

@@ -113,7 +113,8 @@ usa, com o relógio injetado.
 | Hóspede | Situação | Serve para demonstrar |
 |---|---|---|
 | **Ana Souza** | Reserva `PENDING` com entrada **hoje**, com veículo | aba "Check-in pendente" e o fluxo de check-in |
-| **Bruno Lima** | `CHECKED_IN` (check-in ontem às 15:00) | aba "No hotel" e o fluxo de checkout |
+| **Bruno Lima** | `CHECKED_IN` (check-in ontem às 15:00), no quarto 102 com a acompanhante **Eva Lima** | aba "No hotel", o fluxo de checkout e a listagem de acompanhantes (D19) |
+| **Eva Lima** | Acompanhante do Bruno — hóspede completa, argentina (`+54 11 5555-4444`) | que as abas listam quem não reservou, e o telefone com DDI de estrangeiro |
 | **Carla Nunes** | `CHECKED_OUT` — sexta→domingo passados, com vaga, saída 12:01 | extrato com diária de fim de semana (R$ 180,00) **e** multa de R$ 90,00 |
 | **Davi Rocha** | Sem reserva | busca por nome, documento e telefone |
 
@@ -124,18 +125,26 @@ usa, com o relógio injetado.
    fragmento. Agora `789` e depois `123.456.789-01`: os dois acham a
    mesma Ana Souza — documento e telefone estão em claro, já normalizados, e a
    busca é por fragmento em qualquer formatação. O mesmo vale para `98888`.
-   Na tabela, CPF e telefone aparecem formatados pelo frontend.
-3. **Cadastrar (RF1).** "Novo hóspede" → nome, documento e telefone → cadastrar.
-   O formulário abre em seguida a criação da reserva desse hóspede (RF2): a
-   entrada não pode ser no passado e o mínimo é 1 noite.
+   Na tabela, CPF e telefone aparecem formatados pelo frontend, o telefone já
+   com o código do país (`+55 (21) 98888-7777`), e a nacionalidade aparece pelo
+   código, com o nome por extenso no `title`.
+3. **Cadastrar (RF1).** "Novo hóspede" → nome, documento, telefone e
+   nacionalidade → cadastrar. O telefone exige o **código do país**
+   (`+55 21 98888-7777`): digitar `(21) 98888-7777` para no próprio campo, com
+   a mesma frase que o servidor usaria, e a coluna guarda só os dígitos E.164
+   (D9). A nacionalidade é um código ISO 3166-1 alpha-2, escolhido numa lista
+   com o Brasil no topo. O formulário abre em seguida a criação da reserva
+   desse hóspede (RF2): a entrada não pode ser no passado e o mínimo é 1 noite.
 4. **Check-in (RF6, RN4).** Aba "Check-in pendente" → linha da Ana Souza →
    "Check-in". Antes das 14h locais, a API responde `409 EARLY_CHECKIN` e a
    aplicação abre o alerta com a hora do servidor ("São 13:45 — o check-in abre
    às 14:00. Confirmar mesmo assim?"); confirmar reenvia com `allow_early:
    true` e efetiva. A partir das 14h, o check-in é direto. O briefing pede
    *alerta*, não bloqueio (D4).
-5. **Checkout com extrato (RF7, RN5, RN6).** Aba "No hotel" → linha do Bruno
-   Lima → "Checkout". Abre o extrato: uma linha por diária (data, dia da
+5. **Checkout com extrato (RF7, RN5, RN6).** Aba "No hotel" → a estadia do
+   Bruno aparece em duas linhas, a dele e a da acompanhante Eva, as duas com o
+   quarto 102 e a segunda marcada como "Acompanhante". Linha do Bruno Lima →
+   "Checkout". Abre o extrato: uma linha por diária (data, dia da
    semana, diária, vaga), subtotais, a linha de multa **apenas** se houve saída
    após as 12h, e o total em destaque. Os totais ficam congelados na reserva na
    mesma transação — um segundo checkout responde `409 INVALID_STATUS`.

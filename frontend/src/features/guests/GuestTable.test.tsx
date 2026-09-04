@@ -9,7 +9,7 @@ import { ApiError } from '@/lib/errors'
 import { elementAt, page } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
-import { ANA, BRUNO, DAVI, inHotel, pendingCheckin } from './__fixtures__/guests'
+import { ANA, BRUNO, DAVI, EVA, inHotel, pendingCheckin } from './__fixtures__/guests'
 import { GuestTable } from './GuestTable'
 import { DEBOUNCE_MS } from './tabs'
 import type { Guest } from './types'
@@ -17,6 +17,7 @@ import type { Guest } from './types'
 vi.mock('@/features/guests/api')
 
 const BRUNO_IN_HOTEL = inHotel(BRUNO, {
+  room: { id: 2, number: '102' },
   checkin_date: '2026-08-31',
   checkout_date: '2026-09-02',
   has_vehicle: false,
@@ -24,6 +25,18 @@ const BRUNO_IN_HOTEL = inHotel(BRUNO, {
 })
 
 const ANA_PENDING = pendingCheckin(ANA)
+
+// Eva acompanha Bruno: mesma reserva, `guest_id` do titular. É a linha que
+// prova que a aba lista quem não reservou.
+const EVA_AS_COMPANION = inHotel(EVA, {
+  id: BRUNO_IN_HOTEL.active_reservation.id,
+  guest_id: BRUNO.id,
+  room: { id: 2, number: '102' },
+  checkin_date: '2026-08-31',
+  checkout_date: '2026-09-02',
+  has_vehicle: false,
+  checked_in_at: '2026-08-31T15:00:00-03:00',
+})
 
 describe('GuestTable', () => {
   beforeEach(() => {
@@ -89,6 +102,38 @@ describe('GuestTable', () => {
 
     expect(screen.queryByLabelText('Buscar hóspede')).not.toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /No hotel/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('mostra o quarto e marca a acompanhante na aba do hotel', async () => {
+    const user = userEvent.setup()
+    vi.mocked(fetchGuestsInHotel).mockResolvedValue(page([BRUNO_IN_HOTEL, EVA_AS_COMPANION]))
+    renderWithProviders(<GuestTable />)
+    await screen.findByText('Ana Souza')
+
+    await user.click(screen.getByRole('tab', { name: /No hotel/ }))
+    await screen.findByText('Bruno Lima')
+
+    const table = screen.getByRole('table', { name: 'Hóspedes no hotel' })
+    const holder = elementAt(within(table).getAllByRole('row'), 1)
+    const companion = elementAt(within(table).getAllByRole('row'), 2)
+
+    expect(within(holder).getByText('102')).toBeInTheDocument()
+    expect(within(holder).queryByText('Acompanhante')).not.toBeInTheDocument()
+
+    expect(within(companion).getByText('Eva Lima')).toBeInTheDocument()
+    expect(within(companion).getByText('Acompanhante')).toBeInTheDocument()
+    expect(within(companion).getByText('102')).toBeInTheDocument()
+  })
+
+  it('exibe nacionalidade e telefone com o codigo do pais na aba de todos', async () => {
+    renderWithProviders(<GuestTable />)
+    await screen.findByText('Ana Souza')
+
+    const table = screen.getByRole('table', { name: 'Todos os hóspedes cadastrados' })
+    const row = elementAt(within(table).getAllByRole('row'), 1)
+
+    expect(within(row).getByText('BR')).toHaveAttribute('title', 'Brasil')
+    expect(within(row).getByText('+55 (21) 98888-7777')).toBeInTheDocument()
   })
 
   it('test_tab_pending_switches_dataset', async () => {
