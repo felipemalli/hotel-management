@@ -7,12 +7,14 @@ import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/fe
 import { checkOut } from '@/features/reservations/api'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { page } from '@/test/fixtures'
-import { renderPage, signInForTest } from '@/test/renderWithProviders'
+import { renderPage } from '@/test/renderPage'
+import { signInForTest } from '@/test/renderWithProviders'
 
 import { T7_STATEMENT } from './__fixtures__/bills'
 
 vi.mock('@/features/guests/api')
 vi.mock('@/features/reservations/api')
+vi.mock('@/features/auth/api')
 
 const RESERVATION_ID = 7
 const GUEST_NAME = CARLA.full_name

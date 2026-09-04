@@ -8,13 +8,15 @@ import { cancelReservation } from '@/features/reservations/api'
 import { toastStore } from '@/lib/toast'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { page } from '@/test/fixtures'
-import { renderPage, signInForTest } from '@/test/renderWithProviders'
+import { renderPage } from '@/test/renderPage'
+import { signInForTest } from '@/test/renderWithProviders'
 
 import { reservation } from './__fixtures__/reservations'
 import type { Reservation } from './types'
 
 vi.mock('@/features/guests/api')
 vi.mock('@/features/reservations/api')
+vi.mock('@/features/auth/api')
 
 const RESERVATION_ID = ANA.id
 const GUEST_NAME = ANA.full_name

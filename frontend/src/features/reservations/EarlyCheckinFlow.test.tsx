@@ -9,7 +9,8 @@ import { ApiError } from '@/lib/errors'
 import { toastStore } from '@/lib/toast'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { elementAt, page } from '@/test/fixtures'
-import { renderPage, renderWithProviders, signInForTest } from '@/test/renderWithProviders'
+import { renderPage } from '@/test/renderPage'
+import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
 
 import { reservation } from './__fixtures__/reservations'
 import { ReservationActions } from './ReservationActions'
@@ -17,6 +18,7 @@ import type { Reservation } from './types'
 
 vi.mock('@/features/guests/api')
 vi.mock('@/features/reservations/api')
+vi.mock('@/features/auth/api')
 
 const RESERVATION_ID = ANA.id
 const GUEST_NAME = ANA.full_name

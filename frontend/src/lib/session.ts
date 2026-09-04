@@ -63,8 +63,9 @@ export const session = {
 
   getRefreshToken: (): string | null => refresh,
 
-  // O nome do atendente vem do que ele digitou no login: a API não expõe um
-  // endpoint de perfil, e o token é opaco para o cliente.
+  // O nome vem do que o atendente digitou no login, e não de `/auth/me/`:
+  // é preciso antes da primeira resposta, para o cabeçalho não piscar. O papel,
+  // esse sim, só o servidor diz (`features/auth/hooks.useCurrentUser`).
   getUsername: (): string | null => username,
 
   set: (data: SessionData): void => {

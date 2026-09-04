@@ -2,7 +2,8 @@ import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Button, ErrorState } from '@/components/ui'
+import { Badge, Button, ErrorState } from '@/components/ui'
+import { useIsAdmin } from '@/features/auth/hooks'
 import { useAuth } from '@/features/auth/useAuth'
 import { errorMessage } from '@/lib/errors'
 import { MAIN_CONTENT_ID } from '@/lib/focus'
@@ -28,6 +29,7 @@ function navClassName({ isActive }: { isActive: boolean }): string {
 
 export function AppLayout() {
   const { username, signOut } = useAuth()
+  const isAdmin = useIsAdmin()
   const { pathname } = useLocation()
 
   function onSignOut() {
@@ -57,8 +59,9 @@ export function AppLayout() {
             </nav>
           </div>
           <nav aria-label="Sessão" className="flex items-center gap-3">
-            <p className="text-xs text-slate-500">
+            <p className="flex items-center gap-2 text-xs text-slate-500">
               <span className="font-medium text-slate-700">{username ?? 'atendente'}</span>
+              {isAdmin ? <Badge tone="info">admin</Badge> : null}
             </p>
             <Button variant="ghost" size="sm" onClick={onSignOut}>
               Sair

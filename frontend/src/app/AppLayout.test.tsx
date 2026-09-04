@@ -1,13 +1,17 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
+import { ADMIN, ATTENDANT } from '@/features/auth/__fixtures__/users'
+import { fetchCurrentUser } from '@/features/auth/api'
 import { ROUTES } from '@/lib/routes'
 import { session } from '@/lib/session'
 import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
 
 import { AppLayout } from './AppLayout'
+
+vi.mock('@/features/auth/api')
 
 function renderLayout(route: string = ROUTES.home, page = <p>conteúdo</p>) {
   return renderWithProviders(
@@ -27,6 +31,33 @@ function Explodes(): never {
 }
 
 describe('AppLayout', () => {
+  // O papel vem do servidor, e o chip só aparece quando ele responde `ADMIN`:
+  // um controle de escrita não pode piscar na tela de quem não pode usá-lo.
+  it('nao mostra o chip de admin enquanto o papel nao chegou', () => {
+    vi.mocked(fetchCurrentUser).mockReturnValue(new Promise(() => undefined))
+    signInForTest()
+    renderLayout()
+
+    expect(screen.queryByText('admin')).not.toBeInTheDocument()
+  })
+
+  it('nao mostra o chip para o atendente', async () => {
+    vi.mocked(fetchCurrentUser).mockResolvedValue(ATTENDANT)
+    signInForTest()
+    renderLayout()
+
+    await waitFor(() => expect(fetchCurrentUser).toHaveBeenCalled())
+    expect(screen.queryByText('admin')).not.toBeInTheDocument()
+  })
+
+  it('mostra o chip quando o servidor diz que o usuario e admin', async () => {
+    vi.mocked(fetchCurrentUser).mockResolvedValue(ADMIN)
+    signInForTest('admin')
+    renderLayout()
+
+    expect(await screen.findByText('admin', { selector: 'span' })).toBeInTheDocument()
+  })
+
   it('lista o menu principal e marca a rota corrente', () => {
     renderLayout()
 

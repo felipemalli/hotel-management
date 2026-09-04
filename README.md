@@ -498,6 +498,7 @@ min, refresh de 12 h). Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 |---|---|---|
 | `POST /api/auth/token/` | — | Login → `{access, refresh}` |
 | `POST /api/auth/token/refresh/` | — | Renova o access |
+| `GET /api/auth/me/` | ✔ | `{id, username, role}` — o papel vem do servidor, nunca do token |
 | `GET /api/health/` | — | `{"status":"ok"}` (healthcheck do Compose) |
 | `GET/POST /api/guests/` | ✔ | Lista + busca (`?search=`) / cadastro |
 | `GET /api/guests/{id}/` | ✔ | Detalhe (PII completa) |

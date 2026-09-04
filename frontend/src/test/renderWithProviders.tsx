@@ -2,9 +2,8 @@ import { type QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import type { ReactElement, ReactNode } from 'react'
 import { act } from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter } from 'react-router-dom'
 
-import { AppLayout } from '@/app/AppLayout'
 import { createQueryClient } from '@/lib/queryClient'
 import { session } from '@/lib/session'
 import { toastStore } from '@/lib/toast'
@@ -35,29 +34,6 @@ export function renderWithProviders(ui: ReactElement, options: RenderWithProvide
   }
 
   return { queryClient, ...render(ui, { wrapper: Wrapper }) }
-}
-
-export interface RenderPageOptions {
-  route: string
-  path?: string
-  queryClient?: QueryClient
-}
-
-// Monta a página dentro do `AppLayout` real, como o roteador faz: é o que dá ao
-// teste o `<main id="main">` que `returnFocusToContent` procura, e o menu que o
-// atendente vê. `src/test` está isento da regra de camadas.
-export function renderPage(
-  page: ReactElement,
-  { route, path = route, queryClient }: RenderPageOptions,
-) {
-  return renderWithProviders(
-    <Routes>
-      <Route element={<AppLayout />}>
-        <Route path={path} element={page} />
-      </Route>
-    </Routes>,
-    { route, queryClient },
-  )
 }
 
 export function signInForTest(username = 'recepcao'): void {

@@ -8,6 +8,7 @@ import { signInForTest } from '@/test/renderWithProviders'
 import { App } from './App'
 
 vi.mock('@/features/guests/api')
+vi.mock('@/features/auth/api')
 
 describe('App', () => {
   beforeEach(() => {

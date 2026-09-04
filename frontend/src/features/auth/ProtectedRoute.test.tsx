@@ -1,10 +1,12 @@
 import { screen } from '@testing-library/react'
 import { Route, Routes } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
 
 import { ProtectedRoute } from './ProtectedRoute'
+
+vi.mock('@/features/auth/api')
 
 function renderProtectedApp() {
   return renderWithProviders(
