@@ -3,10 +3,9 @@ import { useId, useState } from 'react'
 import { DismissButton, FormField } from '@/components/common'
 import { Button, Input, Typography } from '@/components/ui'
 import { useGuests } from '@/features/guests/hooks'
-import { DEBOUNCE_MS } from '@/features/guests/tabs'
 import { errorMessage } from '@/lib/errors/errors'
 import { formatDocument } from '@/lib/format/pii'
-import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 
 import type { GuestRef } from '../types'
 
@@ -22,7 +21,7 @@ export interface CompanionPickerProps {
 // caminho de escrita para a mesma regra.
 export function CompanionPicker({ holderId, value, onChange, error }: CompanionPickerProps) {
   const [search, setSearch] = useState('')
-  const debounced = useDebouncedValue(search, DEBOUNCE_MS)
+  const debounced = useDebouncedValue(search, SEARCH_DEBOUNCE_MS)
   const term = debounced.trim()
   const errorId = useId()
 

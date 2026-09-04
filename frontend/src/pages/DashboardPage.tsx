@@ -1,3 +1,5 @@
+import { useCallback, useMemo } from 'react'
+
 import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import {
@@ -8,9 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui'
+import {
+  type GuestAllRow,
+  type GuestInHotelRow,
+  type GuestPendingRow,
+  GuestTable,
+} from '@/features/guests/components/GuestTable'
 import { GuestForm } from '@/features/guests/GuestForm'
-import { GuestTable } from '@/features/guests/GuestTable'
-import type { GuestRow } from '@/features/guests/tabs'
 import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStatementDialog'
 import { CancelReservationDialog } from '@/features/reservations/components/CancelReservationDialog'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
@@ -26,24 +32,28 @@ import { useDashboardDialog } from './useDashboardDialog'
 export function DashboardPage() {
   const { current, open, close } = useDashboardDialog()
 
-  function renderActions(row: GuestRow) {
-    if (row.tab === 'all') {
-      return (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => open({ kind: 'reservation', guest: row.guest })}
-        >
-          Nova reserva
-        </Button>
-      )
-    }
+  // Memoizadas: uma referência nova a cada render do dialog reconstruiria as
+  // colunas da tabela (que carregam este callback), e a linha remontaria bem
+  // debaixo do diálogo que acabou de abrir — perdendo o foco a que ele volta.
+  const renderNewReservation = useCallback(
+    (row: GuestAllRow) => (
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => open({ kind: 'reservation', guest: row.guest })}
+      >
+        Nova reserva
+      </Button>
+    ),
+    [open],
+  )
 
-    return (
+  const renderInHotelActions = useCallback(
+    (row: GuestInHotelRow) => (
       <ReservationActions
         reservationId={row.reservation.id}
         guestName={row.guest.full_name}
-        state={row.reservationStatus}
+        state="CHECKED_IN"
         onCheckedOut={(statement) => open({ kind: 'statement', statement })}
         onRequestCancel={() =>
           open({
@@ -53,15 +63,45 @@ export function DashboardPage() {
           })
         }
       />
-    )
-  }
+    ),
+    [open],
+  )
+
+  const renderPendingActions = useCallback(
+    (row: GuestPendingRow) => (
+      <ReservationActions
+        reservationId={row.reservation.id}
+        guestName={row.guest.full_name}
+        state="PENDING"
+        onCheckedOut={(statement) => open({ kind: 'statement', statement })}
+        onRequestCancel={() =>
+          open({
+            kind: 'cancel',
+            reservationId: row.reservation.id,
+            guestName: row.guest.full_name,
+          })
+        }
+      />
+    ),
+    [open],
+  )
+
+  const renderActions = useMemo(
+    () => ({
+      all: renderNewReservation,
+      inHotel: renderInHotelActions,
+      pending: renderPendingActions,
+    }),
+    [renderNewReservation, renderInHotelActions, renderPendingActions],
+  )
+
+  const headerActions = useMemo(
+    () => <Button onClick={() => open({ kind: 'guest' })}>Novo hóspede</Button>,
+    [open],
+  )
 
   return (
     <>
-      <div className="flex justify-end">
-        <Button onClick={() => open({ kind: 'guest' })}>Novo hóspede</Button>
-      </div>
-
       {/* Uma quebra na tabela não derruba o header, o "Novo hóspede" nem os
           dialogs: o fallback é o mesmo `ErrorState` do erro de leitura. */}
       <ErrorBoundary
@@ -70,7 +110,7 @@ export function DashboardPage() {
           <ErrorState message={errorMessage(error)} onRetry={resetErrorBoundary} />
         )}
       >
-        <GuestTable renderActions={renderActions} />
+        <GuestTable headerActions={headerActions} renderActions={renderActions} />
       </ErrorBoundary>
 
       <Dialog

@@ -4,12 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { EVA } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests } from '@/features/guests/api'
-import { DEBOUNCE_MS } from '@/features/guests/tabs'
 import { createReservation } from '@/features/reservations/api'
 import { ROOM_101, ROOM_201 } from '@/features/rooms/__fixtures__/rooms'
 import { fetchAvailableRooms } from '@/features/rooms/api'
 import { ApiError } from '@/lib/errors/errors'
 import { addDaysISO, todayISO } from '@/lib/format/dates'
+import { SEARCH_DEBOUNCE_MS } from '@/lib/hooks/useDebouncedValue'
 import { page } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
@@ -177,7 +177,7 @@ describe('ReservationForm · escolha do quarto', () => {
     await waitFor(() => expect(roomTrigger()).toBeEnabled())
 
     await user.type(screen.getByLabelText('Buscar acompanhante'), 'eva')
-    await waitFor(() => expect(fetchGuests).toHaveBeenCalled(), { timeout: DEBOUNCE_MS * 4 })
+    await waitFor(() => expect(fetchGuests).toHaveBeenCalled(), { timeout: SEARCH_DEBOUNCE_MS * 4 })
     await user.click(await screen.findByRole('button', { name: 'Adicionar Eva Lima' }))
 
     await waitFor(() => expect(vi.mocked(fetchAvailableRooms).mock.lastCall?.[0].people).toBe(2))

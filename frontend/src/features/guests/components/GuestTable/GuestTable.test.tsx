@@ -3,16 +3,23 @@ import userEvent from '@testing-library/user-event'
 import { act } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  ANA,
+  BRUNO,
+  DAVI,
+  EVA,
+  inHotel,
+  pendingCheckin,
+} from '@/features/guests/__fixtures__/guests'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
+import type { Guest } from '@/features/guests/types'
 import type { Paginated } from '@/lib/api/apiClient'
 import { ApiError } from '@/lib/errors/errors'
+import { SEARCH_DEBOUNCE_MS } from '@/lib/hooks/useDebouncedValue'
 import { elementAt, page } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
-import { ANA, BRUNO, DAVI, EVA, inHotel, pendingCheckin } from './__fixtures__/guests'
 import { GuestTable } from './GuestTable'
-import { DEBOUNCE_MS } from './tabs'
-import type { Guest } from './types'
 
 vi.mock('@/features/guests/api')
 
@@ -48,7 +55,7 @@ describe('GuestTable', () => {
   it('test_search_input_debounces_and_queries', async () => {
     // Tripwire: o teste avanca a mesma constante que a tabela usa, e o
     // contrato de busca fixa 300 ms — divergencia entre as duas quebra aqui.
-    expect(DEBOUNCE_MS).toBe(300)
+    expect(SEARCH_DEBOUNCE_MS).toBe(300)
 
     vi.useFakeTimers()
     try {
@@ -66,7 +73,7 @@ describe('GuestTable', () => {
       fireEvent.change(screen.getByLabelText('Buscar hóspede'), { target: { value: 'ana' } })
       await advanceTimersAndFlush(0)
 
-      await advanceTimersAndFlush(DEBOUNCE_MS - 1)
+      await advanceTimersAndFlush(SEARCH_DEBOUNCE_MS - 1)
       expect(fetchGuests).toHaveBeenCalledTimes(1)
 
       await advanceTimersAndFlush(1)
@@ -136,6 +143,9 @@ describe('GuestTable', () => {
     expect(within(row).getByText('+55 (21) 98888-7777')).toBeInTheDocument()
   })
 
+  // Normativo: a coluna "Reserva" (o número da reserva, `#1`) é nova nesta
+  // aba; "Estadia" é o antigo cabeçalho "Reserva" renomeado — só ele já
+  // mostrava as datas de entrada/saída.
   it('test_tab_pending_switches_dataset', async () => {
     const user = userEvent.setup()
     renderWithProviders(<GuestTable />)
@@ -150,8 +160,12 @@ describe('GuestTable', () => {
     const table = await screen.findByRole('table', {
       name: 'Hóspedes com reserva pendente de check-in',
     })
+    expect(within(table).getByRole('columnheader', { name: 'Reserva' })).toBeInTheDocument()
+    expect(within(table).getByRole('columnheader', { name: 'Estadia' })).toBeInTheDocument()
+
     const row = elementAt(within(table).getAllByRole('row'), 1)
     expect(within(row).getByText('Ana Souza')).toBeInTheDocument()
+    expect(within(row).getByText('#1')).toBeInTheDocument()
     expect(within(row).getByText('01/09/2026 → 03/09/2026')).toBeInTheDocument()
     expect(within(row).getByText('Sim')).toBeInTheDocument()
     expect(screen.queryByText('Bruno Lima')).not.toBeInTheDocument()
@@ -221,7 +235,7 @@ describe('GuestTable', () => {
       expect(screen.getByText('Davi Rocha')).toBeInTheDocument()
 
       fireEvent.change(screen.getByLabelText('Buscar hóspede'), { target: { value: 'ana' } })
-      await advanceTimersAndFlush(DEBOUNCE_MS)
+      await advanceTimersAndFlush(SEARCH_DEBOUNCE_MS)
 
       expect(fetchGuests).toHaveBeenCalledTimes(2)
       expect(screen.queryByRole('status')).not.toBeInTheDocument()

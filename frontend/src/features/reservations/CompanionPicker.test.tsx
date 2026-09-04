@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BRUNO, DAVI, EVA } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests } from '@/features/guests/api'
-import { DEBOUNCE_MS } from '@/features/guests/tabs'
 import { ApiError } from '@/lib/errors/errors'
+import { SEARCH_DEBOUNCE_MS } from '@/lib/hooks/useDebouncedValue'
 import { page } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
@@ -33,7 +33,7 @@ function setup(value: GuestRef[] = [], error?: string) {
 
 async function search(text: string) {
   fireEvent.change(screen.getByLabelText('Buscar acompanhante'), { target: { value: text } })
-  await advanceTimersAndFlush(DEBOUNCE_MS)
+  await advanceTimersAndFlush(SEARCH_DEBOUNCE_MS)
   await advanceTimersAndFlush(0)
 }
 
@@ -50,19 +50,19 @@ describe('CompanionPicker', () => {
   it('nao consulta a API enquanto a busca esta vazia', async () => {
     setup()
 
-    await advanceTimersAndFlush(DEBOUNCE_MS * 2)
+    await advanceTimersAndFlush(SEARCH_DEBOUNCE_MS * 2)
 
     expect(fetchGuests).not.toHaveBeenCalled()
     expect(screen.getByText(/Nenhum acompanhante/)).toBeInTheDocument()
   })
 
   it('busca com o mesmo debounce da tabela e omite o titular', async () => {
-    expect(DEBOUNCE_MS).toBe(300)
+    expect(SEARCH_DEBOUNCE_MS).toBe(300)
     vi.mocked(fetchGuests).mockResolvedValue(page([BRUNO, EVA]))
     setup()
 
     fireEvent.change(screen.getByLabelText('Buscar acompanhante'), { target: { value: 'lima' } })
-    await advanceTimersAndFlush(DEBOUNCE_MS - 1)
+    await advanceTimersAndFlush(SEARCH_DEBOUNCE_MS - 1)
     expect(fetchGuests).not.toHaveBeenCalled()
 
     await advanceTimersAndFlush(1)

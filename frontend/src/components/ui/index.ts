@@ -70,8 +70,7 @@ export {
   SelectValue,
 } from './select'
 export { Skeleton } from './skeleton'
-export { tabId, tabPanelId } from './tabIds'
 export { Table, TBody, TD, TH, THead, TR } from './Table'
-export { type TabItem, Tabs, type TabsProps } from './Tabs'
+export { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'
 export { Textarea } from './textarea'
 export { Typography, type TypographyProps, typographyVariants } from './typography'
