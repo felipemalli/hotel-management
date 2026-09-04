@@ -55,6 +55,16 @@ describe('reservationFormSchema', () => {
     ])
   })
 
+  it('so uma data vazia tambem barra so o campo obrigatorio, nunca a comparacao', () => {
+    const schema = reservationFormSchema(TODAY)
+    const result = schema.safeParse({ ...FILLED, checkout_date: '' })
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({ path: ['checkout_date'], message: 'Campo obrigatório.' }),
+    ])
+  })
+
   it('barra entrada no passado, comparando strings ISO', () => {
     const schema = reservationFormSchema(TODAY)
     const result = schema.safeParse({ ...FILLED, checkin_date: '2026-09-02' })

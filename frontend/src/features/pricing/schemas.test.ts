@@ -91,6 +91,14 @@ describe('policyFormSchema', () => {
         .success,
     ).toBe(true)
   })
+
+  it('nao compara horarios malformados, so aponta o formato invalido', () => {
+    const result = policyFormSchema.safeParse({ ...FILLED, checkout_limit: '25:00' })
+
+    expect(result.error?.issues).toHaveLength(1)
+    expect(result.error?.issues[0]?.path).toEqual(['checkout_limit'])
+    expect(result.error?.issues[0]?.message).not.toBe(CHECKOUT_LIMIT_MESSAGE)
+  })
 })
 
 describe('policyToFormValues', () => {

@@ -18,3 +18,7 @@ backend/staticfiles/
 node_modules/
 dist/
 desafio.md
+frontend/playwright-report/
+frontend/test-results/
+frontend/e2e/.auth/
+.claude/settings.local.json
