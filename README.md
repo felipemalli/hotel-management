@@ -155,8 +155,15 @@ usa, com o relógio injetado.
    quarto 102 e a segunda marcada como "Acompanhante". Linha do Bruno Lima →
    "Checkout". Abre o extrato: uma linha por diária (data, dia da
    semana, diária, vaga), subtotais, a linha de multa **apenas** se houve saída
-   após as 12h, e o total em destaque. Os totais ficam congelados na reserva na
-   mesma transação — um segundo checkout responde `409 INVALID_STATUS`.
+   após as 12h, e o total em destaque. A linha da multa nomeia a **base** sobre
+   a qual ela incide, e não uma porcentagem: o fator vem da política e o extrato
+   não o carrega. Os totais ficam congelados na reserva na mesma transação — um
+   segundo checkout responde `409 INVALID_STATUS`. Abaixo do total, a conta
+   aparece como **"Em aberto"**: escolha a forma de pagamento e clique em
+   "Registrar pagamento" (D18). O extrato passa a mostrar "Pago em … · Pix ·
+   por atendente" e não muda em mais nada — pagar não recalcula. Pagar de novo
+   responde `409 INVALID_STATUS` com o `paid_at`, e a tela relê o extrato já
+   pago em vez de insistir num botão que não cabe mais.
 7. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
    endpoints da seção [6](#6-mapa-da-api), com exemplos de request, de resposta
    e dos erros de cada rota.
@@ -502,6 +509,8 @@ min, refresh de 12 h). Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 | `POST /api/reservations/{id}/check-in/` | ✔ | Efetiva o check-in (com override `allow_early`) |
 | `POST /api/reservations/{id}/checkout/` | ✔ | Efetiva o checkout → extrato |
 | `POST /api/reservations/{id}/cancel/` | ✔ | `PENDING → CANCELLED` |
+| `GET /api/reservations/{id}/statement/` | ✔ | 2ª via do extrato (só `CHECKED_OUT`) |
+| `POST /api/reservations/{id}/pay/` | ✔ | Registra o pagamento único (D18) → extrato com `payment` |
 | `GET /api/ai/status/` · `POST /api/ai/parse-guest/` | ✔ | Diferencial opcional (5.4) |
 | `GET /api/schema/` · `/api/docs/` | — | OpenAPI 3 + Swagger UI |
 

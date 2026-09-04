@@ -6,6 +6,7 @@ import type {
   guestRefSchema,
   lateFeeSchema,
   paymentMethodSchema,
+  paymentSchema,
   reservationSchema,
   reservationStatusSchema,
 } from './schemas'
@@ -23,6 +24,13 @@ export type BillLine = z.infer<typeof billLineSchema>
 export type LateFee = z.infer<typeof lateFeeSchema>
 
 export type CheckoutStatement = z.infer<typeof checkoutStatementSchema>
+
+export type Payment = z.infer<typeof paymentSchema>
+
+export interface PayReservationPayload {
+  id: number
+  payment_method: PaymentMethod
+}
 
 export interface CreateReservationPayload {
   guest_id: number

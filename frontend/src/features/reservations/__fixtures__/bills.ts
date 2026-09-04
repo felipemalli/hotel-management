@@ -27,6 +27,7 @@ export const T1_STATEMENT: CheckoutStatement = {
   subtotal_parking: '0.00',
   late_fee: { applied: false, base_rate: null, amount: '0.00' },
   total: '240.00',
+  payment: null,
 }
 
 // T2 — sáb 14:00 → seg 10:00, com vaga, sem multa = 400,00
@@ -53,6 +54,7 @@ export const T2_STATEMENT: CheckoutStatement = {
   subtotal_parking: '40.00',
   late_fee: { applied: false, base_rate: null, amount: '0.00' },
   total: '400.00',
+  payment: null,
 }
 
 // T3 — sex 16:00 → seg 11:30, com vaga, três tarifas = 535,00
@@ -85,6 +87,7 @@ export const T3_STATEMENT: CheckoutStatement = {
   subtotal_parking: '55.00',
   late_fee: { applied: false, base_rate: null, amount: '0.00' },
   total: '535.00',
+  payment: null,
 }
 
 // T4 — ter 14:00 → qui 11:59, sem vaga, antes das 12h = 240,00
@@ -111,6 +114,7 @@ export const T4_STATEMENT: CheckoutStatement = {
   subtotal_parking: '0.00',
   late_fee: { applied: false, base_rate: null, amount: '0.00' },
   total: '240.00',
+  payment: null,
 }
 
 // T5 — ter 14:00 → qui 12:01, sem vaga, multa útil 60,00 = 300,00
@@ -137,6 +141,7 @@ export const T5_STATEMENT: CheckoutStatement = {
   subtotal_parking: '0.00',
   late_fee: { applied: true, base_rate: '120.00', amount: '60.00' },
   total: '300.00',
+  payment: null,
 }
 
 // T6 — sex 15:00 → dom 11:59, sem vaga, antes das 12h = 300,00
@@ -163,6 +168,7 @@ export const T6_STATEMENT: CheckoutStatement = {
   subtotal_parking: '0.00',
   late_fee: { applied: false, base_rate: null, amount: '0.00' },
   total: '300.00',
+  payment: null,
 }
 
 // T7 — sex 15:00 → dom 12:01, com vaga, multa 90,00 = 425,00
@@ -189,6 +195,7 @@ export const T7_STATEMENT: CheckoutStatement = {
   subtotal_parking: '35.00',
   late_fee: { applied: true, base_rate: '180.00', amount: '90.00' },
   total: '425.00',
+  payment: null,
 }
 
 // T8 — qua 18:00 → sex 12:00:00 exatas: a igualdade é isenta = 240,00
@@ -215,6 +222,7 @@ export const T8_STATEMENT: CheckoutStatement = {
   subtotal_parking: '0.00',
   late_fee: { applied: false, base_rate: null, amount: '0.00' },
   total: '240.00',
+  payment: null,
 }
 
 // T9 — day-use seg 14:00 → 18:00, com vaga, mínimo de 1 diária = 195,00
@@ -235,6 +243,18 @@ export const T9_STATEMENT: CheckoutStatement = {
   subtotal_parking: '15.00',
   late_fee: { applied: true, base_rate: '120.00', amount: '60.00' },
   total: '195.00',
+  payment: null,
+}
+
+// A mesma conta de T7, agora paga: prova que a 2ª via mostra o pagamento e que
+// o extrato não muda por ter sido pago.
+export const PAID_T7_STATEMENT: CheckoutStatement = {
+  ...T7_STATEMENT,
+  payment: {
+    paid_at: '2025-03-09T12:30:00-03:00',
+    method: 'PIX',
+    paid_by: { id: 1, username: 'atendente' },
+  },
 }
 
 export const BILL_FIXTURES = {

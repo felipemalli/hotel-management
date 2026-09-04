@@ -1,14 +1,34 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { fetchReservationStatement, payReservation } from '@/features/reservations/api'
+import { ApiError } from '@/lib/errors'
 import { formatBRL } from '@/lib/money'
+import { toastStore } from '@/lib/toast'
 import { elementAt } from '@/test/fixtures'
+import { renderWithProviders } from '@/test/renderWithProviders'
 
-import { BILL_FIXTURES, BILL_TOTALS, T1_STATEMENT, T7_STATEMENT } from './__fixtures__/bills'
+import {
+  BILL_FIXTURES,
+  BILL_TOTALS,
+  PAID_T7_STATEMENT,
+  T1_STATEMENT,
+  T7_STATEMENT,
+} from './__fixtures__/bills'
 import { CheckoutStatementDialog } from './CheckoutStatementDialog'
 
-function renderStatement(statement = T7_STATEMENT) {
-  return render(<CheckoutStatementDialog open statement={statement} onClose={vi.fn()} />)
+vi.mock('@/features/reservations/api')
+
+function renderStatement(statement = T7_STATEMENT, allowPayment = false) {
+  return renderWithProviders(
+    <CheckoutStatementDialog
+      open
+      statement={statement}
+      onClose={vi.fn()}
+      allowPayment={allowPayment}
+    />,
+  )
 }
 
 function dailyRows() {
@@ -41,12 +61,16 @@ describe('CheckoutStatementDialog', () => {
     expect(screen.getByText('Subtotal vaga')).toBeInTheDocument()
     expect(screen.getByText('R$ 35,00')).toBeInTheDocument()
 
-    expect(screen.getByText('Multa de checkout tardio (50% de R$ 180,00)')).toBeInTheDocument()
+    // O fator da multa é da política vigente e o extrato não o carrega: a
+    // linha nomeia a base, e não uma porcentagem que envelheceria.
+    expect(screen.getByText('Multa de checkout tardio (base R$ 180,00)')).toBeInTheDocument()
     expect(screen.getByText('R$ 90,00')).toBeInTheDocument()
 
     expect(screen.getByText('Total a pagar')).toBeInTheDocument()
     expect(screen.getByText('R$ 425,00')).toBeInTheDocument()
     expect(screen.getByText(formatBRL(BILL_TOTALS.T7))).toBeInTheDocument()
+
+    expect(screen.getByText('Em aberto')).toBeInTheDocument()
   })
 
   it('test_T1_no_late_fee_line', () => {
@@ -93,7 +117,109 @@ describe('CheckoutStatementDialog', () => {
   })
 
   it('nao renderiza nada com `open` falso', () => {
-    render(<CheckoutStatementDialog open={false} statement={T7_STATEMENT} onClose={vi.fn()} />)
+    renderWithProviders(
+      <CheckoutStatementDialog open={false} statement={T7_STATEMENT} onClose={vi.fn()} />,
+    )
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('CheckoutStatementDialog · pagamento', () => {
+  beforeEach(() => {
+    vi.mocked(payReservation).mockResolvedValue(PAID_T7_STATEMENT)
+    vi.mocked(fetchReservationStatement).mockResolvedValue(PAID_T7_STATEMENT)
+  })
+
+  it('mostra o pagamento registrado em vez do formulario', () => {
+    renderStatement(PAID_T7_STATEMENT, true)
+
+    expect(screen.getByText('Pago')).toBeInTheDocument()
+    expect(screen.getByText('Pago em 09/03/2025 12:30 · Pix · por atendente')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).not.toBeInTheDocument()
+  })
+
+  // 2ª via: a conta em aberto aparece como tal, mas quem abriu a reimpressao
+  // nao esta no ato de receber.
+  it('sem allowPayment mostra "Em aberto" sem oferecer o registro', () => {
+    renderStatement(T7_STATEMENT)
+
+    expect(screen.getByText('Em aberto')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Forma de pagamento')).not.toBeInTheDocument()
+  })
+
+  it('desabilita o registro ate a forma ser escolhida', async () => {
+    const user = userEvent.setup()
+    renderStatement(T7_STATEMENT, true)
+
+    expect(screen.getByRole('button', { name: 'Registrar pagamento' })).toBeDisabled()
+
+    await user.selectOptions(screen.getByLabelText('Forma de pagamento'), 'PIX')
+
+    expect(screen.getByRole('button', { name: 'Registrar pagamento' })).toBeEnabled()
+  })
+
+  it('registra o pagamento e passa a mostrar o extrato pago', async () => {
+    const user = userEvent.setup()
+    renderStatement(T7_STATEMENT, true)
+
+    await user.selectOptions(screen.getByLabelText('Forma de pagamento'), 'PIX')
+    await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
+
+    await waitFor(() =>
+      expect(payReservation).toHaveBeenCalledWith({
+        id: T7_STATEMENT.reservation_id,
+        payment_method: 'PIX',
+      }),
+    )
+    expect(await screen.findByText(/Pago em 09\/03\/2025 12:30/)).toBeInTheDocument()
+    expect(screen.queryByText('Em aberto')).not.toBeInTheDocument()
+    // O extrato nao muda por ter sido pago: os mesmos numeros do T7.
+    expect(screen.getByText('R$ 425,00')).toBeInTheDocument()
+  })
+
+  it('busca o extrato de novo quando outro atendente ja registrou o pagamento', async () => {
+    const user = userEvent.setup()
+    vi.mocked(payReservation).mockRejectedValue(
+      new ApiError({
+        code: 'INVALID_STATUS',
+        detail: 'Esta conta já foi paga.',
+        status: 409,
+        extra: { paid_at: '2025-03-09T12:30:00-03:00' },
+      }),
+    )
+    renderStatement(T7_STATEMENT, true)
+
+    await user.selectOptions(screen.getByLabelText('Forma de pagamento'), 'CASH')
+    await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
+
+    await waitFor(() =>
+      expect(fetchReservationStatement).toHaveBeenCalledWith(T7_STATEMENT.reservation_id),
+    )
+    expect(await screen.findByText(/Pago em 09\/03\/2025 12:30/)).toBeInTheDocument()
+    expect(toastStore.getSnapshot()).toEqual([
+      expect.objectContaining({ message: 'Esta conta já foi paga.' }),
+    ])
+  })
+
+  it('mostra o erro quando a releitura do extrato falha', async () => {
+    const user = userEvent.setup()
+    vi.mocked(payReservation).mockRejectedValue(
+      new ApiError({
+        code: 'INVALID_STATUS',
+        detail: 'Esta conta já foi paga.',
+        status: 409,
+        extra: { paid_at: '2025-03-09T12:30:00-03:00' },
+      }),
+    )
+    vi.mocked(fetchReservationStatement).mockRejectedValue(
+      new ApiError({ code: 'NETWORK_ERROR', detail: 'sem rede', status: 0 }),
+    )
+    renderStatement(T7_STATEMENT, true)
+
+    await user.selectOptions(screen.getByLabelText('Forma de pagamento'), 'CARD')
+    await user.click(screen.getByRole('button', { name: 'Registrar pagamento' }))
+
+    expect(await screen.findByText('Não foi possível falar com o servidor.')).toBeInTheDocument()
   })
 })

@@ -59,6 +59,12 @@ export const lateFeeSchema = z.discriminatedUnion('applied', [
   z.object({ applied: z.literal(false), base_rate: z.null(), amount: moneyString }),
 ])
 
+export const paymentSchema = z.object({
+  paid_at: isoDateTime,
+  method: paymentMethodSchema,
+  paid_by: userRefSchema,
+})
+
 export const checkoutStatementSchema = z.object({
   reservation_id: z.number().int(),
   guest: z.object({ id: z.number().int(), full_name: z.string() }),
@@ -69,6 +75,9 @@ export const checkoutStatementSchema = z.object({
   subtotal_parking: moneyString,
   late_fee: lateFeeSchema,
   total: moneyString,
+  // `null` é "conta em aberto": a tela ramifica por isto, e não pelo status —
+  // pagamento não é status, `CHECKED_OUT` segue terminal (D18).
+  payment: paymentSchema.nullable(),
 })
 
 export const ROOM_REQUIRED_MESSAGE = 'Escolha um quarto.'

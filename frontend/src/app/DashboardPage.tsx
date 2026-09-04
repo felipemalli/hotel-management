@@ -115,6 +115,7 @@ export function DashboardPage() {
       {current?.kind === 'statement' ? (
         <CheckoutStatementDialog
           open
+          allowPayment
           statement={current.statement}
           onClose={() => {
             returnFocusToContent()
