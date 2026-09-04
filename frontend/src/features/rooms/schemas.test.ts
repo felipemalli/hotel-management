@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { page } from '@/test/fixtures'
 
 import { ROOM_101, ROOM_301_INACTIVE, SEED_ROOMS } from './__fixtures__/rooms'
-import { roomPageSchema, roomSchema, roomSummarySchema } from './schemas'
+import {
+  roomCapacitySchema,
+  roomFormSchema,
+  roomPageSchema,
+  roomSchema,
+  roomSummarySchema,
+} from './schemas'
 
 describe('roomSchema', () => {
   it('aceita o inventario do seed', () => {
@@ -28,5 +34,42 @@ describe('roomSchema', () => {
 
   it('aceita a pagina do DRF', () => {
     expect(roomPageSchema.safeParse(page(SEED_ROOMS)).success).toBe(true)
+  })
+})
+
+describe('roomFormSchema', () => {
+  const VALID = { number: '301', capacity: 3 }
+
+  it('aceita numero curto e capacidade inteira', () => {
+    expect(roomFormSchema.safeParse(VALID).success).toBe(true)
+    expect(roomFormSchema.safeParse({ number: '12A', capacity: 1 }).success).toBe(true)
+  })
+
+  it('exige o numero e recusa o longo demais', () => {
+    expect(roomFormSchema.safeParse({ ...VALID, number: '' }).error?.issues[0]?.message).toBe(
+      'Campo obrigatório.',
+    )
+    expect(
+      roomFormSchema.safeParse({ ...VALID, number: '12345678901' }).error?.issues[0]?.message,
+    ).toBe('Número com no máximo 10 caracteres.')
+  })
+
+  // O campo vazio vira `NaN` com `valueAsNumber`, e a mensagem tem de dizer o
+  // que falta em vez de falar de tipo.
+  it('avisa o que falta na capacidade vazia, fracionaria ou zerada', () => {
+    expect(roomFormSchema.safeParse({ ...VALID, capacity: NaN }).error?.issues[0]?.message).toBe(
+      'Informe a capacidade.',
+    )
+    expect(roomFormSchema.safeParse({ ...VALID, capacity: 1.5 }).error?.issues[0]?.message).toBe(
+      'A capacidade deve ser um número inteiro.',
+    )
+    expect(roomFormSchema.safeParse({ ...VALID, capacity: 0 }).error?.issues[0]?.message).toBe(
+      'A capacidade mínima é 1 pessoa.',
+    )
+  })
+
+  it('roomCapacitySchema conhece so a capacidade', () => {
+    expect(roomCapacitySchema.safeParse({ capacity: 3 }).success).toBe(true)
+    expect(roomCapacitySchema.safeParse({ capacity: 0 }).success).toBe(false)
   })
 })

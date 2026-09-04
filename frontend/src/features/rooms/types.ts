@@ -18,3 +18,13 @@ export interface AvailabilityQuery {
   checkout_date: string
   people: number
 }
+
+export interface CreateRoomPayload {
+  number: string
+  capacity: number
+}
+
+export interface UpdateRoomPatch {
+  capacity?: number
+  is_active?: boolean
+}

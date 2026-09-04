@@ -118,6 +118,21 @@ usa, com o relógio injetado.
 | **Carla Nunes** | `CHECKED_OUT` — sexta→domingo passados, com vaga, saída 12:01 | extrato com diária de fim de semana (R$ 180,00) **e** multa de R$ 90,00 |
 | **Davi Rocha** | Sem reserva | busca por nome, documento e telefone |
 
+Quatro quartos, com capacidades diferentes — a capacidade é o único freio ao
+número de pessoas numa reserva (D17):
+
+| Quarto | Capacidade |
+|---|---|
+| 101 | 2 |
+| 102 | 2 (Bruno e Eva) |
+| 103 | 3 |
+| 201 | 4 |
+
+Dois usuários: **`atendente` / `atendente123`** faz o dia do balcão, e
+**`admin` / `admin123`** é quem também cadastra quarto e publica tarifa. Os
+dois têm `is_staff=False`: o papel é do produto, e o `/admin/` do Django não é
+caminho de escrita deste domínio.
+
 ### 1.4 Fluxo de demonstração (≈ 5 minutos)
 
 1. Abra <http://localhost:5173> e entre com **`atendente` / `atendente123`**.
@@ -177,7 +192,14 @@ usa, com o relógio injetado.
    e "Ver extrato" reimprime a 2ª via (idêntica, porque o servidor hidrata as
    linhas gravadas em vez de recalcular). As ações disponíveis seguem o status:
    uma reserva cancelada não oferece nenhuma.
-9. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
+9. **Quartos (`/quartos`).** O atendente vê o inventário em leitura — número,
+   capacidade e situação —, o que ajuda no balcão. Saia e entre como **`admin`
+   / `admin123`**: aparecem o chip "admin" no cabeçalho e os controles de
+   escrita. Cadastre o 301, edite uma capacidade (abaixo do maior grupo com
+   reserva ativa o servidor recusa no próprio campo) e tente desativar o 102,
+   que tem estadia em curso: `409` no aviso, e a confirmação continua aberta.
+   Nenhum 403 chega ao atendente, porque o botão nem é renderizado para ele.
+10. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
    endpoints da seção [6](#6-mapa-da-api), com exemplos de request, de resposta
    e dos erros de cada rota.
 
@@ -513,6 +535,9 @@ min, refresh de 12 h). Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 | `POST /api/auth/token/refresh/` | — | Renova o access |
 | `GET /api/auth/me/` | ✔ | `{id, username, role}` — o papel vem do servidor, nunca do token |
 | `GET /api/health/` | — | `{"status":"ok"}` (healthcheck do Compose) |
+| `GET /api/rooms/` · `/{id}/` | ✔ | Inventário (`?is_active=false` inclui os desativados) |
+| `GET /api/rooms/available/` | ✔ | Quartos livres em `?checkin_date=&checkout_date=&people=` |
+| `POST /api/rooms/` · `PATCH /api/rooms/{id}/` | **admin** | Cadastro e ajuste de capacidade/situação |
 | `GET/POST /api/guests/` | ✔ | Lista + busca (`?search=`) / cadastro |
 | `GET /api/guests/{id}/` | ✔ | Detalhe (PII completa) |
 | `GET /api/guests/in-hotel/` | ✔ | Hóspedes com reserva `CHECKED_IN` |
