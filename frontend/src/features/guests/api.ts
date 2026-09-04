@@ -8,20 +8,27 @@ import {
 } from './schemas'
 import type { CreateGuestPayload, Guest, GuestInHotel, GuestPendingCheckin } from './types'
 
-export async function fetchGuests(search: string): Promise<Paginated<Guest>> {
+// `page` só viaja depois da primeira: a primeira página é o padrão do servidor.
+function pageParam(page: number): { page?: number } {
+  return page > 1 ? { page } : {}
+}
+
+export async function fetchGuests(search: string, page = 1): Promise<Paginated<Guest>> {
   const response = await apiClient.get<unknown>('/guests/', {
-    params: search ? { search } : undefined,
+    params: { ...(search ? { search } : {}), ...pageParam(page) },
   })
   return parseResponse(guestPageSchema, response)
 }
 
-export async function fetchGuestsInHotel(): Promise<Paginated<GuestInHotel>> {
-  const response = await apiClient.get<unknown>('/guests/in-hotel/')
+export async function fetchGuestsInHotel(page = 1): Promise<Paginated<GuestInHotel>> {
+  const response = await apiClient.get<unknown>('/guests/in-hotel/', { params: pageParam(page) })
   return parseResponse(guestInHotelPageSchema, response)
 }
 
-export async function fetchGuestsPendingCheckin(): Promise<Paginated<GuestPendingCheckin>> {
-  const response = await apiClient.get<unknown>('/guests/pending-checkin/')
+export async function fetchGuestsPendingCheckin(page = 1): Promise<Paginated<GuestPendingCheckin>> {
+  const response = await apiClient.get<unknown>('/guests/pending-checkin/', {
+    params: pageParam(page),
+  })
   return parseResponse(guestPendingCheckinPageSchema, response)
 }
 

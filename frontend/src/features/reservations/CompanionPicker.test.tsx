@@ -68,7 +68,7 @@ describe('CompanionPicker', () => {
     await advanceTimersAndFlush(1)
     await advanceTimersAndFlush(0)
 
-    expect(fetchGuests).toHaveBeenLastCalledWith('lima')
+    expect(fetchGuests).toHaveBeenLastCalledWith('lima', 1)
     expect(screen.getByRole('button', { name: 'Adicionar Eva Lima' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Adicionar Bruno Lima' })).not.toBeInTheDocument()
   })

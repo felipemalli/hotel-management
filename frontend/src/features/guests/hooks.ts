@@ -14,9 +14,9 @@ import {
 import type { CreateGuestPayload, Guest } from './types'
 
 export const guestKeys = {
-  list: (search: string) => [...GUESTS_ROOT, { search }] as const,
-  inHotel: [...GUESTS_ROOT, 'in-hotel'] as const,
-  pendingCheckin: [...GUESTS_ROOT, 'pending-checkin'] as const,
+  list: (search: string, page: number) => [...GUESTS_ROOT, { search, page }] as const,
+  inHotel: (page: number) => [...GUESTS_ROOT, 'in-hotel', { page }] as const,
+  pendingCheckin: (page: number) => [...GUESTS_ROOT, 'pending-checkin', { page }] as const,
   detail: (id: number) => [...GUESTS_ROOT, id] as const,
 }
 
@@ -24,30 +24,32 @@ export interface QueryOptions {
   enabled?: boolean
 }
 
-export function useGuests(search: string, options?: QueryOptions) {
+export function useGuests(search: string, page = 1, options?: QueryOptions) {
   return useQuery({
-    queryKey: guestKeys.list(search),
-    queryFn: () => fetchGuests(search),
+    queryKey: guestKeys.list(search, page),
+    queryFn: () => fetchGuests(search, page),
     staleTime: DEFAULT_STALE_TIME_MS,
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
   })
 }
 
-export function useGuestsInHotel(options?: QueryOptions) {
+export function useGuestsInHotel(page = 1, options?: QueryOptions) {
   return useQuery({
-    queryKey: guestKeys.inHotel,
-    queryFn: fetchGuestsInHotel,
+    queryKey: guestKeys.inHotel(page),
+    queryFn: () => fetchGuestsInHotel(page),
     staleTime: DEFAULT_STALE_TIME_MS,
+    placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
   })
 }
 
-export function useGuestsPendingCheckin(options?: QueryOptions) {
+export function useGuestsPendingCheckin(page = 1, options?: QueryOptions) {
   return useQuery({
-    queryKey: guestKeys.pendingCheckin,
-    queryFn: fetchGuestsPendingCheckin,
+    queryKey: guestKeys.pendingCheckin(page),
+    queryFn: () => fetchGuestsPendingCheckin(page),
     staleTime: DEFAULT_STALE_TIME_MS,
+    placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
   })
 }

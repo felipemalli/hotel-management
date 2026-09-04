@@ -3,6 +3,7 @@ import { type ReactNode, useState } from 'react'
 import {
   EmptyState,
   ErrorState,
+  Pagination,
   tabId,
   Table,
   TableSkeleton,
@@ -34,11 +35,12 @@ export interface GuestTableProps {
 export function GuestTable({ renderActions }: GuestTableProps) {
   const [tab, setTab] = useState<GuestTab>('all')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const debouncedSearch = useDebouncedValue(search, DEBOUNCE_MS)
 
-  const all = useGuests(debouncedSearch, { enabled: tab === 'all' })
-  const inHotel = useGuestsInHotel({ enabled: tab === 'in-hotel' })
-  const pending = useGuestsPendingCheckin({ enabled: tab === 'pending-checkin' })
+  const all = useGuests(debouncedSearch, page, { enabled: tab === 'all' })
+  const inHotel = useGuestsInHotel(page, { enabled: tab === 'in-hotel' })
+  const pending = useGuestsPendingCheckin(page, { enabled: tab === 'pending-checkin' })
 
   const query = tab === 'all' ? all : tab === 'in-hotel' ? inHotel : pending
   const config = GUEST_TAB_CONFIG[tab]
@@ -52,9 +54,18 @@ export function GuestTable({ renderActions }: GuestTableProps) {
     <section className="flex flex-col gap-4">
       <GuestTableToolbar
         tab={tab}
-        onTabChange={setTab}
+        // Recorte novo, primeira página: a página 3 da busca anterior não
+        // significa nada na próxima. Nos handlers, e não num efeito, porque o
+        // gatilho é a ação do atendente e não a mudança de estado.
+        onTabChange={(next) => {
+          setTab(next)
+          setPage(1)
+        }}
         search={search}
-        onSearchChange={setSearch}
+        onSearchChange={(next) => {
+          setSearch(next)
+          setPage(1)
+        }}
         updating={query.isFetching && !query.isPending}
       />
 
@@ -87,6 +98,16 @@ export function GuestTable({ renderActions }: GuestTableProps) {
             </TBody>
           </Table>
         )}
+
+        {query.isSuccess && rows.length > 0 ? (
+          <Pagination
+            page={page}
+            count={query.data.count}
+            hasNext={query.data.next !== null}
+            hasPrevious={query.data.previous !== null}
+            onPageChange={setPage}
+          />
+        ) : null}
       </div>
     </section>
   )

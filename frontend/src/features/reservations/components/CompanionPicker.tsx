@@ -27,7 +27,7 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
 
   // Sem termo não há consulta: buscar com a caixa vazia traria a primeira
   // página de todos os hóspedes, que não é uma sugestão, é ruído.
-  const results = useGuests(term, { enabled: term.length > 0 })
+  const results = useGuests(term, 1, { enabled: term.length > 0 })
 
   const chosen = new Set(value.map((companion) => companion.id))
   const candidates = (results.data?.results ?? []).filter(

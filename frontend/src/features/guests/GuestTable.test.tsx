@@ -60,7 +60,7 @@ describe('GuestTable', () => {
       await advanceTimersAndFlush(0)
 
       expect(fetchGuests).toHaveBeenCalledTimes(1)
-      expect(fetchGuests).toHaveBeenLastCalledWith('')
+      expect(fetchGuests).toHaveBeenLastCalledWith('', 1)
       expect(screen.getByText('Davi Rocha')).toBeInTheDocument()
 
       fireEvent.change(screen.getByLabelText('Buscar hóspede'), { target: { value: 'ana' } })
@@ -71,7 +71,7 @@ describe('GuestTable', () => {
 
       await advanceTimersAndFlush(1)
       expect(fetchGuests).toHaveBeenCalledTimes(2)
-      expect(fetchGuests).toHaveBeenLastCalledWith('ana')
+      expect(fetchGuests).toHaveBeenLastCalledWith('ana', 1)
 
       await advanceTimersAndFlush(0)
       expect(screen.getByText('Ana Souza')).toBeInTheDocument()
@@ -245,6 +245,26 @@ describe('GuestTable', () => {
     expect(announcement).toHaveAttribute('aria-live', 'polite')
     expect(announcement).toHaveClass('sr-only')
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('pagina a listagem e volta a primeira pagina ao trocar de aba', async () => {
+    const user = userEvent.setup()
+    vi.mocked(fetchGuests).mockResolvedValue({
+      count: 25,
+      next: 'http://localhost/api/guests/?page=2',
+      previous: null,
+      results: [ANA, DAVI],
+    })
+    renderWithProviders(<GuestTable />)
+    await screen.findByText('Ana Souza')
+
+    await user.click(screen.getByRole('button', { name: 'Próxima' }))
+    await waitFor(() => expect(fetchGuests).toHaveBeenLastCalledWith('', 2))
+
+    // Recorte novo, primeira pagina: a pagina 2 de "Todos" nao significa nada
+    // na aba do hotel.
+    await user.click(screen.getByRole('tab', { name: /No hotel/ }))
+    await waitFor(() => expect(fetchGuestsInHotel).toHaveBeenLastCalledWith(1))
   })
 })
 
