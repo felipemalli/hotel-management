@@ -17,6 +17,11 @@ const DashboardPage = lazy(() =>
 const ReservationsPage = lazy(() =>
   import('@/pages/ReservationsPage').then((module) => ({ default: module.ReservationsPage })),
 )
+const ReservationDetailPage = lazy(() =>
+  import('@/pages/ReservationDetailPage').then((module) => ({
+    default: module.ReservationDetailPage,
+  })),
+)
 
 export function AppRoutes() {
   const { pathname } = useLocation()
@@ -38,6 +43,7 @@ export function AppRoutes() {
         >
           <Route path={ROUTES.home} element={<DashboardPage />} />
           <Route path={ROUTES.reservations} element={<ReservationsPage />} />
+          <Route path={`${ROUTES.reservations}/:id`} element={<ReservationDetailPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to={ROUTES.home} replace />} />

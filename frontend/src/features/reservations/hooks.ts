@@ -60,10 +60,12 @@ export function useCheckOut(options?: { onSuccess?: (s: CheckoutStatement) => vo
   return useMutation({
     mutationFn: (id: number) => checkOut(id),
     onSuccess: (statement) => {
-      // O POST já devolveu o extrato: semear a chave evita uma segunda ida ao
-      // servidor quando a 2ª via for aberta logo em seguida.
-      queryClient.setQueryData(reservationKeys.statement(statement.reservation_id), statement)
+      // A semeadura vem DEPOIS da invalidação: a chave do extrato mora sob a
+      // raiz das reservas, e invalidar em seguida marcaria como velho o dado
+      // que o próprio POST acabou de devolver — a 2ª via aberta logo depois
+      // pagaria uma segunda ida ao servidor por nada.
       invalidateServerState()
+      queryClient.setQueryData(reservationKeys.statement(statement.reservation_id), statement)
       options?.onSuccess?.(statement)
     },
   })
@@ -89,8 +91,8 @@ export function usePayReservation(options?: { onSuccess?: (s: CheckoutStatement)
   return useMutation({
     mutationFn: (payload: PayReservationPayload) => payReservation(payload),
     onSuccess: (statement) => {
-      queryClient.setQueryData(reservationKeys.statement(statement.reservation_id), statement)
       invalidateServerState()
+      queryClient.setQueryData(reservationKeys.statement(statement.reservation_id), statement)
       options?.onSuccess?.(statement)
     },
   })

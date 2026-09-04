@@ -29,3 +29,8 @@ export async function createGuest(payload: CreateGuestPayload): Promise<Guest> {
   const response = await apiClient.post<unknown>('/guests/', payload)
   return parseResponse(guestSchema, response)
 }
+
+export async function fetchGuest(id: number): Promise<Guest> {
+  const response = await apiClient.get<unknown>(`/guests/${id}/`)
+  return parseResponse(guestSchema, response)
+}

@@ -4,13 +4,20 @@ import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'
 import { GUESTS_ROOT } from '@/lib/queryKeys'
 import { useInvalidateServerState } from '@/lib/useInvalidateServerState'
 
-import { createGuest, fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from './api'
+import {
+  createGuest,
+  fetchGuest,
+  fetchGuests,
+  fetchGuestsInHotel,
+  fetchGuestsPendingCheckin,
+} from './api'
 import type { CreateGuestPayload, Guest } from './types'
 
 export const guestKeys = {
   list: (search: string) => [...GUESTS_ROOT, { search }] as const,
   inHotel: [...GUESTS_ROOT, 'in-hotel'] as const,
   pendingCheckin: [...GUESTS_ROOT, 'pending-checkin'] as const,
+  detail: (id: number) => [...GUESTS_ROOT, id] as const,
 }
 
 export interface QueryOptions {
@@ -42,6 +49,15 @@ export function useGuestsPendingCheckin(options?: QueryOptions) {
     queryFn: fetchGuestsPendingCheckin,
     staleTime: DEFAULT_STALE_TIME_MS,
     enabled: options?.enabled ?? true,
+  })
+}
+
+export function useGuest(id: number | undefined) {
+  return useQuery({
+    queryKey: guestKeys.detail(id ?? 0),
+    queryFn: () => fetchGuest(id ?? 0),
+    staleTime: DEFAULT_STALE_TIME_MS,
+    enabled: id !== undefined,
   })
 }
 

@@ -170,7 +170,14 @@ usa, com o relógio injetado.
    voltar e compartilhar preservam a consulta. O filtro de pagamento aparece
    apenas em "Finalizada" de propósito: no servidor `paid=false` casa também
    toda reserva que ainda não pagou porque nem fechou.
-8. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
+8. **Detalhe da reserva (`/reservas/:id`).** "Detalhes" abre a ficha: quarto e
+   datas, titular com documento, telefone e nacionalidade formatados,
+   acompanhantes, e o **histórico com ator** — quem criou, quem fez o check-in,
+   quem fechou, quem recebeu. A conta congelada aparece só depois do checkout,
+   e "Ver extrato" reimprime a 2ª via (idêntica, porque o servidor hidrata as
+   linhas gravadas em vez de recalcular). As ações disponíveis seguem o status:
+   uma reserva cancelada não oferece nenhuma.
+9. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
    endpoints da seção [6](#6-mapa-da-api), com exemplos de request, de resposta
    e dos erros de cada rota.
 
@@ -278,7 +285,7 @@ dinheiro em ponto flutuante:
 
 # frontend: o módulo que formata dinheiro e o extrato não convertem para número
 ! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" \
-    src/lib/money.ts src/features/reservations/CheckoutStatementDialog.tsx
+    src/lib/money.ts src/features/reservations/CheckoutStatementDialog.tsx src/features/reservations/components/ReservationSections.tsx
 ```
 
 ---

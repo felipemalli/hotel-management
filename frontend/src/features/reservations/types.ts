@@ -1,5 +1,7 @@
 import type { z } from 'zod'
 
+import type { userRefSchema } from '@/lib/schemas'
+
 import type {
   billLineSchema,
   checkoutStatementSchema,
@@ -18,6 +20,8 @@ export type Reservation = z.infer<typeof reservationSchema>
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>
 
 export type GuestRef = z.infer<typeof guestRefSchema>
+
+export type UserRef = z.infer<typeof userRefSchema>
 
 export type BillLine = z.infer<typeof billLineSchema>
 
