@@ -2,7 +2,15 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { ErrorState, TableSkeleton } from '@/components/common'
-import { Button, Dialog, Typography } from '@/components/ui'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  Typography,
+} from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { CurrentPolicyCard } from '@/features/pricing/CurrentPolicyCard'
 import { useCurrentPolicy } from '@/features/pricing/hooks'
@@ -65,23 +73,25 @@ export function PricingPage() {
       </section>
 
       {publishing && current.data ? (
-        <Dialog
-          open
-          size="lg"
-          title="Publicar nova tarifa"
-          description="Os campos vêm com a tarifa vigente; altere o que muda."
-          onClose={() => setPublishing(false)}
-        >
-          <PolicyForm
-            current={current.data}
-            onCancel={() => setPublishing(false)}
-            onSuccess={(policy) => {
-              setPublishing(false)
-              notifySuccess(
-                `Tarifa publicada — vigente desde ${formatISODateTime(policy.effective_from)}.`,
-              )
-            }}
-          />
+        <Dialog open onOpenChange={(next) => (next ? undefined : setPublishing(false))}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Publicar nova tarifa</DialogTitle>
+              <DialogDescription>
+                Os campos vêm com a tarifa vigente; altere o que muda.
+              </DialogDescription>
+            </DialogHeader>
+            <PolicyForm
+              current={current.data}
+              onCancel={() => setPublishing(false)}
+              onSuccess={(policy) => {
+                setPublishing(false)
+                notifySuccess(
+                  `Tarifa publicada — vigente desde ${formatISODateTime(policy.effective_from)}.`,
+                )
+              }}
+            />
+          </DialogContent>
         </Dialog>
       ) : null}
     </section>

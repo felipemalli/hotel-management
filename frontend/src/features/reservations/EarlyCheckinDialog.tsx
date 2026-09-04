@@ -1,4 +1,14 @@
-import { Button, Dialog, Typography } from '@/components/ui'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Typography,
+} from '@/components/ui'
 
 export interface EarlyCheckinDialogProps {
   open: boolean
@@ -22,31 +32,28 @@ export function EarlyCheckinDialog({
   onCancel,
 }: EarlyCheckinDialogProps) {
   return (
-    <Dialog
-      open={open}
-      role="alertdialog"
-      size="sm"
-      title={`Check-in antes das ${opensAt}`}
-      description={`São ${serverTime} — o check-in abre às ${opensAt}. Confirmar mesmo assim?`}
-      onClose={onCancel}
-      footer={
-        <>
-          <Button variant="outline" onClick={onCancel} disabled={pending}>
-            Cancelar
-          </Button>
-          <Button onClick={onConfirm} disabled={pending}>
+    <AlertDialog open={open} onOpenChange={(next) => (next ? undefined : onCancel())}>
+      <AlertDialogContent size="sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{`Check-in antes das ${opensAt}`}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {`São ${serverTime} — o check-in abre às ${opensAt}. Confirmar mesmo assim?`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Typography as="p" variant="body" tone="muted">
+          O check-in de{' '}
+          <Typography as="strong" variant="body">
+            {guestName}
+          </Typography>{' '}
+          será registrado fora do horário de abertura.
+        </Typography>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={pending}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} disabled={pending}>
             {pending ? 'Confirmando…' : 'Confirmar mesmo assim'}
-          </Button>
-        </>
-      }
-    >
-      <Typography as="p" variant="body" tone="muted">
-        O check-in de{' '}
-        <Typography as="strong" variant="body">
-          {guestName}
-        </Typography>{' '}
-        será registrado fora do horário de abertura.
-      </Typography>
-    </Dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }

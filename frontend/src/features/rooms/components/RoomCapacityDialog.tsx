@@ -1,8 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 
 import { FormField } from '@/components/common'
-import { Button, Dialog, Input } from '@/components/ui'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+} from '@/components/ui'
 import { applyServerErrors } from '@/lib/forms/forms'
 
 import { useUpdateRoom } from '../hooks'
@@ -33,6 +43,9 @@ export function RoomCapacityDialog({ room, onClose, onUpdated }: RoomCapacityDia
   })
 
   const updateRoom = useUpdateRoom({ onSuccess: onUpdated })
+  // Fechar precisa passar por `open=false` antes de desmontar: é nessa
+  // transição que o Base UI restaura o foco.
+  const [open, setOpen] = useState(true)
 
   const submit = handleSubmit((values) => {
     updateRoom.mutate(
@@ -49,34 +62,44 @@ export function RoomCapacityDialog({ room, onClose, onUpdated }: RoomCapacityDia
 
   return (
     <Dialog
-      open
-      size="sm"
-      title={`Editar capacidade — quarto ${room.number}`}
-      description="Não pode ficar abaixo do maior grupo com reserva ativa neste quarto."
-      onClose={onClose}
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => (next ? undefined : onClose())}
     >
-      <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-        <FormField label="Capacidade" error={errors.capacity?.message}>
-          {(control) => (
-            <Input
-              type="number"
-              min={1}
-              step={1}
-              inputMode="numeric"
-              {...control}
-              {...register('capacity', { valueAsNumber: true })}
-            />
-          )}
-        </FormField>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose} disabled={updateRoom.isPending}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={updateRoom.isPending}>
-            {updateRoom.isPending ? 'Salvando…' : 'Salvar'}
-          </Button>
-        </div>
-      </form>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{`Editar capacidade — quarto ${room.number}`}</DialogTitle>
+          <DialogDescription>
+            Não pode ficar abaixo do maior grupo com reserva ativa neste quarto.
+          </DialogDescription>
+        </DialogHeader>
+        <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+          <FormField label="Capacidade" error={errors.capacity?.message}>
+            {(control) => (
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                {...control}
+                {...register('capacity', { valueAsNumber: true })}
+              />
+            )}
+          </FormField>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={updateRoom.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={updateRoom.isPending}>
+              {updateRoom.isPending ? 'Salvando…' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   )
 }

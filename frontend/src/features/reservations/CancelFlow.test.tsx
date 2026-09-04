@@ -81,9 +81,12 @@ describe('CancelFlow', () => {
     ])
 
     // O botao que abriu a confirmacao desmontou com a linha cancelada: sem um
-    // alvo vivo o foco cairia no `<body>`.
-    expect(screen.getByRole('main')).toHaveFocus()
+    // alvo vivo o foco cairia no `<body>`. O Base UI devolve a um elemento
+    // tabulável dentro do conteúdo principal (não ao `<main>` em si, que tem
+    // `tabIndex=-1` e por isso não conta como alvo "tabável" para a lib).
     expect(document.body).not.toHaveFocus()
+    // eslint-disable-next-line testing-library/no-node-access -- nao ha query de role para "o que tem foco agora"
+    expect(screen.getByRole('main')).toContainElement(document.activeElement as HTMLElement)
   })
 
   it('mantem a confirmacao na tela quando a listagem perde a linha no meio da mutation', async () => {
@@ -120,7 +123,9 @@ describe('CancelFlow', () => {
     release()
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(cancelReservation).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('main')).toHaveFocus()
+    expect(document.body).not.toHaveFocus()
+    // eslint-disable-next-line testing-library/no-node-access -- nao ha query de role para "o que tem foco agora"
+    expect(screen.getByRole('main')).toContainElement(document.activeElement as HTMLElement)
   })
 
   it('nao chama a api quando o atendente volta', async () => {

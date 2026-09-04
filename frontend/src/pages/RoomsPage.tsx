@@ -3,7 +3,17 @@ import { useSearchParams } from 'react-router-dom'
 
 import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Button, Checkbox, Dialog, FieldLabel, Typography } from '@/components/ui'
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  FieldLabel,
+  Typography,
+} from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { RoomActions } from '@/features/rooms/components/RoomActions'
 import { RoomCapacityDialog } from '@/features/rooms/components/RoomCapacityDialog'
@@ -11,7 +21,6 @@ import { RoomDeactivateDialog } from '@/features/rooms/components/RoomDeactivate
 import { RoomForm } from '@/features/rooms/RoomForm'
 import { RoomsTable } from '@/features/rooms/RoomsTable'
 import type { Room } from '@/features/rooms/types'
-import { returnFocusToContent } from '@/lib/a11y/focus'
 import { errorMessage } from '@/lib/errors/errors'
 import { notifySuccess } from '@/lib/notify/toast'
 import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
@@ -94,17 +103,23 @@ export function RoomsPage() {
 
       <Dialog
         open={dialog?.kind === 'create'}
-        title="Novo quarto"
-        description="Número único (até 10 caracteres) e capacidade em pessoas."
-        onClose={close}
+        onOpenChange={(next) => (next ? undefined : close())}
       >
-        <RoomForm
-          onCancel={close}
-          onSuccess={(room) => {
-            close()
-            notifySuccess(`Quarto ${room.number} cadastrado.`)
-          }}
-        />
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Novo quarto</DialogTitle>
+            <DialogDescription>
+              Número único (até 10 caracteres) e capacidade em pessoas.
+            </DialogDescription>
+          </DialogHeader>
+          <RoomForm
+            onCancel={close}
+            onSuccess={(room) => {
+              close()
+              notifySuccess(`Quarto ${room.number} cadastrado.`)
+            }}
+          />
+        </DialogContent>
       </Dialog>
 
       {dialog?.kind === 'capacity' ? (
@@ -123,9 +138,6 @@ export function RoomsPage() {
           room={dialog.room}
           onClose={close}
           onDeactivated={(room) => {
-            // A linha some da listagem padrão junto com a desativação: sem um
-            // alvo vivo, o foco cairia no `<body>`.
-            returnFocusToContent()
             close()
             notifySuccess(`Quarto ${room.number} desativado.`)
           }}

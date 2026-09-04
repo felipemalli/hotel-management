@@ -1,7 +1,32 @@
+export {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogOverlay,
+  AlertDialogPortal,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from './alert-dialog'
 export { Badge, badgeVariants } from './badge'
 export { Button, buttonVariants } from './button'
 export { Checkbox } from './checkbox'
-export { Dialog, type DialogProps } from './Dialog'
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+} from './dialog'
 export {
   DropdownMenu,
   DropdownMenuCheckboxItem,

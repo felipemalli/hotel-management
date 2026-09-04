@@ -1,6 +1,13 @@
 import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Button, Dialog } from '@/components/ui'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui'
 import { GuestForm } from '@/features/guests/GuestForm'
 import { GuestTable } from '@/features/guests/GuestTable'
 import type { GuestRow } from '@/features/guests/tabs'
@@ -8,7 +15,6 @@ import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStateme
 import { CancelReservationDialog } from '@/features/reservations/components/CancelReservationDialog'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ReservationForm } from '@/features/reservations/ReservationForm'
-import { returnFocusToContent } from '@/lib/a11y/focus'
 import { errorMessage } from '@/lib/errors/errors'
 import { notifySuccess } from '@/lib/notify/toast'
 
@@ -69,34 +75,43 @@ export function DashboardPage() {
 
       <Dialog
         open={current?.kind === 'guest'}
-        title="Novo hóspede"
-        description="Nome, documento, telefone e nacionalidade são obrigatórios."
-        onClose={close}
+        onOpenChange={(next) => (next ? undefined : close())}
       >
-        <GuestForm
-          onCancel={close}
-          onSuccess={(guest) => {
-            notifySuccess(`Hóspede ${guest.full_name} cadastrado.`)
-            open({ kind: 'reservation', guest })
-          }}
-        />
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Novo hóspede</DialogTitle>
+            <DialogDescription>
+              Nome, documento, telefone e nacionalidade são obrigatórios.
+            </DialogDescription>
+          </DialogHeader>
+          <GuestForm
+            onCancel={close}
+            onSuccess={(guest) => {
+              notifySuccess(`Hóspede ${guest.full_name} cadastrado.`)
+              open({ kind: 'reservation', guest })
+            }}
+          />
+        </DialogContent>
       </Dialog>
 
       {current?.kind === 'reservation' ? (
-        <Dialog
-          open
-          title="Nova reserva"
-          description="Mínimo de 1 noite; a entrada não pode ser no passado."
-          onClose={close}
-        >
-          <ReservationForm
-            guest={current.guest}
-            onCancel={close}
-            onSuccess={(reservation) => {
-              close()
-              notifySuccess(`Reserva #${reservation.id} criada para ${current.guest.full_name}.`)
-            }}
-          />
+        <Dialog open onOpenChange={(next) => (next ? undefined : close())}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Nova reserva</DialogTitle>
+              <DialogDescription>
+                Mínimo de 1 noite; a entrada não pode ser no passado.
+              </DialogDescription>
+            </DialogHeader>
+            <ReservationForm
+              guest={current.guest}
+              onCancel={close}
+              onSuccess={(reservation) => {
+                close()
+                notifySuccess(`Reserva #${reservation.id} criada para ${current.guest.full_name}.`)
+              }}
+            />
+          </DialogContent>
         </Dialog>
       ) : null}
 
@@ -106,7 +121,6 @@ export function DashboardPage() {
           guestName={current.guestName}
           onClose={close}
           onCancelled={() => {
-            returnFocusToContent()
             close()
             notifySuccess(`Reserva de ${current.guestName} cancelada.`)
           }}
@@ -114,15 +128,7 @@ export function DashboardPage() {
       ) : null}
 
       {current?.kind === 'statement' ? (
-        <CheckoutStatementDialog
-          open
-          allowPayment
-          statement={current.statement}
-          onClose={() => {
-            returnFocusToContent()
-            close()
-          }}
-        />
+        <CheckoutStatementDialog open allowPayment statement={current.statement} onClose={close} />
       ) : null}
     </>
   )

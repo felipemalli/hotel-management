@@ -1,5 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { CARLA, inHotel } from '@/features/guests/__fixtures__/guests'
@@ -10,7 +9,7 @@ import { page } from '@/test/fixtures'
 import { renderPage } from '@/test/renderPage'
 import { signInForTest } from '@/test/renderWithProviders'
 
-import { T7_STATEMENT } from './__fixtures__/bills'
+import { PAID_T7_STATEMENT } from './__fixtures__/bills'
 
 vi.mock('@/features/guests/api')
 vi.mock('@/features/reservations/api')
@@ -29,8 +28,16 @@ function carlaInHotel() {
 }
 
 describe('CheckoutFlow', () => {
+  // `fireEvent` no lugar de `userEvent`, e o extrato "devolvido" já pago
+  // (`PAID_T7_STATEMENT`, mesmos números de T7): com `allowPayment` e a conta
+  // em aberto, o extrato monta o Select de "Forma de pagamento" junto do
+  // Dialog, e essa combinação nunca assenta o measure/posicionamento do Base
+  // UI em jsdom quando a listagem por trás muda no meio da mutation — mesma
+  // limitação do Select isolado (ver src/components/ui/select.tsx). O caso
+  // aqui prova exatamente o que o nome promete — o diálogo sobrevive à linha
+  // saindo da aba —, só sem o Select no caminho; o extrato com pagamento em
+  // aberto é coberto em `CheckoutStatementDialog.test.tsx` e no e2e.
   it('test_checkout_statement_survives_the_row_leaving_in_hotel', async () => {
-    const user = userEvent.setup()
     signInForTest()
 
     let checkedOut = false
@@ -42,15 +49,15 @@ describe('CheckoutFlow', () => {
     )
     vi.mocked(checkOut).mockImplementation(async () => {
       checkedOut = true
-      return T7_STATEMENT
+      return PAID_T7_STATEMENT
     })
 
     renderPage(<DashboardPage />, { route: '/' })
 
-    await user.click(screen.getByRole('tab', { name: /No hotel/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /No hotel/ }))
     await screen.findByText(GUEST_NAME)
 
-    await user.click(screen.getByRole('button', { name: 'Checkout' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Checkout' }))
     await waitFor(() => expect(checkOut).toHaveBeenCalledWith(RESERVATION_ID))
 
     const dialog = await screen.findByRole('dialog', { name: /Extrato/ })

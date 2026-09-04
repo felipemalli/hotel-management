@@ -1,4 +1,16 @@
-import { Button, Dialog } from '@/components/ui'
+import { useState } from 'react'
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui'
+import { focusMainContent } from '@/lib/a11y/focus'
 
 import { useCancelReservation } from '../hooks'
 
@@ -16,29 +28,45 @@ export function CancelReservationDialog({
   onCancelled,
 }: CancelReservationDialogProps) {
   const cancel = useCancelReservation({ onSuccess: onCancelled })
+  // Fechar precisa passar por `open=false` antes de desmontar: é nessa
+  // transição que o Base UI restaura o foco. Desmontar direto no pedido de
+  // fechamento (Escape, clique fora, "Voltar") atropela essa restauração.
+  const [open, setOpen] = useState(true)
+  // "Voltar"/Escape devolvem o foco ao próprio gatilho (padrão do Base UI,
+  // que segue vivo). Só a confirmação precisa de `finalFocus`: a linha que
+  // abriu o diálogo desmonta junto com a reserva cancelada.
+  const [confirmed, setConfirmed] = useState(false)
 
   return (
-    <Dialog
-      open
-      role="alertdialog"
-      size="sm"
-      title="Cancelar reserva"
-      description={`A reserva de ${guestName} será cancelada. A ação não pode ser desfeita.`}
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="outline" disabled={cancel.isPending} onClick={onClose}>
-            Voltar
-          </Button>
-          <Button
+    <AlertDialog
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(next) => (next ? undefined : onClose())}
+    >
+      <AlertDialogContent
+        size="sm"
+        finalFocus={confirmed ? () => focusMainContent() ?? true : undefined}
+      >
+        <AlertDialogHeader>
+          <AlertDialogTitle>Cancelar reserva</AlertDialogTitle>
+          <AlertDialogDescription>
+            A reserva de {guestName} será cancelada. A ação não pode ser desfeita.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={cancel.isPending}>Voltar</AlertDialogCancel>
+          <AlertDialogAction
             variant="destructive"
             disabled={cancel.isPending}
-            onClick={() => cancel.mutate(reservationId)}
+            onClick={() => {
+              setConfirmed(true)
+              cancel.mutate(reservationId)
+            }}
           >
             {cancel.isPending ? 'Cancelando…' : 'Cancelar reserva'}
-          </Button>
-        </>
-      }
-    />
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
