@@ -60,10 +60,7 @@ export function useCheckOut(options?: { onSuccess?: (s: CheckoutStatement) => vo
   return useMutation({
     mutationFn: (id: number) => checkOut(id),
     onSuccess: (statement) => {
-      // A semeadura vem DEPOIS da invalidação: a chave do extrato mora sob a
-      // raiz das reservas, e invalidar em seguida marcaria como velho o dado
-      // que o próprio POST acabou de devolver — a 2ª via aberta logo depois
-      // pagaria uma segunda ida ao servidor por nada.
+      // Semeadura DEPOIS da invalidação: a chave do extrato mora sob a raiz das reservas.
       invalidateServerState()
       queryClient.setQueryData(reservationKeys.statement(statement.reservation_id), statement)
       options?.onSuccess?.(statement)
@@ -115,8 +112,7 @@ export function useReservations(params: ReservationListParams) {
     queryKey: reservationKeys.list(params),
     queryFn: () => fetchReservations(params),
     staleTime: DEFAULT_STALE_TIME_MS,
-    // Trocar de página não pode piscar a tabela vazia: o dado anterior fica na
-    // tela enquanto o seguinte não chega.
+    // Trocar de página não pisca a tabela vazia.
     placeholderData: keepPreviousData,
   })
 }

@@ -47,7 +47,6 @@ describe('RoomForm', () => {
     expect(await screen.findByText('Informe a capacidade.')).toBeInTheDocument()
   })
 
-  // Capacidade é contagem: o payload leva número, não o texto do campo.
   it('envia a capacidade como inteiro e entrega o quarto criado', async () => {
     const user = userEvent.setup()
     const onSuccess = vi.fn()
@@ -60,7 +59,6 @@ describe('RoomForm', () => {
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(ROOM_101))
   })
 
-  // O servidor devolve o duplicado como 400 no campo, e não como 409.
   it('devolve o numero duplicado ao campo culpado', async () => {
     const user = userEvent.setup()
     vi.mocked(createRoom).mockRejectedValue(
@@ -80,8 +78,6 @@ describe('RoomForm', () => {
     expect(screen.getByLabelText('Número')).toHaveAttribute('aria-invalid', 'true')
   })
 
-  // O botão que abriu este formulário só existe para o admin: um 403 é
-  // inesperado, e vai ao toast em vez de virar erro de preenchimento.
   it('deixa o 403 para o toast global, sem alerta no formulario', async () => {
     const user = userEvent.setup()
     vi.mocked(createRoom).mockRejectedValue(

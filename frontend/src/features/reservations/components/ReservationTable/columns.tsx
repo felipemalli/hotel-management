@@ -52,7 +52,6 @@ export const reservationColumns: DataTableColumns<Reservation> = helper.columns(
     header: 'Vaga',
     cell: ({ row }) => (row.original.has_vehicle ? 'Sim' : 'Não'),
   }),
-  // O total só existe depois do checkout: até lá não há conta.
   helper.display({
     id: 'total',
     header: 'Total',

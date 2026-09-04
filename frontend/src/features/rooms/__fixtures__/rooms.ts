@@ -1,7 +1,5 @@
 import type { Room } from '../types'
 
-// Espelho de `seed_demo._ensure_rooms`: mesmos números e capacidades, para o
-// teste falar do mesmo hotel que a demonstração.
 export const ROOM_101: Room = {
   id: 1,
   number: '101',
@@ -16,7 +14,7 @@ export const ROOM_103: Room = { ...ROOM_101, id: 3, number: '103', capacity: 3 }
 
 export const ROOM_201: Room = { ...ROOM_101, id: 4, number: '201', capacity: 4 }
 
-// Fora do seed: cobre o quarto desativado e a concordância do singular.
+// Fora do seed: desativado, capacidade 1 (singular).
 export const ROOM_301_INACTIVE: Room = {
   ...ROOM_101,
   id: 5,

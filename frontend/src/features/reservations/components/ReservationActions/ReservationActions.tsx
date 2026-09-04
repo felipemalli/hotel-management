@@ -18,9 +18,7 @@ export interface ReservationActionsProps {
   reservationId: number
   guestName: string
   state: ReservationActionState
-  // Obrigatórios: o extrato e a confirmação de cancelamento moram na página,
-  // porque as duas mutations tiram esta linha da listagem. Sem o callback, a
-  // ação seguiria clicável e o atendente ficaria sem o extrato e sem confirmar.
+  // Extrato e cancelamento moram na página: as mutations tiram esta linha.
   onCheckedOut: (statement: CheckoutStatement) => void
   onRequestCancel: () => void
 }
@@ -52,10 +50,7 @@ export function ReservationActions({
             setEarly(info)
             return
           }
-          // Quarto ainda ocupado, chegada antecipada, ou um `EARLY_CHECKIN`
-          // sem os horários no `extra`: não há o que confirmar, e os dois
-          // códigos estão na lista dos apresentados localmente — sem este
-          // aviso o erro sumiria da tela.
+          // Sem isto o 409 some: os códigos estão na lista dos apresentados localmente.
           if (isApiErrorCode(cause, 'ROOM_UNAVAILABLE') || isApiErrorCode(cause, 'EARLY_CHECKIN')) {
             notifyError(errorMessage(cause))
           }

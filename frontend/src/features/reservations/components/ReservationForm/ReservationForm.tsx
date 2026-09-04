@@ -33,8 +33,7 @@ import { errorMessage, roomUnavailableInfo } from '@/lib/errors/errors'
 import { addDaysISO, formatISODate, todayISO } from '@/lib/format/dates'
 import { applyServerErrors } from '@/lib/forms/forms'
 
-// `guest_id` não tem campo na tela: um erro do servidor sobre ele vai para o
-// alerta do topo em vez de sumir num campo que o atendente não vê.
+// guest_id não tem campo: erro do servidor vai ao alerta do topo.
 const FIELDS = ['checkin_date', 'checkout_date', 'has_vehicle', 'room_id', 'companion_ids'] as const
 
 export interface ReservationFormProps {
@@ -44,8 +43,7 @@ export interface ReservationFormProps {
 }
 
 export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormProps) {
-  // Hoje é lido uma vez na montagem: recomputar a cada render faria um
-  // formulário aberto durante a virada do dia recusar a própria data padrão.
+  // Hoje lido na montagem: virada do dia no formulário aberto recusaria a data padrão.
   const [today] = useState(todayISO)
   const schema = useMemo(() => reservationFormSchema(today), [today])
 
@@ -72,8 +70,6 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
 
   const room = useController({ control, name: 'room_id' })
   const companionIds = useController({ control, name: 'companion_ids' })
-  // O formulário guarda só os ids, que é o que a API recebe; os nomes ficam
-  // aqui para as etiquetas, reescritos junto a cada mudança.
   const [companions, setCompanions] = useState<GuestRef[]>([])
 
   const invalidateServerState = useInvalidateServerState()
@@ -82,8 +78,7 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
   const checkinDate = watch('checkin_date')
   const checkoutDate = watch('checkout_date')
 
-  // Fora deste intervalo o servidor responderia 400 (saída ≤ entrada, ou D11):
-  // o campo fica desabilitado em vez de disparar uma consulta por tecla.
+  // Fora deste intervalo o servidor responderia 400.
   const datesValid = checkinDate >= today && checkoutDate > checkinDate
   const people = 1 + companionIds.field.value.length
   const availability = useAvailableRooms(
@@ -91,9 +86,7 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
     { enabled: datesValid },
   )
 
-  // `useMemo` para a lista ser a mesma referência entre renders: ela é
-  // dependência do efeito que limpa o quarto, e um array novo a cada passagem
-  // faria o efeito rodar sem que nada tivesse mudado.
+  // Dependência do efeito que limpa o quarto: array novo a cada render dispararia à toa.
   const rooms = useMemo(() => availability.data?.results ?? [], [availability.data])
   const roomItems = rooms.map((candidate) => ({
     value: candidate.id,
@@ -102,9 +95,7 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
   const roomId = room.field.value
   const roomField = room.field
 
-  // Um quarto escolhido para outras datas ou menos pessoas pode ter saído da
-  // lista: a escolha volta ao vazio em vez de seguir para um 409 certo. Só com
-  // dado fresco — o da consulta anterior ainda não decide nada.
+  // Quarto fora da lista nova volta ao vazio. Só com dado fresco, não o placeholder.
   useEffect(() => {
     if (roomId === null || !availability.isSuccess || availability.isPlaceholderData) return
     if (!rooms.some((candidate) => candidate.id === roomId)) roomField.onChange(null)
@@ -120,8 +111,7 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
               ? ''
               : ` Conflito com uma reserva a partir de ${formatISODate(conflict.conflictingCheckinDate)}.`
           setError('root.server', { type: 'server', message: `${errorMessage(error)}${when}` })
-          // A lista que o atendente viu já não vale: o quarto acabou de ser
-          // tomado por outra reserva.
+          // A lista vista já não vale: o quarto acabou de ser tomado.
           invalidateServerState()
           return
         }

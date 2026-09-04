@@ -11,8 +11,7 @@ export interface RoomListParams {
   page?: number
 }
 
-// `people` é o tamanho da festa (titular + acompanhantes): o servidor filtra
-// por capacidade com ele.
+// people = titular + acompanhantes; o servidor filtra capacidade com ele.
 export interface AvailabilityQuery {
   checkin_date: string
   checkout_date: string

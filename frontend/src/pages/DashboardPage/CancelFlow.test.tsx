@@ -79,10 +79,8 @@ describe('CancelFlow', () => {
       }),
     ])
 
-    // O botao que abriu a confirmacao desmontou com a linha cancelada: sem um
-    // alvo vivo o foco cairia no `<body>`. O Base UI devolve a um elemento
-    // tabulável dentro do conteúdo principal (não ao `<main>` em si, que tem
-    // `tabIndex=-1` e por isso não conta como alvo "tabável" para a lib).
+    // O gatilho desmontou com a linha: sem alvo vivo o foco cairia no `<body>`.
+    // Base UI devolve a um tabulável em `<main>`, não ao `<main>` (`tabIndex=-1`).
     expect(document.body).not.toHaveFocus()
     // eslint-disable-next-line testing-library/no-node-access -- nao ha query de role para "o que tem foco agora"
     expect(screen.getByRole('main')).toContainElement(document.activeElement as HTMLElement)
@@ -111,12 +109,10 @@ describe('CancelFlow', () => {
     await user.click(within(confirmation).getByRole('button', { name: 'Cancelar reserva' }))
     expect(await screen.findByRole('button', { name: 'Cancelando…' })).toBeDisabled()
 
-    // A listagem se atualiza com a mutation ainda em voo e a linha sai da tela.
+    // Invalidar no meio da mutation tira a linha; o diálogo tem de sobreviver.
     void queryClient.invalidateQueries()
     expect(await screen.findByText(EMPTY_PENDING)).toBeInTheDocument()
 
-    // A confirmacao sobrevive porque pertence a pagina: dentro da linha, ela
-    // desmontaria aqui, no meio do cancelamento.
     expect(screen.getByRole('alertdialog', { name: 'Cancelar reserva' })).toBeInTheDocument()
 
     release()

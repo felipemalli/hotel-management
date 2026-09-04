@@ -8,7 +8,6 @@ import {
 } from './schemas'
 import type { CreateGuestPayload, Guest, GuestInHotel, GuestPendingCheckin } from './types'
 
-// `page` só viaja depois da primeira: a primeira página é o padrão do servidor.
 function pageParam(page: number): { page?: number } {
   return page > 1 ? { page } : {}
 }

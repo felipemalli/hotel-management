@@ -18,8 +18,7 @@ export interface CaptureOptions {
   componentStack?: string | null
 }
 
-// O contexto é montado aqui, e não pelo chamador: assim o log carrega código,
-// status e rota, e nunca `extra` nem corpo de requisição — onde a PII mora.
+// Nunca logar `extra` nem corpo — onde a PII mora.
 function buildContext(error: unknown, options: CaptureOptions): ErrorContext {
   const context: ErrorContext = {
     scope: options.scope,
@@ -63,8 +62,6 @@ export const errorLogger = {
     sink.capture(error, buildContext(error, options))
   },
 
-  // Ponto de extensão: um serviço de monitoramento entra por aqui sem que o
-  // resto do código conheça o destino. Devolve a função que restaura o anterior.
   use: (next: ErrorSink): (() => void) => {
     const previous = sink
     sink = next

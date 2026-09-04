@@ -57,8 +57,7 @@ function on(url: string, ...sequence: Reply[]): void {
   replies.set(url, sequence)
 }
 
-// A última resposta da fila fica valendo para as chamadas seguintes: "401 e
-// depois 200 sempre" cabe em duas entradas.
+// A última da fila vale para as chamadas seguintes: "401 e depois 200" cabe em duas.
 function nextReply(url: string): Reply {
   const sequence = replies.get(url) ?? []
   const [first, ...rest] = sequence
@@ -72,8 +71,6 @@ function authorizationOf(config: InternalAxiosRequestConfig): string | undefined
   return typeof value === 'string' ? value : undefined
 }
 
-// Nenhuma requisição sai daqui: o adapter é o transporte inteiro, e o resto da
-// cadeia de interceptors é a de produção.
 const adapter: AxiosAdapter = (config) => {
   const url = config.url ?? ''
   requests.push({
@@ -94,8 +91,7 @@ let session: typeof SessionValue
 let toastStore: typeof ToastStoreValue
 let capture: ReturnType<typeof vi.fn<(error: unknown, context: ErrorContext) => void>>
 
-// A promise de renovação é estado de módulo: sem recarregar o módulo, um teste
-// herdaria o refresh em voo do anterior.
+// A promise de renovação é estado de módulo: sem recarregar, um teste herdaria o refresh.
 beforeEach(async () => {
   vi.resetModules()
   axios.defaults.adapter = adapter
@@ -139,9 +135,7 @@ describe('apiClient · injecao do token', () => {
     expect(callsTo(TOKEN)[0]?.authorization).toBeUndefined()
   })
 
-  // `/auth/me/` mora sob `/auth/` mas nao e rota de autenticacao: e ela que diz
-  // quem e o usuario, entao precisa do token. A isencao compara por prefixo com
-  // `token` e `refresh`, e nao com a pasta.
+  // `/auth/me/` está sob `/auth/` mas precisa do token: a isenção é `token`/`refresh`, não a pasta.
   it('manda o Bearer na rota do usuario corrente', async () => {
     on(ME, ok({ id: 1, username: 'recepcao', role: 'ATTENDANT' }))
 

@@ -10,7 +10,6 @@ export async function fetchPolicies(page: number): Promise<Paginated<PricingPoli
   return parseResponse(pricingPolicyPageSchema, response)
 }
 
-// Rota de objeto único, fora da paginação: é a política que rege agora.
 export async function fetchCurrentPolicy(): Promise<PricingPolicy> {
   const response = await apiClient.get<unknown>('/pricing-policies/current/')
   return parseResponse(pricingPolicySchema, response)

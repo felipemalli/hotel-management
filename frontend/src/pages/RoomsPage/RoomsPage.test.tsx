@@ -54,11 +54,7 @@ describe('RoomsPage', () => {
     expect(screen.getByRole('button', { name: 'Cadastrar quarto' })).toBeInTheDocument()
   })
 
-  // O popup do menu de ações (`Menu` do Base UI) não resolve em jsdom (mesma
-  // limitação já documentada para o `Select`): a prova de que o quarto
-  // desativado ganha a opção "Reativar" fica para o e2e (RoomDeactivateDialog
-  // e RoomCapacityDialog cobrem a regra de negócio de cada ação, montados
-  // direto e sem depender do menu).
+  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('test_toggle_inactive_widens_the_list', async () => {
     const user = userEvent.setup()
     renderRooms('ADMIN')

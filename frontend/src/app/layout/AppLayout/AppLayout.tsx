@@ -14,8 +14,7 @@ import { ROUTES } from '@/lib/routing/routes'
 import { PageFallback } from '../PageFallback'
 import { SessionMenu } from '../SessionMenu'
 
-// `end` só na recepção: as demais precisam continuar ativas nas suas subrotas
-// (`/reservas/7` ainda é "Reservas").
+// end só na recepção: /reservas/7 ainda é "Reservas".
 const NAV_ITEMS = [
   { to: ROUTES.home, label: 'Recepção', end: true },
   { to: ROUTES.reservations, label: 'Reservas', end: false },
@@ -77,8 +76,7 @@ export function AppLayout() {
         tabIndex={-1}
         className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 focus:outline-none"
       >
-        {/* Boundary por página: uma quebra na tela deixa o cabeçalho e o menu de
-            pé, e o atendente sai dela pelo menu em vez de recarregar tudo. */}
+        {/* Boundary por página: uma quebra na tela deixa o cabeçalho e o menu de pé. */}
         <ErrorBoundary
           scope="page"
           resetKeys={[pathname]}

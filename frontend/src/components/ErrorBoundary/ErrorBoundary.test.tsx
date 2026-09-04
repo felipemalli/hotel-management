@@ -29,8 +29,7 @@ function serverFault(): Promise<string> {
 
 describe('ErrorBoundary', () => {
   beforeEach(() => {
-    // O React relata no console todo erro que um boundary captura; o teste já
-    // afirma sobre o fallback, então o relato só polui a saída.
+    // React relata no console todo erro que o boundary captura.
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
   })
 

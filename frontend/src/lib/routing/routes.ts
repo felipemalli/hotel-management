@@ -1,5 +1,3 @@
-// Constantes puras: moram em `lib` porque páginas e features precisam montar
-// links (`/reservas/7`), e `app` é a única camada que nenhuma delas enxerga.
 export const ROUTES = {
   login: '/login',
   home: '/',

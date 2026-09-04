@@ -42,11 +42,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Menu da sessão' })).toBeInTheDocument()
   })
 
-  // "Sair" é um `menuitem` dentro do `Menu` do Base UI, cujo popup não resolve
-  // em jsdom (mesma limitação já documentada para o `Select`): o clique em si
-  // fica para o e2e, e aqui se afirma a reação real ao encerramento da sessão
-  // — `session.clear()`, o que o botão de fato dispara — que é o comportamento
-  // sob teste.
+  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('nao entrega ao proximo atendente a listagem do anterior', async () => {
     signInForTest('recepcao')
     render(<App />)
@@ -59,8 +55,7 @@ describe('App', () => {
 
     signInForTest('gerencia')
 
-    // Sem a purga do cache o dado ainda estaria fresco (`staleTime`) e a
-    // listagem do atendente anterior voltaria para a tela sem uma leitura nova.
+    // Sem purgar o cache, `staleTime` devolveria a listagem do atendente anterior.
     await waitFor(() => expect(fetchGuests).toHaveBeenCalledTimes(2))
   })
 })

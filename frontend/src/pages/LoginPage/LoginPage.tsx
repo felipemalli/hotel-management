@@ -34,8 +34,7 @@ export function LoginPage() {
     signIn.mutate(credentials, {
       onError: (error) => {
         if (applyServerErrors(error, setError, FIELDS)) return
-        // Um código que a política global manda ao toast não se repete aqui: o
-        // formulário só apresenta o que é da sua alçada, como a credencial errada.
+        // Código que a política global manda ao toast não se repete aqui.
         if (!isLocallyPresented(error)) return
         setError('root.server', {
           type: 'server',

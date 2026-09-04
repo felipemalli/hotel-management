@@ -15,8 +15,7 @@ export function useReservationFilters(): ReservationFiltersHandle {
   const [params, setParams] = useSearchParams()
   const filters = useMemo(() => parseReservationFilters(params), [params])
 
-  // O patch volta a passar pelo parser: sair de `CHECKED_OUT` invalida o filtro
-  // de pagamento, e é o parser que sabe disso — não cada chamador.
+  // O patch reparseia: sair de CHECKED_OUT invalida o filtro de pagamento.
   function update(patch: Partial<ReservationFilters>) {
     setParams(toSearchParams(parseReservationFilters(toSearchParams({ ...filters, ...patch }))))
   }

@@ -30,8 +30,7 @@ export function ReservationDetailPage() {
   const reservation = useReservation(id)
   const guest = useGuest(reservation.data?.guest_id)
   const [dialog, setDialog] = useState<DetailDialog>(null)
-  // O checkout já semeou esta chave com o extrato que o POST devolveu: abrir a
-  // 2ª via logo depois não custa uma segunda ida ao servidor.
+  // Checkout já semeou esta chave: a 2ª via não refaz o GET.
   const statement = useReservationStatement(id ?? 0, { enabled: dialog === 'statement' })
 
   if (id === null || isApiErrorCode(reservation.error, 'NOT_FOUND')) return <NotFound />
@@ -124,8 +123,6 @@ export function ReservationDetailPage() {
   )
 }
 
-// Id que não é número, ou reserva que não existe: as duas terminam aqui, e a
-// primeira nem chega a virar requisição.
 function NotFound() {
   return (
     <div className="flex flex-col items-start gap-3">

@@ -8,8 +8,7 @@ import { formatISODateTime } from '@/lib/format/dates'
 
 const helper = createColumnHelper<typeof dataTableFeatures, Room>()
 
-// A coluna "Ações" só existe quando o atendente (não-admin) não recebe
-// `renderActions`: ver ele para o botão de admin, não para uma coluna vazia.
+// Sem renderActions a coluna some: o não-admin não vê ações vazias.
 export function roomColumns(renderActions?: (room: Room) => ReactNode): DataTableColumns<Room> {
   return helper.columns([
     helper.accessor('number', {

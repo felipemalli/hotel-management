@@ -32,8 +32,7 @@ export async function cancelReservation(id: number): Promise<Reservation> {
   return parseResponse(reservationSchema, response)
 }
 
-// 2ª via: o servidor hidrata o extrato gravado, nunca recalcula, então a
-// reimpressão é idêntica à do checkout.
+// 2ª via hidrata o extrato gravado; o servidor nunca recalcula.
 export async function fetchReservationStatement(id: number): Promise<CheckoutStatement> {
   const response = await apiClient.get<unknown>(`/reservations/${id}/statement/`)
   return parseResponse(checkoutStatementSchema, response)

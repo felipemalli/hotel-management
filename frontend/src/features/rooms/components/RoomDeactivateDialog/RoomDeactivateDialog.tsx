@@ -22,13 +22,9 @@ export interface RoomDeactivateDialogProps {
 
 export function RoomDeactivateDialog({ room, onClose, onDeactivated }: RoomDeactivateDialogProps) {
   const updateRoom = useUpdateRoom({ onSuccess: onDeactivated })
-  // Fechar precisa passar por `open=false` antes de desmontar: é nessa
-  // transição que o Base UI restaura o foco. Desmontar direto no pedido de
-  // fechamento atropela essa restauração.
+  // open=false antes de desmontar: o Base UI restaura o foco nessa transição.
   const [open, setOpen] = useState(true)
-  // "Voltar"/Escape devolvem o foco ao próprio gatilho (padrão do Base UI,
-  // que segue vivo). Só a confirmação precisa de `finalFocus`: a linha pode
-  // desmontar junto com o quarto desativado.
+  // Só a confirmação usa finalFocus: a linha pode desmontar com o quarto.
   const [confirmed, setConfirmed] = useState(false)
 
   return (
@@ -55,8 +51,7 @@ export function RoomDeactivateDialog({ room, onClose, onDeactivated }: RoomDeact
             disabled={updateRoom.isPending}
             onClick={() => {
               setConfirmed(true)
-              // O 409 do quarto ocupado fica com o toast global, e o diálogo
-              // segue aberto: a recusa é do servidor, não do preenchimento.
+              // 409 do quarto ocupado fica no toast; o diálogo segue aberto.
               updateRoom.mutate({ id: room.id, patch: { is_active: false } })
             }}
           >

@@ -26,8 +26,7 @@ export function ReservationsPage() {
       </p>
 
       {query.isError ? (
-        // Uma página fora do intervalo responde 404: o retry volta à primeira,
-        // porque insistir na página impossível daria o mesmo 404.
+        // 404 de página fora do intervalo: retry na primeira, não na impossível.
         <ErrorState message={errorMessage(query.error)} onRetry={() => setPage(1)} />
       ) : (
         <div className="flex flex-col gap-4">

@@ -75,7 +75,6 @@ describe('ReservationDetailPage', () => {
     expect(within(people).getByText('Sem acompanhantes')).toBeInTheDocument()
   })
 
-  // Id que nao e numero nem chega a virar requisicao.
   it('nao consulta a API para um id que nao e reserva', async () => {
     signInForTest()
     renderPage(<ReservationDetailPage />, { route: '/reservas/abc', path: '/reservas/:id' })
@@ -95,12 +94,7 @@ describe('ReservationDetailPage', () => {
     expect(screen.getByRole('link', { name: 'Voltar às reservas' })).toBeInTheDocument()
   })
 
-  // `fireEvent` no lugar de `userEvent`: o extrato tem `allowPayment`, e o
-  // Select de "Forma de pagamento" que ele monta junto do Dialog trava a
-  // sequência de ponteiro do `userEvent` em jsdom (measure/posicionamento do
-  // Base UI nunca assenta — mesma limitação do Select isolado, ver
-  // src/components/ui/select.tsx). Um clique simples não passa por essa
-  // sequência e a asserção continua provando a abertura do diálogo de verdade.
+  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('mostra a conta congelada e a 2a via da estadia encerrada', async () => {
     vi.mocked(fetchGuest).mockResolvedValue(CARLA)
     renderDetail(CARLA_CHECKED_OUT)
@@ -134,22 +128,16 @@ describe('ReservationDetailPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cancelar reserva' }))
 
     await waitFor(() => expect(cancelReservation).toHaveBeenCalledWith(ANA_PENDING.id))
-    // O botao "Cancelar" desmontou com a acao cancelada: o Base UI devolve a
-    // um elemento tabulavel dentro do conteudo principal (nao ao `<main>` em
-    // si, que tem `tabIndex=-1` e por isso nao conta como alvo "tabavel").
+    // O botão "Cancelar" desmontou: o foco vai a um tabulável em `<main>`, não ao `<main>` (`tabIndex=-1`).
     await waitFor(() => expect(document.body).not.toHaveFocus())
     // eslint-disable-next-line testing-library/no-node-access -- nao ha query de role para "o que tem foco agora"
     expect(screen.getByRole('main')).toContainElement(document.activeElement as HTMLElement)
     expect(toastStore.getSnapshot()).toEqual([expect.objectContaining({ tone: 'success' })])
   })
 
-  // O POST do checkout ja devolveu o extrato: a 2a via abre do cache.
-  // `fireEvent`, mesma razão do caso "Ver extrato": o Select de "Forma de
-  // pagamento" que o extrato monta junto do Dialog trava a sequência de
-  // ponteiro do `userEvent` em jsdom.
+  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('abre o extrato do checkout sem buscar de novo', async () => {
-    // O servidor devolve o extrato DESTA reserva: é o `reservation_id` dele que
-    // semeia a chave que a 2ª via lê.
+    // O `reservation_id` do POST é o que semeia a chave da 2ª via.
     vi.mocked(checkOut).mockResolvedValue({
       ...T7_STATEMENT,
       reservation_id: BRUNO_CHECKED_IN.id,

@@ -8,9 +8,6 @@ import { LoginPage } from '@/pages/LoginPage'
 
 import { AppLayout } from './layout/AppLayout'
 
-// O login é o primeiro paint de quem chega sem sessão, então fica no bundle
-// inicial; cada página autenticada vem num chunk próprio, carregado dentro do
-// `ProtectedRoute` (o anônimo nunca baixa nenhum deles).
 const DashboardPage = lazy(() =>
   import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })),
 )
@@ -37,9 +34,7 @@ export function AppRoutes() {
       <Routes>
         <Route path={ROUTES.login} element={<LoginPage />} />
 
-        {/* Rota de layout: cabeçalho e menu pintam uma vez e sobrevivem à troca
-            de página. É também o que a regra de camadas exige — uma página não
-            pode importar `app/`, logo não pode envolver a si mesma no layout. */}
+        {/* Layout: header/menu sobrevivem à troca de página. */}
         <Route
           element={
             <ProtectedRoute>

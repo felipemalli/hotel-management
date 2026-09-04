@@ -14,9 +14,7 @@ export async function login(credentials: Credentials): Promise<TokenPair> {
   return parseResponse(tokenPairSchema, response)
 }
 
-// O papel não viaja no token: a claim é opaca para o cliente e não expiraria
-// junto com uma mudança de papel feita fora desta sessão. O servidor é quem
-// diz, e é isto que decide se o painel administrativo existe na tela.
+// Papel não viaja no token: a claim é opaca e não expiraria com mudança fora da sessão.
 export async function fetchCurrentUser(): Promise<CurrentUser> {
   const response = await apiClient.get<unknown>(AUTH_PATHS.me)
   return parseResponse(currentUserSchema, response)

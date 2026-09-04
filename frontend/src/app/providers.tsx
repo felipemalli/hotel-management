@@ -6,9 +6,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { createQueryClient } from '@/lib/api/queryClient'
 import { session } from '@/lib/auth/session'
 
-// `DEV` é substituído por `false` no build, o que apaga o `import()` junto com o
-// ramo morto: as devtools não geram chunk em produção. O modo `test` fica de
-// fora porque o painel montaria em toda árvore renderizada pela suíte.
+// DEV=false no build apaga o import(); MODE=test evita o painel na suíte.
 const devtoolsEnabled = import.meta.env.DEV && import.meta.env.MODE !== 'test'
 
 const QueryDevtools = devtoolsEnabled
@@ -22,9 +20,7 @@ const QueryDevtools = devtoolsEnabled
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient)
 
-  // Purga do cache em um lugar só: todo caminho que encerra a sessão passa por
-  // aqui — o botão "Sair", o 401 sem refresh utilizável e o sign-out em outra
-  // aba. O próximo atendente não herda a listagem do anterior.
+  // Todo sign-out passa aqui: o próximo atendente não herda o cache.
   useEffect(
     () =>
       session.subscribe(() => {

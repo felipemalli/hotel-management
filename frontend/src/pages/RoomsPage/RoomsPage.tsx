@@ -27,8 +27,7 @@ import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
 type RoomsDialog =
   { kind: 'create' } | { kind: 'capacity'; room: Room } | { kind: 'deactivate'; room: Room } | null
 
-// O nome do parâmetro é o da API: quem lê a URL e quem lê o contrato veem a
-// mesma palavra, e `is_active=false` é o que AMPLIA a listagem no servidor.
+// is_active=false AMPLIA a listagem no servidor (nome da API, não da tela).
 const INACTIVE_PARAM = 'is_active'
 
 export function RoomsPage() {
@@ -48,15 +47,12 @@ export function RoomsPage() {
       const next = new URLSearchParams(previous)
       if (checked) next.set(INACTIVE_PARAM, 'false')
       else next.delete(INACTIVE_PARAM)
-      // Filtro novo, primeira página: a página 3 do recorte anterior não
-      // significa nada no recorte novo.
+      // Filtro novo volta à página 1: a página 3 do recorte anterior não vale.
       return withPage(next, 1)
     })
   }
 
-  // Memoizado: uma referência nova a cada render reconstruiria as colunas da
-  // tabela, e a linha da ação remontaria bem debaixo do diálogo que acabou de
-  // abrir — perdendo o foco a que ele volta ao fechar.
+  // Referência estável: senão a linha remonta debaixo do diálogo e perde o foco.
   const renderRoomActions = useCallback(
     (room: Room) => (
       <RoomActions

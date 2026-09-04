@@ -36,8 +36,6 @@ export function PolicyForm({ current, onSuccess, onCancel }: PolicyFormProps) {
     resolver: zodResolver(policyFormSchema),
     mode: 'onSubmit',
     reValidateMode: 'onChange',
-    // Pré-preenchido com a vigente: publicar é editar o que muda, e digitar os
-    // sete valores de novo convidaria ao erro no que não deveria mudar.
     defaultValues: policyToFormValues(current),
   })
 

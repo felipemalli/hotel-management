@@ -27,15 +27,7 @@ function carlaInHotel() {
 }
 
 describe('CheckoutFlow', () => {
-  // `fireEvent` no lugar de `userEvent`, e o extrato "devolvido" já pago
-  // (`PAID_T7_STATEMENT`, mesmos números de T7): com `allowPayment` e a conta
-  // em aberto, o extrato monta o Select de "Forma de pagamento" junto do
-  // Dialog, e essa combinação nunca assenta o measure/posicionamento do Base
-  // UI em jsdom quando a listagem por trás muda no meio da mutation — mesma
-  // limitação do Select isolado (ver src/components/ui/select.tsx). O caso
-  // aqui prova exatamente o que o nome promete — o diálogo sobrevive à linha
-  // saindo da aba —, só sem o Select no caminho; o extrato com pagamento em
-  // aberto é coberto em `CheckoutStatementDialog.test.tsx` e no e2e.
+  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('test_checkout_statement_survives_the_row_leaving_in_hotel', async () => {
     signInForTest()
 

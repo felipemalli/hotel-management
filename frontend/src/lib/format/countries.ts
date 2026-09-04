@@ -1,7 +1,4 @@
-// TODO: rever
-// Espelho de `backend/hotel/normalization.py::ISO_3166_ALPHA2`: os 249 códigos
-// oficialmente atribuídos, na mesma ordem. Mudou lá, muda aqui — a lista do
-// `select` é trabalho do frontend por decisão declarada no backend.
+// Espelho da lista ISO do backend.
 export const COUNTRY_CODES = [
   'AD',
   'AE',
@@ -262,8 +259,7 @@ export function isCountryCode(value: string): value is CountryCode {
   return CODES.has(value)
 }
 
-// Só o que `countryName` usa de `Intl.DisplayNames`. É injetável para o teste
-// cobrir o caminho do fallback sem depender do ICU da máquina que roda a suíte.
+// Injetável para o teste não depender do ICU da máquina.
 export interface RegionNames {
   of: (code: string) => string | undefined
 }
@@ -273,9 +269,6 @@ const REGION_NAMES: RegionNames = new Intl.DisplayNames(['pt-BR'], {
   fallback: 'none',
 })
 
-// `Intl.DisplayNames` lança para código malformado e devolve `undefined` para
-// código que não conhece: a guarda pela lista evita o primeiro caso e o `??`
-// cobre o segundo — na tela aparece o código, nunca um vazio.
 export function countryName(code: string, names: RegionNames = REGION_NAMES): string {
   if (!isCountryCode(code)) return code
   return names.of(code) ?? code
@@ -286,8 +279,7 @@ export interface CountryOption {
   name: string
 }
 
-// BR primeiro porque é a resposta de quase todo cadastro; o resto em ordem
-// alfabética do nome em português, que é como o atendente procura na lista.
+// BR primeiro; o resto em ordem alfabética do nome em português.
 export function buildCountryOptions(names: RegionNames = REGION_NAMES): readonly CountryOption[] {
   const collator = new Intl.Collator('pt-BR')
   const others = COUNTRY_CODES.filter((code) => code !== 'BR')

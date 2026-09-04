@@ -12,17 +12,6 @@ import { notifyError } from '../notify/toast'
 
 export const DEFAULT_STALE_TIME_MS = 30_000
 
-// Roteamento de erro, em uma tabela:
-// mutation                -> toast, exceto os códigos abaixo, que alguma tela já
-//                            apresenta no lugar certo (campo culpado, alerta do 409)
-// query 5xx, 1ª carga     -> boundary (não há nada na tela para preservar)
-// query 5xx, com dado     -> mantém o dado; o refetch falho não apaga a tabela
-// query 4xx ou rede fora  -> `ErrorState` inline com retry
-// `NOT_AUTHENTICATED` entra na lista porque a expiração já é anunciada pelo
-// interceptor, e a credencial errada é assunto do formulário de login.
-// `ROOM_UNAVAILABLE` entra porque o formulário de reserva o mostra no alerta do
-// topo, junto da data do conflito; no check-in, onde não há formulário para
-// mostrá-lo, `ReservationActions` avisa por conta própria.
 const LOCALLY_PRESENTED_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
   'VALIDATION_ERROR',
   'DUPLICATE_DOCUMENT',
@@ -49,9 +38,7 @@ export function createQueryClient(): QueryClient {
         staleTime: DEFAULT_STALE_TIME_MS,
         retry: false,
         refetchOnWindowFocus: false,
-        // `data === undefined` é a primeira carga: só aí a tela está vazia e o
-        // boundary tem o que substituir. Backend fora do ar segue inline, com
-        // retry, porque recarregar a aplicação não o traz de volta.
+        // `throwOnError` só na 1ª carga (`data === undefined`) e não em NETWORK_ERROR.
         throwOnError: (error, query) =>
           isServerFault(error) &&
           !isApiErrorCode(error, 'NETWORK_ERROR') &&

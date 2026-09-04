@@ -17,5 +17,7 @@
 - Quartos possuem número máximo de pessoas que comportam;
 - Uma reserva possui no mínimo 1 títular;
 - Uma reserva pode possuir acompanhantes.
+- Um hóspede não pode realizar outro check-in enquanto outro seu está ativo
+
 
 - Somente o títular pode realizar o check-in!???

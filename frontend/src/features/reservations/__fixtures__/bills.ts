@@ -1,9 +1,6 @@
-// Espelho de `backend/tests/unit/test_pricing.py`: os mesmos 9 casos T1–T9, com
-// os mesmos números. Mudou a tabela de preços, mudam os dois arquivos.
-
 import type { CheckoutStatement } from '../types'
 
-// T1 — seg 15:00 → qua 11:00, sem vaga, sem multa = 240,00
+// T1: seg–qua, sem vaga, sem multa = 240,00
 export const T1_STATEMENT: CheckoutStatement = {
   reservation_id: 1,
   guest: { id: 101, full_name: 'Ana Souza' },
@@ -30,7 +27,7 @@ export const T1_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T2 — sáb 14:00 → seg 10:00, com vaga, sem multa = 400,00
+// T2: sáb–seg, com vaga, sem multa = 400,00
 export const T2_STATEMENT: CheckoutStatement = {
   reservation_id: 2,
   guest: { id: 102, full_name: 'Bruno Lima' },
@@ -57,7 +54,7 @@ export const T2_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T3 — sex 16:00 → seg 11:30, com vaga, três tarifas = 535,00
+// T3: sex–seg, com vaga, três tarifas = 535,00
 export const T3_STATEMENT: CheckoutStatement = {
   reservation_id: 3,
   guest: { id: 103, full_name: 'Carla Nunes' },
@@ -90,7 +87,7 @@ export const T3_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T4 — ter 14:00 → qui 11:59, sem vaga, antes das 12h = 240,00
+// T4: ter–qui 11:59, sem vaga, antes das 12h = 240,00
 export const T4_STATEMENT: CheckoutStatement = {
   reservation_id: 4,
   guest: { id: 104, full_name: 'Davi Rocha' },
@@ -117,7 +114,7 @@ export const T4_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T5 — ter 14:00 → qui 12:01, sem vaga, multa útil 60,00 = 300,00
+// T5: ter–qui 12:01, sem vaga, multa útil 60,00 = 300,00
 export const T5_STATEMENT: CheckoutStatement = {
   reservation_id: 5,
   guest: { id: 105, full_name: 'Elisa Prado' },
@@ -144,7 +141,7 @@ export const T5_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T6 — sex 15:00 → dom 11:59, sem vaga, antes das 12h = 300,00
+// T6: sex–dom 11:59, sem vaga, antes das 12h = 300,00
 export const T6_STATEMENT: CheckoutStatement = {
   reservation_id: 6,
   guest: { id: 106, full_name: 'Fabio Moraes' },
@@ -171,7 +168,7 @@ export const T6_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T7 — sex 15:00 → dom 12:01, com vaga, multa 90,00 = 425,00
+// T7: sex–dom 12:01, com vaga, multa 90,00 = 425,00
 export const T7_STATEMENT: CheckoutStatement = {
   reservation_id: 7,
   guest: { id: 107, full_name: 'Gabriela Reis' },
@@ -198,7 +195,7 @@ export const T7_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T8 — qua 18:00 → sex 12:00:00 exatas: a igualdade é isenta = 240,00
+// T8: 12:00:00 exatas, igualdade isenta = 240,00
 export const T8_STATEMENT: CheckoutStatement = {
   reservation_id: 8,
   guest: { id: 108, full_name: 'Heitor Campos' },
@@ -225,7 +222,7 @@ export const T8_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T9 — day-use seg 14:00 → 18:00, com vaga, mínimo de 1 diária = 195,00
+// T9: day-use, mínimo 1 diária = 195,00
 export const T9_STATEMENT: CheckoutStatement = {
   reservation_id: 9,
   guest: { id: 109, full_name: 'Iris Tavares' },
@@ -246,8 +243,7 @@ export const T9_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// A mesma conta de T7, agora paga: prova que a 2ª via mostra o pagamento e que
-// o extrato não muda por ter sido pago.
+// Mesma conta de T7, agora paga — o extrato não muda.
 export const PAID_T7_STATEMENT: CheckoutStatement = {
   ...T7_STATEMENT,
   payment: {

@@ -2,8 +2,7 @@ import { ROOM_101 } from '@/features/rooms/__fixtures__/rooms'
 
 import type { Guest, GuestInHotel, GuestPendingCheckin, ReservationSummary } from '../types'
 
-// Telefone em dígitos E.164 sem o `+`, nacionalidade ISO alpha-2: é o que a
-// coluna guarda depois de `create_guest`, e é o que a tela recebe.
+// Telefone E.164 sem `+`, nacionalidade ISO alpha-2: o que a coluna guarda.
 export const ANA: Guest = {
   id: 1,
   full_name: 'Ana Souza',
@@ -40,8 +39,6 @@ export const DAVI: Guest = {
   created_at: '2026-09-01T08:03:00-03:00',
 }
 
-// Acompanhante do seed: hóspede completo, estrangeira, e é ela quem prova que
-// as abas listam quem não é titular.
 export const EVA: Guest = {
   id: 5,
   full_name: 'Eva Lima',
@@ -61,8 +58,7 @@ const STAY: ReservationSummary = {
   checked_in_at: null,
 }
 
-// `guest_id` cai no próprio hóspede por padrão (ele é o titular). Passar o id
-// de outra pessoa em `stay` é o que monta a linha do acompanhante.
+// `guest_id` cai no próprio hóspede (titular); outro id em `stay` monta o acompanhante.
 export function inHotel(guest: Guest, stay: Partial<ReservationSummary> = {}): GuestInHotel {
   return {
     ...guest,

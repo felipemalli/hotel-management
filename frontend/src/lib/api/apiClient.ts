@@ -16,8 +16,6 @@ export interface Paginated<T> {
 export const AUTH_PATHS = {
   token: '/auth/token/',
   refresh: '/auth/token/refresh/',
-  // Sem isenção de Bearer: `isAuthPath` só compara com `token` e `refresh`, e
-  // esta rota precisa do token justamente para dizer quem é o usuário.
   me: '/auth/me/',
 } as const
 
@@ -28,8 +26,7 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Instância sem interceptors: o refresh passando pelo interceptor de 401
-// recursaria. A `baseURL` é lida de `apiClient` na chamada, fonte única.
+// Sem interceptors: o refresh pelo interceptor de 401 recursaria.
 const refreshClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
@@ -44,9 +41,7 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
-// Comparação por prefixo do caminho: `includes` casaria com qualquer URL que
-// contivesse o texto (`/api/logs?next=/auth/token/`) e isentaria do Bearer uma
-// rota que precisa dele.
+// Prefixo do caminho: `includes` casaria em qualquer URL com o texto.
 function pathOf(url: string): string {
   const [beforeQuery = ''] = url.split('?')
   const withoutOrigin = beforeQuery.replace(/^https?:\/\/[^/]+/, '')
@@ -62,7 +57,7 @@ function isAuthPath(url: string | undefined): boolean {
   return path.startsWith(AUTH_PATHS.token) || path.startsWith(AUTH_PATHS.refresh)
 }
 
-// Uma renovação por vez: as demais requisições aguardam a mesma promise.
+// Uma renovação por vez: as demais aguardam a mesma promise.
 let refreshInFlight: Promise<string> | null = null
 
 function refreshAccessToken(refresh: string): Promise<string> {
@@ -85,8 +80,6 @@ function refreshAccessToken(refresh: string): Promise<string> {
   return refreshInFlight
 }
 
-// Nenhuma tela pediu esta requisição, então o aviso sai daqui. A guarda evita
-// N avisos quando N requisições concorrentes descobrem a expiração juntas.
 function expireSession(cause: unknown): void {
   errorLogger.capture(cause, { scope: 'auth-refresh' })
   if (session.getAccessToken() === null) return
@@ -110,8 +103,7 @@ apiClient.interceptors.response.use(
       throw toApiError(error)
     }
 
-    // Marcado antes do await: um replay por requisição, mesmo que várias
-    // esperem a mesma renovação.
+    // `_retried` antes do await: um replay por requisição.
     config._retried = true
     try {
       await refreshAccessToken(refresh)
@@ -120,8 +112,7 @@ apiClient.interceptors.response.use(
       throw toApiError(error)
     }
 
-    // Sem header à mão: o interceptor de requisição injeta o token novo, e uma
-    // falha do replay é falha do replay — não motivo para encerrar a sessão.
+    // Sem header: o interceptor de requisição injeta o token novo.
     return apiClient.request(config)
   },
 )
@@ -132,7 +123,6 @@ function isEnvelope(data: unknown): data is ErrorEnvelope {
   return typeof envelope.code === 'string' && typeof envelope.detail === 'string'
 }
 
-// Erro de rede ou timeout não tem envelope: vira código sintético, status 0.
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error
 
@@ -144,8 +134,6 @@ export function toApiError(error: unknown): ApiError {
       if (isErrorCode(data.code)) {
         return new ApiError({ code: data.code, detail: data.detail, status, extra: data.extra })
       }
-      // Código que a união não conhece: a UI trata como inesperado e o
-      // original fica no `extra` para o log e para o próximo contrato.
       return new ApiError({
         code: 'UNKNOWN_ERROR',
         detail: data.detail,
@@ -171,9 +159,6 @@ export function toApiError(error: unknown): ApiError {
   })
 }
 
-// O contrato é conferido na borda: um corpo fora do schema para aqui, e não
-// dentro de um componente com um campo `undefined` na mão. Os problemas do zod
-// (caminho e formato esperado) vão ao logger; a tela recebe uma frase só.
 export function parseResponse<Schema extends z.ZodType>(
   schema: Schema,
   response: { status: number; data: unknown },

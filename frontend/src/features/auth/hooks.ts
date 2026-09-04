@@ -29,11 +29,9 @@ export function useCurrentUser() {
     queryKey: authKeys.me,
     queryFn: fetchCurrentUser,
     enabled: isAuthenticated,
-    // O papel só muda por ação administrativa fora desta sessão, e o cache
-    // inteiro é descartado no sign-out: um refetch a cada 30 s seria ruído.
+    // Papel só muda fora desta sessão; o cache some no sign-out.
     staleTime: Infinity,
-    // Nunca ao boundary: não saber o papel não pode derrubar uma tela que já
-    // carregou. Sem resposta, a aplicação segue na visão do atendente.
+    // Sem papel a tela já carregada não cai no boundary; segue visão do atendente.
     throwOnError: false,
   })
 
@@ -46,8 +44,7 @@ export function useCurrentUser() {
   return query
 }
 
-// `false` enquanto carrega: um controle de escrita não pode piscar na tela de
-// quem não pode usá-lo.
+// false enquanto carrega: controle de escrita não pisca para quem não pode usá-lo.
 export function useIsAdmin(): boolean {
   return useCurrentUser().data?.role === 'ADMIN'
 }

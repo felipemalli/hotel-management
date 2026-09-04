@@ -26,15 +26,11 @@ import { notifySuccess } from '@/lib/notify/toast'
 
 import { useDashboardDialog } from './useDashboardDialog'
 
-// Os dialogs disparados por uma linha vivem aqui, e não na linha: checkout e
-// cancelamento tiram o hóspede da aba, a linha desmonta e levaria o painel com
-// ela no meio da mutation.
+// Dialogs na página, não na linha: checkout/cancel desmontam a linha.
 export function DashboardPage() {
   const { current, open, close } = useDashboardDialog()
 
-  // Memoizadas: uma referência nova a cada render do dialog reconstruiria as
-  // colunas da tabela (que carregam este callback), e a linha remontaria bem
-  // debaixo do diálogo que acabou de abrir — perdendo o foco a que ele volta.
+  // Referência estável: senão a linha remonta debaixo do diálogo e perde o foco.
   const renderNewReservation = useCallback(
     (row: GuestAllRow) => (
       <Button
@@ -102,8 +98,7 @@ export function DashboardPage() {
 
   return (
     <>
-      {/* Uma quebra na tabela não derruba o header, o "Novo hóspede" nem os
-          dialogs: o fallback é o mesmo `ErrorState` do erro de leitura. */}
+      {/* Uma quebra na tabela não derruba o header, o "Novo hóspede" nem os dialogs. */}
       <ErrorBoundary
         scope="guest-table"
         fallback={({ error, resetErrorBoundary }) => (

@@ -9,7 +9,7 @@ import {
   type RegionNames,
 } from './countries'
 
-// Espelha o fallback do `Intl.DisplayNames` sem depender do ICU da maquina.
+// Espelha o fallback do `Intl.DisplayNames` sem depender do ICU da máquina.
 const SILENT: RegionNames = { of: () => undefined }
 
 describe('COUNTRY_CODES', () => {

@@ -16,6 +16,5 @@ export type DataTableColumns<Row extends RowData> = readonly ColumnDef<
   Row
 >[]
 
-// Referência estável: uma lista nova a cada render invalidaria os modelos da
-// tabela mesmo sem dado nenhum ter mudado.
+// Referência estável: lista nova a cada render invalidaria os modelos.
 export const EMPTY_ROWS: readonly never[] = []

@@ -27,13 +27,9 @@ export function CancelReservationDialog({
   onCancelled,
 }: CancelReservationDialogProps) {
   const cancel = useCancelReservation({ onSuccess: onCancelled })
-  // Fechar precisa passar por `open=false` antes de desmontar: é nessa
-  // transição que o Base UI restaura o foco. Desmontar direto no pedido de
-  // fechamento (Escape, clique fora, "Voltar") atropela essa restauração.
+  // open=false antes de desmontar: o Base UI restaura o foco nessa transição.
   const [open, setOpen] = useState(true)
-  // "Voltar"/Escape devolvem o foco ao próprio gatilho (padrão do Base UI,
-  // que segue vivo). Só a confirmação precisa de `finalFocus`: a linha que
-  // abriu o diálogo desmonta junto com a reserva cancelada.
+  // Só a confirmação usa finalFocus: a linha desmonta com a reserva cancelada.
   const [confirmed, setConfirmed] = useState(false)
 
   return (

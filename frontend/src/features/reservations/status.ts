@@ -27,14 +27,11 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   OTHER: 'Outro',
 }
 
-// Titular mais acompanhantes: o preço não muda com pessoas (D19), mas a
-// capacidade do quarto sim, e é o número que o balcão confere.
 export function peopleCount(reservation: Reservation): number {
   return 1 + reservation.companions.length
 }
 
-// "—" fora de `CHECKED_OUT`: antes do checkout não existe conta para estar
-// paga ou em aberto, e dizer "em aberto" ali sugeriria uma cobrança pendente.
+// — fora de CHECKED_OUT: antes do checkout não existe conta.
 export function paymentLabel(reservation: Reservation): string {
   if (reservation.status !== 'CHECKED_OUT') return '—'
   return reservation.paid_at === null ? 'Em aberto' : 'Pago'

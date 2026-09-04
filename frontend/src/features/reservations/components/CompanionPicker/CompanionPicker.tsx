@@ -15,17 +15,13 @@ export interface CompanionPickerProps {
   error?: string
 }
 
-// Acompanhante é hóspede completo (D19), então aqui só se ESCOLHE quem já está
-// cadastrado — cadastrar alguém no meio de uma reserva abriria um segundo
-// caminho de escrita para a mesma regra.
 export function CompanionPicker({ holderId, value, onChange, error }: CompanionPickerProps) {
   const [search, setSearch] = useState('')
   const debounced = useDebouncedValue(search, SEARCH_DEBOUNCE_MS)
   const term = debounced.trim()
   const errorId = useId()
 
-  // Sem termo não há consulta: buscar com a caixa vazia traria a primeira
-  // página de todos os hóspedes, que não é uma sugestão, é ruído.
+  // Caixa vazia não consulta: traria a primeira página de todos os hóspedes.
   const results = useGuests(term, 1, { enabled: term.length > 0 })
 
   const chosen = new Set(value.map((companion) => companion.id))
@@ -91,8 +87,7 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
     </fieldset>
   )
 
-  // Função, e não componente aninhado: um componente declarado dentro do render
-  // é um tipo novo a cada passagem, e o React remontaria a lista inteira.
+  // Função, não componente aninhado: tipo novo a cada render remontaria a lista.
   function renderCandidates() {
     if (results.isPending) {
       return (

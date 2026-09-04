@@ -15,8 +15,6 @@ function labels(entries: ReturnType<typeof historyEntries>) {
 }
 
 describe('historyEntries', () => {
-  // Uma linha nula e uma transicao que nao aconteceu: o historico mostra o que
-  // houve, e nunca uma lacuna a preencher.
   it('mostra so as transicoes que aconteceram, em ordem', () => {
     expect(labels(historyEntries(ANA_PENDING))).toEqual(['Criada'])
     expect(labels(historyEntries(BRUNO_CHECKED_IN))).toEqual(['Criada', 'Check-in'])

@@ -12,8 +12,6 @@ import {
 
 const TODAY = '2026-09-03'
 
-// O que o formulário entrega ao resolver: o quarto já escolhido e a lista de
-// acompanhantes, que é o payload da API menos o `room_id` ainda nulo.
 const FILLED = {
   guest_id: 1,
   room_id: 1,
@@ -29,7 +27,6 @@ describe('reservationFormSchema', () => {
     const result = schema.safeParse(FILLED)
 
     expect(result.success).toBe(true)
-    // O refine estreita a saída: o que sai do submit já é o payload da API.
     expect(result.data?.room_id).toBe(1)
   })
 

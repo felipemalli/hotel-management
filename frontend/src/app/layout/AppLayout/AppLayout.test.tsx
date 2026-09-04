@@ -30,8 +30,6 @@ function Explodes(): never {
 }
 
 describe('AppLayout', () => {
-  // O papel vem do servidor, e o chip só aparece quando ele responde `ADMIN`:
-  // um controle de escrita não pode piscar na tela de quem não pode usá-lo.
   it('nao mostra o chip de admin enquanto o papel nao chegou', () => {
     vi.mocked(fetchCurrentUser).mockReturnValue(new Promise(() => undefined))
     signInForTest()
@@ -66,8 +64,7 @@ describe('AppLayout', () => {
     expect(nav).toBeInTheDocument()
   })
 
-  // `end` só na recepção: o detalhe de uma reserva ainda é "Reservas", e sem
-  // isso o menu perderia a marcação justo na subrota.
+  // `end` só na Recepção: `/reservas/7` ainda é "Reservas".
   it('mantem Reservas ativo no detalhe e desmarca a recepcao', () => {
     renderLayout(ROUTES.reservation(7))
 
@@ -83,10 +80,7 @@ describe('AppLayout', () => {
     expect(screen.getByRole('button', { name: 'Menu da sessão' })).toBeInTheDocument()
   })
 
-  // O clique em "Sair" (um `menuitem` dentro do `Menu` do Base UI, cujo popup
-  // não resolve em jsdom — mesma limitação do `Select`) fica para o e2e; aqui
-  // se afirma a reação real ao encerramento — `session.clear()`, o que o botão
-  // de fato dispara.
+  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('encerra a sessao', () => {
     signInForTest('gerencia')
     renderLayout()
@@ -96,8 +90,6 @@ describe('AppLayout', () => {
     expect(session.getAccessToken()).toBeNull()
   })
 
-  // O boundary é da página, não da aplicação: quebrar a tela não pode levar
-  // junto o menu pelo qual o atendente sai dela.
   it('mantem cabecalho e menu de pe quando a pagina quebra', () => {
     renderLayout(ROUTES.home, <Explodes />)
 

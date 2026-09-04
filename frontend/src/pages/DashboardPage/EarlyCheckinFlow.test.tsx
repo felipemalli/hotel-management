@@ -168,8 +168,6 @@ describe('EarlyCheckinFlow · RF6 · RN4', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
-  // O horario de abertura vem da politica vigente: publicar outra abertura tem
-  // de mudar o texto, e por isso ele nao pode estar escrito no componente.
   it('usa o horario de abertura da politica no titulo e na pergunta', async () => {
     const user = userEvent.setup()
     vi.mocked(checkIn).mockRejectedValue(
@@ -231,8 +229,7 @@ describe('EarlyCheckinFlow · RF6 · RN4', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
-  // Sem os horarios no `extra` nao ha dialogo a abrir, e o codigo esta na lista
-  // dos apresentados localmente: sem o aviso, o 409 sumiria da tela.
+  // Sem `opens_at` no extra não há diálogo; o código é local — o 409 sumiria.
   it('avisa por toast o EARLY_CHECKIN que nao trouxe os horarios', async () => {
     const user = userEvent.setup()
     vi.mocked(checkIn).mockRejectedValue(

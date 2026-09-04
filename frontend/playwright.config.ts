@@ -2,12 +2,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 const CI = !!process.env.CI
 
-// O backend em modo híbrido roda com o gunicorn da própria imagem Docker
-// (`config.wsgi`), não o `runserver` do caminho de desenvolvimento sem Docker:
-// o e2e quer o mesmo runtime que sobe em produção e no CI. `THROTTLE_LOGIN`
-// alto evita que o login repetido de cada spec esbarre no rate limit; limpar
-// `ANTHROPIC_API_KEY` tira o botão "Preencher com IA" do cadastro de hóspede,
-// que senão apareceria e mudaria o DOM que os specs afirmam.
+// Gunicorn (`config.wsgi`), não `runserver`. THROTTLE_LOGIN alto para o login
+// repetido; ANTHROPIC_API_KEY vazio tira o botão de IA do cadastro.
 const BACKEND_COMMAND =
   '[ -f ../.env ] && . ../.env; ' +
   'THROTTLE_LOGIN=1000/min ANTHROPIC_API_KEY= ' +
@@ -52,8 +48,7 @@ export default defineConfig({
     },
     {
       command: 'pnpm run dev -- --port 5173 --strictPort',
-      // O proxy `/api` do Vite é quem realmente fala com o backend: a espera
-      // por esta rota (e não só pela raiz) garante que os dois já sobem.
+      // Esperar `/api`, não só `/`: o proxy do Vite é quem fala com o backend.
       url: 'http://127.0.0.1:5173/api/health/',
       reuseExistingServer: !CI,
       timeout: 60_000,

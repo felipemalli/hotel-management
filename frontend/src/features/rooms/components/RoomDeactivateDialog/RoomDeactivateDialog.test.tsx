@@ -13,12 +13,7 @@ import { RoomDeactivateDialog } from './RoomDeactivateDialog'
 
 vi.mock('@/features/rooms/api')
 
-// A abertura por clique num menu de ações vive só no e2e: o popup do Base UI
-// (`Menu`) não resolve em jsdom (mesma limitação já documentada para o
-// `Select`). O diálogo em si — que carrega a regra de negócio (409 do quarto
-// ocupado, foco ao fechar) — é provado aqui, montado direto. O toast de
-// sucesso é responsabilidade de quem chama (`RoomsPage`), não do diálogo — o
-// `onDeactivated` abaixo reproduz essa mesma chamada.
+// Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
 function renderDialog(onDeactivated: (room: Room) => void = vi.fn()) {
   return renderWithProviders(
     <RoomDeactivateDialog room={ROOM_101} onClose={vi.fn()} onDeactivated={onDeactivated} />,
@@ -43,8 +38,6 @@ describe('RoomDeactivateDialog', () => {
     )
   })
 
-  // O 409 é recusa do servidor, não do preenchimento: o diálogo fica aberto e o
-  // toast diz o porquê.
   it('mantem a confirmacao aberta quando o quarto tem reserva ativa', async () => {
     const user = userEvent.setup()
     vi.mocked(updateRoom).mockRejectedValue(

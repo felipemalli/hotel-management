@@ -12,8 +12,7 @@ import { dataTableFeatures, EMPTY_ROWS } from './features'
 export interface DataTableProps<Row extends RowData> {
   columns: DataTableColumns<Row>
   data: readonly Row[]
-  // Some o nome acessível da tabela: sem cabeçalho visível de seção, é o que
-  // diferencia "Reservas" de "Quartos" para quem navega por landmarks.
+  // Landmark: diferencia as tabelas para quem navega por regiões.
   caption: string
   getRowId: (row: Row) => string
   isLoading?: boolean
@@ -30,8 +29,7 @@ export function DataTable<Row extends RowData>({
   emptyMessage = 'Nenhum resultado encontrado',
   rowProps,
 }: DataTableProps<Row>) {
-  // Antes de qualquer `return` antecipado: os modelos da tabela precisam
-  // existir mesmo quando o resultado é o esqueleto ou o vazio.
+  // Modelos da tabela existem mesmo no esqueleto ou no vazio.
   const table = useTable({
     features: dataTableFeatures,
     columns,

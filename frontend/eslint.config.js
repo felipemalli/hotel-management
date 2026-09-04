@@ -10,10 +10,8 @@ import testingLibrary from 'eslint-plugin-testing-library'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
-// Camadas: `lib` nao conhece ninguem, `components` conhece `lib`, as features
-// conhecem `lib` e `components`, `pages` compoe features, e so `app` conhece
-// tudo. Os testes ficam de fora: eles montam a arvore real e compartilham
-// fixtures entre features.
+// Camadas: lib → components → features → pages; só `app` conhece tudo.
+// Testes ficam de fora: montam a árvore real e compartilham fixtures.
 const layer = (name, groups) => ({
   message: `A camada ${name} nao importa desta pasta (veja as camadas no GUIA).`,
   group: groups.flatMap((prefix) => [prefix, `${prefix}/**`]),
@@ -69,8 +67,7 @@ export default tseslint.config(
   },
 
   {
-    // Componentes shadcn/Base UI vendorizados exportam cva variants (buttonVariants,
-    // badgeVariants, tabsListVariants, typographyVariants) ao lado do componente.
+    // shadcn/Base UI: variants CVA exportadas ao lado do componente.
     files: ['src/components/ui/**/*.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },

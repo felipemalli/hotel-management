@@ -18,9 +18,7 @@ export interface RoomActionsProps {
 }
 
 export function RoomActions({ room, onEditCapacity, onRequestDeactivate }: RoomActionsProps) {
-  // Reativar acontece na própria linha: ela só está visível porque a listagem
-  // inclui os desativados, e continua ali depois. Desativar tira a linha da
-  // listagem padrão, então a confirmação vive na página.
+  // Reativar na linha (ela fica visível). Desativar tira a linha: confirmação na página.
   const reactivate = useUpdateRoom({
     onSuccess: (updated) => notifySuccess(`Quarto ${updated.number} reativado.`),
   })

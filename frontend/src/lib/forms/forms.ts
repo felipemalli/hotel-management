@@ -5,9 +5,7 @@ import { isApiErrorCode } from '../errors/errors'
 
 export const REQUIRED_MESSAGE = 'Campo obrigatório.'
 
-// `abort: true` interrompe a cadeia no primeiro check: um valor vazio gera só
-// a mensagem de obrigatório, nunca também a mensagem de um `.refine()` colado
-// depois (documento e telefone dependem disso para não duplicar o aviso).
+// `abort: true` para valor vazio não disparar também o `.refine()`.
 export function requiredString() {
   return z.string().min(1, { error: REQUIRED_MESSAGE, abort: true })
 }
@@ -18,9 +16,6 @@ function firstMessage(value: unknown): string | undefined {
   return undefined
 }
 
-// `VALIDATION_ERROR.extra` mapeia por campo conhecido; `non_field_errors`,
-// `detail` e qualquer chave que o formulário não declara caem no alerta de
-// topo (`root.server`) — sem isso, uma chave desconhecida falhava em silêncio.
 export function applyServerErrors<T extends FieldValues>(
   error: unknown,
   setError: UseFormSetError<T>,

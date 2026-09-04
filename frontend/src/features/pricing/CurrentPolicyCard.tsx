@@ -14,17 +14,14 @@ export function CurrentPolicyCard({ policy }: { policy: PricingPolicy }) {
           { label: 'Vaga (seg–sex)', value: formatBRL(policy.weekday_park) },
           { label: 'Vaga (sáb–dom)', value: formatBRL(policy.weekend_park) },
           {
-            // O fator é exibido como veio: convertê-lo em porcentagem seria
-            // aritmética, e a doutrina do dinheiro vale para o fator também.
+            // Fator como veio: converter em % seria aritmética.
             label: 'Multa de checkout tardio',
             value: `${formatDecimalBR(policy.late_fee_factor)} × a diária do dia da saída`,
           },
           { label: 'Check-in abre às', value: policy.checkin_opens },
           { label: 'Limite de checkout', value: policy.checkout_limit },
           {
-            // A linha do bootstrap carrega uma data-sentinela (2000-01-01) que
-            // não significa nada na tela; `created_by` nulo a distingue, porque
-            // publicação pela API sempre tem ator.
+            // Bootstrap usa data-sentinela 2000-01-01; created_by nulo a distingue.
             label: 'Vigente desde',
             value:
               policy.created_by === null

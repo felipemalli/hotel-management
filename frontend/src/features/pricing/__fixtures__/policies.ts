@@ -1,8 +1,6 @@
 import type { PricingPolicy } from '../types'
 
-// Espelho de `backend/hotel/migrations/0005_pricingpolicy`: os literais do
-// briefing e a nota do bootstrap. `created_by` nulo é a marca da implantação —
-// nenhuma publicação pela API pode ter ator nulo.
+// `created_by` nulo e `effective_from` 2000-01-01: marca da implantação.
 export const BOOTSTRAP_POLICY: PricingPolicy = {
   id: 1,
   weekday_rate: '120.00',
@@ -28,7 +26,7 @@ export const HIGH_SEASON_POLICY: PricingPolicy = {
   checkin_opens: '15:00',
   checkout_limit: '11:00',
   effective_from: '2026-09-03T10:00:00-03:00',
-  // Nota vazia de propósito: cobre o ramo do travessão no cartão.
+  // Nota vazia: ramo do travessão no cartão.
   note: '',
   created_at: '2026-09-03T10:00:00-03:00',
   created_by: { id: 2, username: 'admin' },

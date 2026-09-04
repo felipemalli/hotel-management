@@ -22,8 +22,6 @@ import type { CreateGuestPayload, Guest } from './types'
 
 const FIELDS = ['full_name', 'document', 'phone', 'nationality'] as const
 
-// Brasil primeiro (D-do-countries.ts): a maioria dos cadastros é de hóspede
-// brasileiro, e a rolagem não deveria começar em "Afeganistão".
 const NATIONALITY_ITEMS = COUNTRY_OPTIONS.map((option) => ({
   value: option.code,
   label: option.name,

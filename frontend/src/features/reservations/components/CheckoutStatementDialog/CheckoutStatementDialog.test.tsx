@@ -57,8 +57,7 @@ describe('CheckoutStatementDialog · RF7 · RN1 · RN2 · RN3 · RN5 · RN6', ()
     expect(screen.getByText('Subtotal vaga')).toBeInTheDocument()
     expect(screen.getByText('R$ 35,00')).toBeInTheDocument()
 
-    // O fator da multa é da política vigente e o extrato não o carrega: a
-    // linha nomeia a base, e não uma porcentagem que envelheceria.
+    // O extrato não carrega o fator da multa: a linha nomeia a base, não uma %.
     expect(screen.getByText('Multa de checkout tardio (base R$ 180,00)')).toBeInTheDocument()
     expect(screen.getByText('R$ 90,00')).toBeInTheDocument()
 
@@ -80,10 +79,10 @@ describe('CheckoutStatementDialog · RF7 · RN1 · RN2 · RN3 · RN5 · RN6', ()
     expect(within(elementAt(rows, 0)).getByText('segunda-feira')).toBeInTheDocument()
     expect(within(elementAt(rows, 1)).getByText('terça-feira')).toBeInTheDocument()
     expect(screen.getAllByText('R$ 120,00')).toHaveLength(2)
-    expect(screen.getAllByText('R$ 0,00')).toHaveLength(3) // 2 vagas + subtotal vaga
+    // R$ 0,00: duas vagas + subtotal da vaga.
+    expect(screen.getAllByText('R$ 0,00')).toHaveLength(3)
 
-    // R$ 240,00 aparece duas vezes em T1 (subtotal de diarias e total), por isso
-    // a assercao vai ao par label/valor da linha, e nao ao documento todo.
+    // R$ 240,00 aparece no subtotal e no total: afirmar na linha, não no documento.
     // eslint-disable-next-line testing-library/no-node-access -- o par label/valor nao tem nome acessivel proprio: a assercao precisa do container da linha.
     expect(screen.getByText('Total a pagar').parentElement).toHaveTextContent(
       formatBRL(BILL_TOTALS.T1),
@@ -129,8 +128,6 @@ describe('CheckoutStatementDialog · pagamento', () => {
     expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).not.toBeInTheDocument()
   })
 
-  // 2ª via: a conta em aberto aparece como tal, mas quem abriu a reimpressao
-  // nao esta no ato de receber.
   it('sem allowPayment mostra "Em aberto" sem oferecer o registro', () => {
     renderStatement(T7_STATEMENT)
 
@@ -139,15 +136,7 @@ describe('CheckoutStatementDialog · pagamento', () => {
     expect(screen.queryByRole('combobox', { name: 'Forma de pagamento' })).not.toBeInTheDocument()
   })
 
-  // A escolha da forma de pagamento usa o Select do Base UI, cujo popup não
-  // resolve em jsdom (measure/posicionamento via floating-ui nunca assenta —
-  // ver src/components/ui/select.tsx e a nota em src/test/setup.ts). Sem uma
-  // forma escolhida `method` fica `null` e `registerPayment` nunca chama
-  // `payReservation`, então o registro bem-sucedido
-  // (`e2e/checkout.spec.ts`, "Registrar pagamento") fica provado só no e2e.
-  // O reconflito 409 (outro atendente pagou primeiro) e a falha da releitura
-  // dependem do mesmo clique inalcançável aqui e ficam sem prova automatizada
-  // até o e2e cobrir esse caminho — lacuna reconhecida, não escondida.
+  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('desabilita o registro por padrao, sem forma de pagamento escolhida', () => {
     renderStatement(T7_STATEMENT, true)
 

@@ -13,8 +13,7 @@ import {
 export interface EarlyCheckinDialogProps {
   open: boolean
   serverTime: string
-  // Vem da política vigente, não de uma constante: um admin publica outra
-  // abertura e o texto tem de acompanhar.
+  // Horário da política vigente, não de constante.
   opensAt: string
   guestName: string
   pending?: boolean

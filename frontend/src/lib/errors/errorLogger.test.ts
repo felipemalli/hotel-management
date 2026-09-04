@@ -93,9 +93,7 @@ describe('errorLogger · nada de PII no log', () => {
     expect(context).not.toHaveProperty('extra')
     expect(JSON.stringify(context)).not.toContain('12345678901')
     expect(JSON.stringify(context)).not.toContain('21988887777')
-    // O objeto de erro em si segue disponivel para quem quiser inspecionar em
-    // dev, mas o contexto — o que realmente vai para o sink estruturado — não
-    // carrega o `extra`.
+    // O objeto de erro segue inspecionável; o contexto do sink não carrega `extra`.
     expect(reportedError).toBe(error)
   })
 })

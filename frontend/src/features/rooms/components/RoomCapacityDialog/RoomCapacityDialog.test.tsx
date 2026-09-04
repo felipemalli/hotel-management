@@ -11,10 +11,7 @@ import { RoomCapacityDialog } from './RoomCapacityDialog'
 
 vi.mock('@/features/rooms/api')
 
-// A abertura por clique num menu de ações vive só no e2e (ver
-// RoomDeactivateDialog.test.tsx para a mesma nota). O diálogo em si — que
-// carrega a regra de negócio (400 do servidor mapeado ao campo) — é provado
-// aqui, montado direto.
+// Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
 function renderDialog() {
   return renderWithProviders(
     <RoomCapacityDialog room={ROOM_101} onClose={vi.fn()} onUpdated={vi.fn()} />,

@@ -11,8 +11,7 @@ import type {
   UpdateRoomPatch,
 } from './types'
 
-// `is_active=false` é o que AMPLIA a listagem no servidor: sem o parâmetro ele
-// devolve só os ativos. O nome do parâmetro é o da API, não o da tela.
+// is_active=false AMPLIA a listagem; sem o parâmetro o servidor devolve só ativos.
 export async function fetchRooms({
   includeInactive = false,
   page = 1,

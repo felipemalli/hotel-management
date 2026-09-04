@@ -40,10 +40,7 @@ describe('ReservationsPage', () => {
     expect(screen.getByText('4 reservas encontradas')).toBeInTheDocument()
   })
 
-  // A URL é a fonte: recarregar e compartilhar preservam a consulta. A
-  // escolha em si (mudar o Select) não é dirigível em jsdom — ver a nota em
-  // `ReservationFilters` mais abaixo — então aqui só se lê o estado que a URL
-  // já produziu na carga.
+  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('le os filtros da URL e os manda ao servidor', async () => {
     renderReservations(`${ROUTES.reservations}?status=CHECKED_OUT&paid=false`)
 
@@ -56,14 +53,6 @@ describe('ReservationsPage', () => {
     expect(screen.getByRole('combobox', { name: 'Pagamento' })).toHaveTextContent('Em aberto')
   })
 
-  // Fora de uma conta fechada o filtro de pagamento mentiria: no servidor
-  // `paid=false` casa toda reserva que ainda não pagou porque nem fechou. A
-  // troca de `Status` pelo Select do Base UI não é dirigível em jsdom (popup
-  // não resolve o measure/posicionamento — ver src/components/ui/select.tsx e
-  // a nota em src/test/setup.ts); a regra que descarta `paid` fora de
-  // CHECKED_OUT já está provada em `filters.test.ts`. Aqui prova-se só a
-  // renderização condicional: o campo Pagamento existe com CHECKED_OUT e some
-  // sem ele.
   it('mostra o filtro de pagamento sobre conta fechada', async () => {
     renderReservations(`${ROUTES.reservations}?status=CHECKED_OUT&paid=true`)
     expect(await screen.findByRole('combobox', { name: 'Pagamento' })).toBeInTheDocument()
@@ -98,8 +87,6 @@ describe('ReservationsPage', () => {
     expect(await screen.findByText('Nenhuma reserva encontrada')).toBeInTheDocument()
   })
 
-  // Página fora do intervalo responde 404: insistir nela daria o mesmo 404, e
-  // por isso o retry volta à primeira.
   it('volta a primeira pagina quando a atual nao existe mais', async () => {
     const user = userEvent.setup()
     vi.mocked(fetchReservations).mockRejectedValueOnce(

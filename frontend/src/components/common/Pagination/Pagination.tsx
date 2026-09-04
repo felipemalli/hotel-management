@@ -8,9 +8,7 @@ export interface PaginationProps {
   onPageChange: (page: number) => void
 }
 
-// A navegação segue `next`/`previous` do DRF em vez de calcular o total de
-// páginas: a última página é a que o servidor disser que é, e a contagem serve
-// só para situar o atendente.
+// Navega por next/previous do DRF, sem calcular o total de páginas.
 export function Pagination({ page, count, hasNext, hasPrevious, onPageChange }: PaginationProps) {
   if (count === 0) return null
 

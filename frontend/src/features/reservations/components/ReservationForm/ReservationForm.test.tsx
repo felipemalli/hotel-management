@@ -18,8 +18,6 @@ import { ReservationForm } from './ReservationForm'
 
 vi.mock('@/features/reservations/api')
 vi.mock('@/features/rooms/api')
-// O seletor de acompanhantes busca hóspedes; dublado para nenhum teste tocar a
-// rede, mesmo quando o caso não abre a busca.
 vi.mock('@/features/guests/api')
 
 const GUEST = { id: 1, full_name: 'Ana Souza' }
@@ -28,19 +26,8 @@ function roomTrigger() {
   return screen.getByRole('combobox', { name: 'Quarto' })
 }
 
-// A escolha do quarto usa o Select do Base UI, cujo popup não resolve em jsdom
-// (measure/posicionamento via floating-ui nunca assenta — ver
-// src/components/ui/select.tsx e a nota em src/test/setup.ts). Sem um quarto
-// escolhido o zod nunca deixa `handleSubmit` chamar `createReservation`, então
-// o envio completo (payload, sucesso, VALIDATION_ERROR/ROOM_UNAVAILABLE do
-// servidor) fica provado em `e2e/reception.spec.ts` ("Nova reserva"), não
-// aqui. `roomUnavailableInfo` (lib/errors/errors.test.ts) e o roteamento
-// genérico de `applyServerErrors` (lib/forms/forms.test.ts) já provam a parte
-// pura desses casos. Esta suíte prova o que RTL consegue: a exigência do
-// quarto, a consulta de disponibilidade guiada pelas datas/pessoas, os
-// estados do campo (desabilitado, vazio, com erro) e a marcação da vaga.
-
-// `type="date"` nao se digita tecla a tecla: o browser entrega o valor inteiro.
+// Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
+// `type="date"` não se digita tecla a tecla: o browser entrega o valor inteiro.
 function setDate(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } })
 }
@@ -75,8 +62,6 @@ describe('ReservationForm · RF2', () => {
     await user.click(vehicle)
     expect(vehicle).toBeChecked()
 
-    // Datas válidas e vaga marcada não bastam: sem quarto escolhido o zod
-    // ainda bloqueia o envio (a escolha em si é provada no e2e).
     await user.click(screen.getByRole('button', { name: 'Criar reserva' }))
     expect(createReservation).not.toHaveBeenCalled()
     expect(roomTrigger()).toHaveAttribute('aria-invalid', 'true')
@@ -128,8 +113,6 @@ describe('ReservationForm · escolha do quarto', () => {
     expect(roomTrigger()).toHaveAttribute('aria-invalid', 'true')
   })
 
-  // Datas invalidas dariam 400 do servidor: sem consulta, e o campo diz por que
-  // esta desabilitado em vez de mostrar uma lista vazia sem explicacao.
   it('desabilita o quarto e nao consulta a disponibilidade com datas invalidas', async () => {
     renderWithProviders(<ReservationForm guest={GUEST} />)
     await waitFor(() => expect(roomTrigger()).toBeEnabled())

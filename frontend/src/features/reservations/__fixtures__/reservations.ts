@@ -5,8 +5,7 @@ import type { Reservation } from '../types'
 
 export const ATTENDANT_REF = { id: 1, username: 'atendente' }
 
-// Base PENDING: todo campo que só existe depois de uma transição nasce nulo,
-// que é como a linha sai de `create_reservation`.
+// PENDING: transições ainda nulas, como sai de `create_reservation`.
 const BASE: Reservation = {
   id: 1,
   guest_id: ANA.id,
@@ -55,8 +54,7 @@ export const BRUNO_CHECKED_IN = reservation({
   checked_in_by: ATTENDANT_REF,
 })
 
-// Totais congelados iguais aos de T7, a mesma estadia que o seed encerra em
-// aberto: é a conta que exercita o pagamento.
+// Totais de T7: 425,00 em aberto (mesma conta do seed).
 export const CARLA_CHECKED_OUT = reservation({
   id: 3,
   guest_id: CARLA.id,
@@ -83,7 +81,7 @@ export const CARLA_PAID = reservation({
   paid_by: ATTENDANT_REF,
 })
 
-// Id próprio: uma reserva cancelada é outra linha, não a mesma da pendente.
+// Id próprio: cancelada é outra linha, não a pendente.
 export const ANA_CANCELLED = reservation({
   id: 4,
   status: 'CANCELLED',

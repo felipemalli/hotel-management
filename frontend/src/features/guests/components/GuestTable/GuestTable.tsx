@@ -57,8 +57,6 @@ interface GuestTabPanelProps<Row extends RowData> {
   onPageChange: (page: number) => void
 }
 
-// As três abas compartilham o mesmo esqueleto (carregando · erro com retry ·
-// vazio · tabela + paginação); só o dado, as colunas e a legenda mudam.
 function GuestTabPanel<Row extends RowData>({
   query,
   rows,
@@ -113,9 +111,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
   const inHotelRows = toInHotelRows(inHotel.data)
   const pendingRows = toPendingRows(pending.data)
 
-  // Memoizadas pelo callback de ações (estável quando o chamador também o
-  // memoiza): uma tabela nova a cada render remonta as linhas por baixo de um
-  // diálogo que acabou de abrir, e ele perde o foco a que devolve ao fechar.
+  // Referência estável: senão a linha remonta debaixo do diálogo e perde o foco.
   const allTableColumns = useMemo(() => allColumns(renderActions?.all), [renderActions?.all])
   const inHotelTableColumns = useMemo(
     () => inHotelColumns(renderActions?.inHotel),

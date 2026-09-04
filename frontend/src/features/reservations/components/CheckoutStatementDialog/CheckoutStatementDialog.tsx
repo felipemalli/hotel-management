@@ -54,7 +54,7 @@ export interface CheckoutStatementDialogProps {
   open: boolean
   statement: CheckoutStatement
   onClose: () => void
-  // `false` é a 2ª via: mostra o estado do pagamento sem oferecer registrá-lo.
+  // false = 2ª via: mostra o pagamento sem oferecer registrá-lo.
   allowPayment?: boolean
 }
 
@@ -94,16 +94,13 @@ export function CheckoutStatementDialog({
   onClose,
   allowPayment = false,
 }: CheckoutStatementDialogProps) {
-  // Fechar precisa passar por `open=false` antes de desmontar: e nessa
-  // transicao que o Base UI restaura o foco. Desmontar direto no pedido de
-  // fechamento (Escape, "Fechar") atropela essa restauracao.
+  // open=false antes de desmontar: o Base UI restaura o foco nessa transição.
   const [open, setOpen] = useState(openProp)
   const pay = usePayReservation()
   const [stale, setStale] = useState(false)
   const refreshed = useReservationStatement(statement.reservation_id, { enabled: stale })
 
-  // O extrato mais novo ganha: o da mutation (acabou de pagar), o da releitura
-  // (outro atendente pagou antes) e, por fim, o que veio do checkout.
+  // Precedência: mutation, depois releitura, depois o extrato do checkout.
   const shown = pay.data ?? refreshed.data ?? statement
   const { late_fee: lateFee, payment } = shown
   const [method, setMethod] = useState<PaymentMethod | null>(null)
@@ -119,9 +116,7 @@ export function CheckoutStatementDialog({
       { id: shown.reservation_id, payment_method: method },
       {
         onError: (error) => {
-          // "Esta conta já foi paga.", com `extra.paid_at`: o extrato na tela é
-          // que está velho. O toast global já disse o porquê; aqui se busca a
-          // versão paga para a tela parar de oferecer o que não cabe mais.
+          // extra.paid_at: outro atendente pagou; busca a versão paga.
           if (isApiErrorCode(error, 'INVALID_STATUS') && typeof error.extra.paid_at === 'string') {
             setStale(true)
           }
@@ -154,8 +149,7 @@ export function CheckoutStatementDialog({
           <div className="rounded-lg bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
             <SummaryRow label="Subtotal diárias" value={formatBRL(shown.subtotal_daily)} />
             <SummaryRow label="Subtotal vaga" value={formatBRL(shown.subtotal_parking)} />
-            {/* O fator da multa é da política e o extrato não o carrega: mostrar
-              "50%" aqui mentiria depois da primeira tarifa publicada. */}
+            {/* O fator da multa é da política e o extrato não o carrega. */}
             {lateFee.applied ? (
               <SummaryRow
                 label={`Multa de checkout tardio (base ${formatBRL(lateFee.base_rate)})`}

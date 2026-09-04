@@ -17,7 +17,7 @@ describe('peopleCount', () => {
 })
 
 describe('paymentLabel', () => {
-  // Antes do checkout nao existe conta: dizer "em aberto" sugeriria cobranca.
+  // "Em aberto" antes do checkout sugeriria cobrança; o valor é "—".
   it('nao fala de pagamento antes de haver conta', () => {
     expect(paymentLabel(ANA_PENDING)).toBe('—')
     expect(paymentLabel(BRUNO_CHECKED_IN)).toBe('—')

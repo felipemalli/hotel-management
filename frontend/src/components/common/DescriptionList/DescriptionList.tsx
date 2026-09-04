@@ -11,9 +11,6 @@ export interface DescriptionListProps {
   items: readonly DescriptionListItem[]
 }
 
-// `<dl>` e não uma tabela de duas colunas: são pares de rótulo e valor de um
-// mesmo registro, e o leitor de tela anuncia `term`/`definition` sem precisar
-// de cabeçalho de coluna.
 export function DescriptionList({ items }: DescriptionListProps) {
   return (
     <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">

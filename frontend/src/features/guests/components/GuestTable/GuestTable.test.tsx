@@ -33,8 +33,6 @@ const BRUNO_IN_HOTEL = inHotel(BRUNO, {
 
 const ANA_PENDING = pendingCheckin(ANA)
 
-// Eva acompanha Bruno: mesma reserva, `guest_id` do titular. É a linha que
-// prova que a aba lista quem não reservou.
 const EVA_AS_COMPANION = inHotel(EVA, {
   id: BRUNO_IN_HOTEL.active_reservation.id,
   guest_id: BRUNO.id,
@@ -53,8 +51,7 @@ describe('GuestTable · RF3 · RF4 · RF5', () => {
   })
 
   it('test_search_input_debounces_and_queries', async () => {
-    // Tripwire: o teste avanca a mesma constante que a tabela usa, e o
-    // contrato de busca fixa 300 ms — divergencia entre as duas quebra aqui.
+    // Tripwire: avança a mesma constante da tabela; o contrato de busca é 300 ms.
     expect(SEARCH_DEBOUNCE_MS).toBe(300)
 
     vi.useFakeTimers()
@@ -143,9 +140,7 @@ describe('GuestTable · RF3 · RF4 · RF5', () => {
     expect(within(row).getByText('+55 (21) 98888-7777')).toBeInTheDocument()
   })
 
-  // Normativo: a coluna "Reserva" (o número da reserva, `#1`) é nova nesta
-  // aba; "Estadia" é o antigo cabeçalho "Reserva" renomeado — só ele já
-  // mostrava as datas de entrada/saída.
+  // "Reserva" é o número (#1); "Estadia" é o antigo cabeçalho "Reserva" (datas).
   it('test_tab_pending_switches_dataset', async () => {
     const user = userEvent.setup()
     renderWithProviders(<GuestTable />)
@@ -275,16 +270,13 @@ describe('GuestTable · RF3 · RF4 · RF5', () => {
     await user.click(screen.getByRole('button', { name: 'Próxima' }))
     await waitFor(() => expect(fetchGuests).toHaveBeenLastCalledWith('', 2))
 
-    // Recorte novo, primeira pagina: a pagina 2 de "Todos" nao significa nada
-    // na aba do hotel.
     await user.click(screen.getByRole('tab', { name: /No hotel/ }))
     await waitFor(() => expect(fetchGuestsInHotel).toHaveBeenLastCalledWith(1))
   })
 })
 
-// `waitFor` do RTL nao reconhece os fake timers do vitest (ele procura o global
-// `jest`), entao tempo e microtasks sao avancados a mao: `advanceTimersByTimeAsync`
-// deixa a promise do `queryFn` resolver e o `act` entrega o re-render.
+// `waitFor` do RTL não reconhece fake timers do vitest (procura o global `jest`).
+// `advanceTimersByTimeAsync` resolve o `queryFn`; `act` entrega o re-render.
 async function advanceTimersAndFlush(ms: number) {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(ms)

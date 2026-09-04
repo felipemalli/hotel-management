@@ -8,8 +8,6 @@ import { formatBRL, formatDecimalBR } from '@/lib/format/money'
 
 const helper = createColumnHelper<typeof dataTableFeatures, PricingPolicy>()
 
-// `currentId` marca a linha vigente com um selo: sem ele o balcão teria que
-// comparar datas de cabeça para achar qual das tarifas publicadas está valendo.
 export function buildPolicyColumns(currentId?: number): DataTableColumns<PricingPolicy> {
   return helper.columns([
     helper.display({

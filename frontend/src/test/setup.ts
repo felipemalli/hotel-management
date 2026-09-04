@@ -16,15 +16,12 @@ declare global {
   }
 }
 
-// Base UI le esta flag no proprio pacote e pula a espera por animacoes CSS
-// (jsdom nao tem Element.getAnimations mesmo, mas isto evita depender do guard).
+// Base UI: desliga espera por animação CSS (jsdom não tem getAnimations).
 globalThis.BASE_UI_ANIMATIONS_DISABLED = true
 
-// NAO adicionar um stub de ResizeObserver: o floating-ui so usa
-// `typeof ResizeObserver === 'function'` para decidir se observa elementos
-// para reposicionamento, e um stub cujo `observe()` nunca dispara o callback
-// trava esse fluxo para sempre (Select/Menu nunca terminam de abrir).
-// A ausencia de ResizeObserver no jsdom faz o floating-ui pular esse caminho.
+// NÃO stubar ResizeObserver: floating-ui só checa `typeof ResizeObserver === 'function'`.
+// Um stub cujo observe() nunca dispara trava Select/Menu para sempre.
+// Sem ResizeObserver no jsdom, o floating-ui pula esse caminho.
 if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = () => undefined
 }
@@ -33,9 +30,8 @@ if (!('getAnimations' in Element.prototype)) {
   Element.prototype.getAnimations = (): Animation[] => []
 }
 
-// jsdom nao implementa PointerEvent: o Checkbox do Base UI redispara o clique
-// num input nativo oculto via `new window.PointerEvent(...)` para manter os
-// dois em sincronia, e sem isto o clique explode com "not a constructor".
+// jsdom não tem PointerEvent: o Checkbox do Base UI faz `new window.PointerEvent(...)`.
+// Sem isto o clique explode com "not a constructor".
 if (typeof globalThis.PointerEvent === 'undefined') {
   class PointerEventPolyfill extends MouseEvent implements PointerEvent {
     readonly pointerId: number
@@ -74,8 +70,7 @@ if (typeof globalThis.PointerEvent === 'undefined') {
   globalThis.PointerEvent = PointerEventPolyfill
 }
 
-// O sink de console é útil no navegador e só ruído aqui: quem afirma sobre o
-// log instala o próprio sink no caso.
+// Sink de console só faz ruído aqui; quem afirma sobre o log instala o próprio.
 errorLogger.use({ capture: () => undefined })
 
 beforeEach(resetGlobalStores)

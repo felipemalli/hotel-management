@@ -2,8 +2,7 @@ import type { ReactNode } from 'react'
 
 import { Badge, Typography } from '@/components/ui'
 
-// O nome fica no próprio texto: a etiqueta de acompanhante ao lado não pode
-// entrar na busca por texto exato que os testes e o atendente fazem pelo nome.
+// Nome no próprio texto: o selo de acompanhante não entra na busca.
 export function NameCell({ fullName, isCompanion }: { fullName: string; isCompanion: boolean }) {
   return (
     <span className="flex flex-wrap items-center gap-2">

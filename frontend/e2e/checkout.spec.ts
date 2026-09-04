@@ -2,16 +2,11 @@ import { expect, test } from '@playwright/test'
 
 import { selectOption } from './support'
 
-// Cenário fixo do seed (`seed_demo`): a estadia de Carla Nunes no quarto 103
-// reproduz a tabela-verdade T7 (sexta útil + sábado fim de semana, checkout
-// depois do meio-dia) — os valores abaixo não são um literal solto, são o
-// mesmo T7 que a suíte unitária prova em `CheckoutStatementDialog.test.tsx`.
 test.describe(
   'checkout · conta e pagamento',
   { tag: ['@RF7', '@RN1', '@RN2', '@RN3', '@RN5', '@RN6'] },
   () => {
-    // Não idempotente: registra o pagamento de verdade. Repetir localmente
-    // exige `docker compose down -v` antes (o seed recria Carla "em aberto").
+    // Não idempotente: registra o pagamento de verdade. Repetir localmente exige `docker compose down -v`.
     test('confere a conta congelada e registra o pagamento em dinheiro', async ({ page }) => {
       await page.goto('/reservas')
 
@@ -34,7 +29,8 @@ test.describe(
 
       const dailyTable = statement.getByRole('table', { name: 'Diárias cobradas' })
       const dailyRows = dailyTable.getByRole('row')
-      await expect(dailyRows).toHaveCount(3) // cabecalho + sexta + sabado
+      // Cabeçalho + sexta + sábado.
+      await expect(dailyRows).toHaveCount(3)
 
       const friday = dailyRows.filter({ hasText: 'sexta-feira' })
       await expect(friday.getByText('R$ 120,00')).toBeVisible()

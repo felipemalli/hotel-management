@@ -31,9 +31,7 @@ export function useRooms(params: Required<RoomListParams>) {
   })
 }
 
-// `keepPreviousData`: trocar uma data ou somar um acompanhante refaz a consulta,
-// e piscar a lista vazia entre uma resposta e outra faria o quarto já escolhido
-// desaparecer da tela por um instante.
+// keepPreviousData: senão a lista pisca vazia e o quarto escolhido some.
 export function useAvailableRooms(query: AvailabilityQuery, options?: QueryOptions) {
   return useQuery({
     queryKey: roomKeys.available(query),

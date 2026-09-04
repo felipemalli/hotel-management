@@ -27,8 +27,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-// Dinheiro que ainda não existe é travessão, nunca "R$ 0,00": zero é um valor
-// cobrado, ausência é outra coisa.
+// Ausência é travessão, nunca R$ 0,00 (zero é valor cobrado).
 function money(value: string | null): string {
   return value === null ? '—' : formatBRL(value)
 }
@@ -43,7 +42,6 @@ export function ReservationStaySection({ reservation }: { reservation: Reservati
           { label: 'Saída', value: formatISODate(reservation.checkout_date) },
           { label: 'Vaga', value: reservation.has_vehicle ? 'Sim' : 'Não' },
           {
-            // A política é amarrada no check-in (D15): antes disso não há uma.
             label: 'Tarifa aplicada',
             value: reservation.policy_id === null ? '—' : `Política #${reservation.policy_id}`,
           },
@@ -116,8 +114,7 @@ export function ReservationHistorySection({ reservation }: { reservation: Reserv
 }
 
 export function ReservationAccountSection({ reservation }: { reservation: Reservation }) {
-  // Os três campos do pagamento são nulos juntos ou preenchidos juntos
-  // (constraint `resv_payment_complete`); ler o método é o que estreita o tipo.
+  // Os três campos do pagamento são nulos juntos; ler o método estreita o tipo.
   const method = reservation.payment_method
 
   return (
@@ -127,8 +124,7 @@ export function ReservationAccountSection({ reservation }: { reservation: Reserv
           { label: 'Diárias', value: money(reservation.total_daily) },
           { label: 'Vaga', value: money(reservation.total_parking) },
           {
-            // A base da multa, e não o fator: ele é da política, e o extrato
-            // congelado não o carrega.
+            // Base da multa, não o fator: o extrato congelado não carrega o fator.
             label: 'Multa de checkout tardio',
             value:
               reservation.late_fee_base === null

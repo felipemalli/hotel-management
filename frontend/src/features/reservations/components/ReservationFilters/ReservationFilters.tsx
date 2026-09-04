@@ -51,8 +51,7 @@ export function ReservationFilters({
         </FormField>
       </div>
 
-      {/* Só sobre conta fechada: antes do checkout toda reserva está "em
-          aberto" por definição, e o filtro diria uma coisa por outra. */}
+      {/* Só em CHECKED_OUT: antes do checkout o filtro de pagamento mentiria. */}
       {filters.status === 'CHECKED_OUT' ? (
         <div className="w-full sm:w-56">
           <FormField label="Pagamento">

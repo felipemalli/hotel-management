@@ -38,7 +38,6 @@ describe('PolicyForm', () => {
     expect(screen.getByLabelText('Nota (opcional)')).toHaveValue('')
   })
 
-  // O contrato pede "150.50": a conversão é de texto, nunca por `Number`.
   it('test_normalizes_money_and_factor_before_posting', async () => {
     const user = userEvent.setup()
     const { onSuccess } = renderForm()

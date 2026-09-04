@@ -12,11 +12,6 @@ export interface RenderPageOptions {
   queryClient?: QueryClient
 }
 
-// Monta a página dentro do `AppLayout` real, como o roteador faz: é o que dá ao
-// teste o `<main id="main">` que `focusMainContent` procura, e o menu que o
-// atendente vê. Mora em arquivo próprio porque `renderWithProviders` é usado
-// por quase toda a suíte, e arrastar a casca (com a consulta do papel) para
-// dentro de cada teste custaria um dublê que o teste não pediu.
 export function renderPage(
   page: ReactElement,
   { route, path = route, queryClient }: RenderPageOptions,

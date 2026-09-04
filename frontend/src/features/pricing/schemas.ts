@@ -26,13 +26,10 @@ export const pricingPolicyPageSchema = paginated(pricingPolicySchema)
 
 export const NOTE_MAX_LENGTH = 200
 
-// A frase é idêntica à do servidor: uma entrada ruim tem uma mensagem só.
 export const CHECKOUT_LIMIT_MESSAGE =
   'O limite de checkout deve ser anterior ao horário de abertura do check-in.'
 
-// O balcão digita "120,5"; o contrato pede "120.50". A conversão é de texto
-// (`toDecimalString`), nunca por `Number`, e uma fração mais longa que o
-// contrato é recusada em vez de arredondada.
+// Texto via toDecimalString, nunca Number; fração longa demais é recusada, não arredondada.
 function decimalInput(places: number, invalid: string) {
   return requiredString().transform((value, ctx) => {
     const normalized = toDecimalString(value, places)
@@ -71,15 +68,12 @@ export const policyFormSchema = z
     const { checkin_opens: opens, checkout_limit: limit } = value
     if (!timeHHMM.safeParse(opens).success || !timeHHMM.safeParse(limit).success) return
 
-    // Comparação lexical funciona porque HH:MM é zero-padded. A igualdade é
-    // permitida: o servidor recusa só `checkout_limit > checkin_opens`.
+    // Comparação lexical (HH:MM zero-padded). Igualdade permitida: o servidor só recusa limit > opens.
     if (limit > opens) {
       ctx.addIssue({ code: 'custom', path: ['checkout_limit'], message: CHECKOUT_LIMIT_MESSAGE })
     }
   }) satisfies z.ZodType<CreatePolicyPayload, PolicyFormValues>
 
-// O admin edita deltas sobre a vigente, em notação brasileira. A nota começa
-// vazia: a publicação nova tem a própria justificativa.
 export function policyToFormValues(policy: PricingPolicy): PolicyFormValues {
   return {
     weekday_rate: policy.weekday_rate.replace('.', ','),

@@ -15,7 +15,6 @@ function renderTable(reservations = ALL_RESERVATIONS): void {
   renderWithProviders(<ReservationTable reservations={reservations} />, { route: '/reservas' })
 }
 
-// As linhas de dado, sem o cabecalho.
 function dataRows() {
   return within(screen.getByRole('table', { name: 'Reservas' }))
     .getAllByRole('row')
@@ -34,8 +33,7 @@ describe('ReservationTable', () => {
     expect(within(row).getByText('2')).toBeInTheDocument()
   })
 
-  // Sem checkout nao ha conta: o total e o pagamento sao travessoes, e nao
-  // "R$ 0,00" ou "em aberto", que sugeririam cobranca.
+  // Sem checkout não há conta: "—" e não "R$ 0,00"/"em aberto", que sugeririam cobrança.
   it('nao inventa conta para reserva que ainda nao fechou', () => {
     renderTable(ALL_RESERVATIONS)
     const pending = elementAt(dataRows(), 0)

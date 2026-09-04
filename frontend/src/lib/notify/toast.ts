@@ -10,8 +10,7 @@ type Listener = () => void
 
 const listeners = new Set<Listener>()
 
-// Referência estável: `useSyncExternalStore` compara snapshots por identidade,
-// então a lista só é recriada quando muda de verdade.
+// Referência estável: `useSyncExternalStore` compara snapshots por identidade.
 let toasts: readonly Toast[] = []
 let nextId = 1
 

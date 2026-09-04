@@ -42,8 +42,7 @@ export function RoomCapacityDialog({ room, onClose, onUpdated }: RoomCapacityDia
   })
 
   const updateRoom = useUpdateRoom({ onSuccess: onUpdated })
-  // Fechar precisa passar por `open=false` antes de desmontar: é nessa
-  // transição que o Base UI restaura o foco.
+  // open=false antes de desmontar: o Base UI restaura o foco nessa transição.
   const [open, setOpen] = useState(true)
 
   const submit = handleSubmit((values) => {
@@ -51,8 +50,6 @@ export function RoomCapacityDialog({ room, onClose, onUpdated }: RoomCapacityDia
       { id: room.id, patch: { capacity: values.capacity } },
       {
         onError: (error) => {
-          // O servidor recusa encolher abaixo do maior grupo com reserva ativa,
-          // e diz o número no próprio campo.
           applyServerErrors(error, setError, ['capacity'])
         },
       },

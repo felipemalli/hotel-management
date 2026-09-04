@@ -1,8 +1,6 @@
 const TIME_ZONE = 'America/Sao_Paulo'
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
 
-// Dois formatadores, e não um `dateStyle` + `timeStyle`: a forma combinada
-// insere vírgula entre data e hora em pt-BR, e a saída aqui é "dd/mm/aaaa hh:mm".
 const DATE_FORMAT = new Intl.DateTimeFormat('pt-BR', {
   timeZone: TIME_ZONE,
   day: '2-digit',
@@ -24,17 +22,13 @@ function toISODate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-// `YYYY-MM-DD` nunca passa por `new Date()`: o construtor lê a forma só-data
-// como meia-noite UTC e, em America/Sao_Paulo (UTC-3), volta um dia. O split
-// literal é imune a fuso.
+// `YYYY-MM-DD` nunca passa por `new Date()`: meia-noite UTC desloca o dia em São Paulo.
 export function formatISODate(value: string): string {
   const [year, month, day] = value.split('-')
   if (!year || !month || !day) return value
   return `${day}/${month}/${year}`
 }
 
-// A data-hora, ao contrário, traz o deslocamento: convertê-la para o fuso do
-// hotel é o que faz "18:00Z" aparecer como 15:00 no balcão.
 export function formatISODateTime(value: string): string {
   const [datePart, timePart] = value.split('T')
   if (!datePart) return value

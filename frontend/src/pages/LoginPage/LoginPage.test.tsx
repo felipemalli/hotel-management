@@ -43,8 +43,6 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText('Senha')).toHaveAttribute('aria-invalid', 'true')
   })
 
-  // A credencial errada é assunto do formulário: o toast global ficaria fora do
-  // campo de visão de quem acabou de digitar e repetiria o mesmo aviso.
   it('apresenta a credencial inválida no alerta do formulário, sem toast', async () => {
     const user = userEvent.setup()
     vi.mocked(login).mockRejectedValue(

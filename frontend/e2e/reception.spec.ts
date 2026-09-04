@@ -2,8 +2,7 @@ import { expect, test } from '@playwright/test'
 
 import { selectFirstOption, uniqueDocument } from './support'
 
-// Serial: cada passo depende do estado que o anterior deixou (o hóspede
-// criado, a reserva criada, o check-in feito) — não faz sentido paralelizar.
+// Serial: cada passo depende do estado que o anterior deixou.
 test.describe.configure({ mode: 'serial' })
 
 test.describe(

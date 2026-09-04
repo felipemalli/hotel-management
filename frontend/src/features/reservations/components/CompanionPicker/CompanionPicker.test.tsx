@@ -15,8 +15,7 @@ vi.mock('@/features/guests/api')
 
 const EVA_REF: GuestRef = { id: EVA.id, full_name: EVA.full_name }
 
-// Mesmo padrao da tabela de hospedes: relogio falso avancado dentro de `act`, e
-// nenhuma espera assincrona da RTL (ela usa timers reais e travaria).
+// `waitFor` do RTL não reconhece fake timers do vitest (procura o global `jest`).
 async function advanceTimersAndFlush(ms: number) {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(ms)

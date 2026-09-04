@@ -27,7 +27,7 @@ export function RoomForm({ onSuccess, onCancel }: RoomFormProps) {
     resolver: zodResolver(roomFormSchema),
     mode: 'onSubmit',
     reValidateMode: 'onChange',
-    // Quarto duplo é o caso comum, e um `NaN` de partida renderizaria "NaN".
+    // Default 2: NaN de partida renderizaria "NaN".
     defaultValues: { number: '', capacity: 2 },
   })
 
@@ -41,8 +41,7 @@ export function RoomForm({ onSuccess, onCancel }: RoomFormProps) {
   const submit = handleSubmit((payload) => {
     createRoom.mutate(payload, {
       onError: (error) => {
-        // O 403 não vira alerta aqui: o botão que abriu este formulário só
-        // existe para o admin, então um 403 é assunto do toast global.
+        // 403 vai ao toast global: este formulário só existe para o admin.
         applyServerErrors(error, setError, FIELDS)
       },
     })

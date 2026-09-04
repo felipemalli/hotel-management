@@ -6,9 +6,7 @@ import { defineConfig } from 'vitest/config'
 
 const apiTarget = process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000'
 
-// O alias `@/` também é declarado em `paths` do tsconfig: os testes escrevem
-// `vi.mock('@/features/*/api')`, logo bundler, vitest e tsc precisam resolver o
-// mesmo prefixo para o mesmo diretório.
+// Alias `@/` também em `paths` do tsconfig: bundler, vitest e tsc resolvem o mesmo prefixo.
 const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 
 export default defineConfig({
@@ -26,8 +24,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: false,
-    // Pinned to src: the default include (`**/*.{test,spec}.*`) would collect e2e/*.spec.ts,
-    // which import @playwright/test and cannot run under vitest.
+    // Só `src`: o include padrão coletaria e2e/*.spec.ts no vitest.
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
     css: false,
@@ -43,20 +40,17 @@ export default defineConfig({
         'src/**/__fixtures__/**',
         'src/main.tsx',
         'src/**/types.ts',
-        // shadcn/Base UI vendored primitives: behaviour proved by consumers, not here.
+        // Primitivos shadcn/Base UI: comportamento provado pelos consumidores.
         'src/components/ui/**',
-        // The only mocked seam of the suite; exercised end to end by Playwright.
+        // Única costura dublada da suíte; o e2e exercita o api.ts de ponta a ponta.
         'src/features/**/api.ts',
-        // Barrels and pure-markup skeletons have no branches worth a threshold.
+        // Barrels e esqueletos sem ramo que justifique limiar.
         'src/**/index.ts',
         'src/**/*Skeleton.tsx',
       ],
       thresholds: {
-        // Global floor: an alarm against gross regression, not a target. What proves
-        // RF/RN coverage is traceability (normative test ids + the RF/RN matrix), not this number.
         lines: 80,
-        // Mirror of "pricing.py 100% branches" on the backend: money/date/normalization
-        // contracts are fully pinned. Double-star so the glob survives the lib/ regroup.
+        // Dinheiro, data e normalização: 100%, como no backend.
         'src/lib/**/money.ts': { 100: true },
         'src/lib/**/dates.ts': { 100: true },
         'src/lib/**/normalize.ts': { 100: true },

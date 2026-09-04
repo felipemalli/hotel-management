@@ -45,8 +45,6 @@ export interface CreateReservationPayload {
   has_vehicle: boolean
 }
 
-// O que está nos campos enquanto o atendente preenche: só o quarto difere do
-// payload, porque começa vazio.
 export interface ReservationFormValues extends Omit<CreateReservationPayload, 'room_id'> {
   room_id: number | null
 }
@@ -56,8 +54,7 @@ export interface CheckInPayload {
   allow_early: boolean
 }
 
-// Filtros aceitos pelo servidor. `page` some quando é a primeira: a URL do
-// atendente não carrega o padrão.
+// page some na primeira: a URL não carrega o padrão.
 export interface ReservationListParams {
   status?: ReservationStatus
   paid?: boolean

@@ -2,14 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { addDaysISO, formatISODate, formatISODateTime, todayISO } from './dates'
 
-// Fixado aqui, e não deixado ao ambiente: o mesmo teste tem que provar o
-// invariante em qualquer máquina, não só na que já roda em UTC-3.
+// TZ fixo: o invariante tem de valer em qualquer máquina, não só em UTC-3.
 process.env.TZ = 'America/Sao_Paulo'
 
 describe('formatISODate', () => {
   it('nunca desloca o dia: o split literal ignora o construtor de Date', () => {
-    // Prova de que o deslocamento é real neste fuso: se `formatISODate` usasse
-    // `new Date(value)`, a meia-noite UTC de 01/01 viraria 31/12 aqui.
+    // Se usasse `new Date(value)`, a meia-noite UTC de 01/01 viraria 31/12 neste fuso.
     expect(new Date('2026-01-01').getDate()).toBe(31)
 
     expect(formatISODate('2026-01-01')).toBe('01/01/2026')

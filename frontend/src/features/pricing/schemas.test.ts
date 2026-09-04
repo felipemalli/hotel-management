@@ -55,7 +55,6 @@ describe('policyFormSchema', () => {
     expect(parsed.late_fee_factor).toBe('0.2500')
   })
 
-  // Arredondar seria aritmética, e o admin precisa ver o que digitou.
   it('recusa mais casas do que o contrato aceita, em vez de arredondar', () => {
     expect(firstMessage({ ...FILLED, weekday_rate: '12.345' })).toBe(
       'Informe um valor como 120 ou 120,50 (até dois centavos).',
@@ -76,7 +75,6 @@ describe('policyFormSchema', () => {
     expect(result.error?.issues[0]?.message).toBe('Campo obrigatório.')
   })
 
-  // O servidor recusa só `checkout_limit > checkin_opens`: a igualdade passa.
   it('barra o limite de checkout depois da abertura e aceita a igualdade', () => {
     const late = policyFormSchema.safeParse({ ...FILLED, checkout_limit: '15:00' })
 

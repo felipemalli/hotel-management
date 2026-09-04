@@ -17,8 +17,7 @@ export interface FormFieldProps {
   children: (control: FormFieldControl) => ReactNode
 }
 
-// Reproduz o contrato do antigo `Input`/`Select` num lugar só: o `field.tsx`
-// vendorizado não liga `aria-describedby`/`aria-invalid` sozinho.
+// O field vendorizado não liga aria-describedby/aria-invalid sozinho.
 export function FormField({ label, hint, error, htmlFor, children }: FormFieldProps) {
   const generatedId = useId()
   const id = htmlFor ?? generatedId

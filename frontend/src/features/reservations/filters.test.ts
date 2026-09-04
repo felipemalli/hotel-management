@@ -25,8 +25,7 @@ describe('parseReservationFilters', () => {
     expect(parse('status=NO_SHOW').status).toBeNull()
   })
 
-  // No servidor `paid=false` casa toda PENDING, CHECKED_IN e CANCELLED: fora de
-  // uma conta fechada o filtro diria uma coisa por outra.
+  // No servidor `paid=false` casa PENDING/CHECKED_IN/CANCELLED; o filtro mentiria.
   it('so aceita o filtro de pagamento sobre conta fechada', () => {
     expect(parse('paid=true').paid).toBeNull()
     expect(parse('status=PENDING&paid=false').paid).toBeNull()
@@ -35,8 +34,6 @@ describe('parseReservationFilters', () => {
     expect(parse('status=CHECKED_OUT&paid=talvez').paid).toBeNull()
   })
 
-  // O parsing de página em si (formato inválido, zero) já é provado por
-  // `pageFromSearchParams`; aqui só se confirma que o valor chega ao filtro.
   it('repassa a pagina para pageFromSearchParams', () => {
     expect(parse('page=2').page).toBe(2)
   })

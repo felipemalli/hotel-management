@@ -38,18 +38,16 @@ describe('PricingPage', () => {
     expect(screen.getByText('R$ 180,00')).toBeInTheDocument()
     expect(screen.getByText('R$ 15,00')).toBeInTheDocument()
     expect(screen.getByText('R$ 20,00')).toBeInTheDocument()
-    // O fator sai como veio: virar porcentagem seria aritmética.
     expect(screen.getByText('0,5000 × a diária do dia da saída')).toBeInTheDocument()
     expect(screen.getByText('tarifa do briefing (bootstrap)')).toBeInTheDocument()
   })
 
-  // A linha do bootstrap carrega uma data-sentinela que não significa nada.
   it('nomeia a implantacao em vez de mostrar a data-sentinela do bootstrap', async () => {
     renderPricing()
 
     expect(await screen.findByText('a implantação (tarifa do briefing)')).toBeInTheDocument()
     expect(screen.queryByText(/1999|2000/)).not.toBeInTheDocument()
-    // No cartão e na linha do histórico: a implantação não tem ator.
+    // "sistema" no cartão e na linha do histórico: implantação sem ator.
     expect(screen.getAllByText('sistema')).toHaveLength(2)
   })
 
@@ -65,7 +63,7 @@ describe('PricingPage', () => {
     expect(within(elementAt(rows, 0)).getByText('Vigente')).toBeInTheDocument()
     expect(within(elementAt(rows, 0)).getByText('admin')).toBeInTheDocument()
     expect(within(elementAt(rows, 1)).getByText(/implantação/)).toBeInTheDocument()
-    // Nota vazia da alta temporada vira travessão no cartão.
+    // Nota vazia da alta temporada vira travessão.
     expect(screen.getByText('—')).toBeInTheDocument()
   })
 

@@ -26,9 +26,6 @@ function ToastCard({ toast }: { toast: Toast }) {
     return () => clearTimeout(timer)
   }, [toast.id, toast.tone, paused])
 
-  // Ponteiro em cima ou foco dentro: ninguém perde a mensagem no meio da
-  // leitura nem o botão de fechar debaixo do cursor. O relógio recomeça na
-  // saída, de propósito — quem voltou a ler ganha o tempo inteiro de novo.
   return (
     <div
       onMouseEnter={() => setPaused(true)}

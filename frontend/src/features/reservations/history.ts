@@ -9,10 +9,7 @@ export interface HistoryEntry {
   by: UserRef | null
 }
 
-// A máquina de estados é linear e cada transição acontece uma vez: a coluna com
-// o seu `*_at` ao lado já é o histórico com ator. Aqui só se lê o que houve,
-// nunca se infere o que faltou — uma linha nula é uma transição que não
-// aconteceu, e não uma lacuna a preencher.
+// Nulo é transição que não aconteceu, não lacuna a preencher.
 export function historyEntries(reservation: Reservation): HistoryEntry[] {
   const entries: HistoryEntry[] = [
     { label: 'Criada', at: reservation.created_at, by: reservation.created_by },

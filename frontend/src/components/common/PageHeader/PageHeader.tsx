@@ -8,10 +8,8 @@ export interface PageHeaderProps {
   description?: string
   badge?: ReactNode
   actions?: ReactNode
-  // Único lugar do "Atualizando…": uma consulta em segundo plano não troca o
-  // conteúdo por um esqueleto, só avisa que o que está na tela pode envelhecer.
+  // Consulta em segundo plano não troca o conteúdo por esqueleto.
   updating?: boolean
-  // Linha de ferramentas (abas, busca, filtros) abaixo do título.
   children?: ReactNode
 }
 

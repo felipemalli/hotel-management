@@ -148,8 +148,6 @@ export function pendingColumns(
       header: 'Telefone',
       cell: ({ getValue }) => <Mono>{formatPhone(getValue())}</Mono>,
     }),
-    // Número da própria reserva: é o que o atendente confere no balcão contra
-    // o que o hóspede diz, distinto da data de estadia ao lado.
     pendingHelper.accessor((row) => row.reservation.id, {
       id: 'reservation',
       header: 'Reserva',

@@ -51,8 +51,7 @@ describe('roomFormSchema', () => {
     ).toBe('Número com no máximo 10 caracteres.')
   })
 
-  // O campo vazio vira `NaN` com `valueAsNumber`, e a mensagem tem de dizer o
-  // que falta em vez de falar de tipo.
+  // Campo vazio vira `NaN` (`valueAsNumber`); a frase fala do que falta, não de tipo.
   it('avisa o que falta na capacidade vazia, fracionaria ou zerada', () => {
     expect(roomFormSchema.safeParse({ ...VALID, capacity: NaN }).error?.issues[0]?.message).toBe(
       'Informe a capacidade.',

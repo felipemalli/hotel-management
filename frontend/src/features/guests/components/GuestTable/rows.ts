@@ -39,8 +39,7 @@ export const GUEST_TAB_EMPTY_MESSAGES: Record<GuestTab, string> = {
 
 export type PartyRole = 'holder' | 'companion'
 
-// O contrato não tem campo de papel: acompanhante é quem aparece numa reserva
-// cujo titular (`guest_id`) é outra pessoa.
+// Sem campo de papel: acompanhante é quem tem guest_id de outra pessoa.
 export function roleOf(guest: Guest, reservation: ReservationSummary): PartyRole {
   return reservation.guest_id === guest.id ? 'holder' : 'companion'
 }
@@ -87,8 +86,7 @@ export function allRowId(row: GuestAllRow): string {
   return `guest-${row.guest.id}`
 }
 
-// Titular e acompanhante da MESMA reserva são duas linhas: a chave precisa dos
-// dois ids, senão o React recicla uma linha na outra.
+// Titular e acompanhante da mesma reserva: a chave precisa dos dois ids.
 export function partyRowId(row: GuestInHotelRow | GuestPendingRow): string {
   return `reservation-${row.reservation.id}-guest-${row.guest.id}`
 }

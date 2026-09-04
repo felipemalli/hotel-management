@@ -71,9 +71,6 @@ describe('guestFormSchema', () => {
   })
 })
 
-// A ponte schema → RHF (resolver do zod) e provada pelo teste normativo de
-// GuestForm, que submete o formulario real; testar o resolver aqui em cima
-// repetiria o mesmo schema so que por outra porta.
 describe('schemas de resposta dos hospedes', () => {
   function envelope<T>(results: T[]) {
     return { count: results.length, next: null, previous: null, results }
