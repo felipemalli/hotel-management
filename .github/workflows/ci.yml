@@ -99,7 +99,11 @@ jobs:
 
       # Espelho da guarda do backend: aqui o dinheiro nunca vira numero.
       - name: Guard - money never becomes a number
-        run: '! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" src/lib/money.ts src/features/reservations/CheckoutStatementDialog.tsx src/features/reservations/components/ReservationSections.tsx src/features/pricing'
+        run: |
+          set -eu
+          paths="src/lib/format/money.ts src/features/reservations/CheckoutStatementDialog.tsx src/features/reservations/components/ReservationSections.tsx src/features/reservations/ReservationTable.tsx src/features/pricing"
+          for p in $paths; do test -e "$p" || { echo "::error::guard path missing: $p"; exit 1; }; done
+          ! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" $paths
 
       - name: Tests with coverage floor
         run: pnpm run test:coverage

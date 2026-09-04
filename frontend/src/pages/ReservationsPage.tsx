@@ -4,7 +4,7 @@ import { toListParams } from '@/features/reservations/filters'
 import { useReservations } from '@/features/reservations/hooks'
 import { ReservationTable } from '@/features/reservations/ReservationTable'
 import { useReservationFilters } from '@/features/reservations/useReservationFilters'
-import { errorMessage } from '@/lib/errors'
+import { errorMessage } from '@/lib/errors/errors'
 
 export function ReservationsPage() {
   const { filters, setStatus, setPaid, setPage } = useReservationFilters()

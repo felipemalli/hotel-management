@@ -1,4 +1,4 @@
-import type { Paginated } from '@/lib/apiClient'
+import type { Paginated } from '@/lib/api/apiClient'
 
 export function page<T>(results: T[]): Paginated<T> {
   return { count: results.length, next: null, previous: null, results }

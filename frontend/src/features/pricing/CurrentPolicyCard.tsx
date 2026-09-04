@@ -1,6 +1,6 @@
 import { DescriptionList } from '@/components/ui'
-import { formatISODateTime } from '@/lib/dates'
-import { formatBRL, formatDecimalBR } from '@/lib/money'
+import { formatISODateTime } from '@/lib/format/dates'
+import { formatBRL, formatDecimalBR } from '@/lib/format/money'
 
 import type { PricingPolicy } from './types'
 

@@ -8,10 +8,10 @@ import axios, {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
+import type { session as SessionValue } from '../auth/session'
+import type { ErrorContext } from '../errors/errorLogger'
+import type { toastStore as ToastStoreValue } from '../notify/toast'
 import type { apiClient as ApiClientValue, parseResponse as ParseResponseValue } from './apiClient'
-import type { ErrorContext } from './errorLogger'
-import type { session as SessionValue } from './session'
-import type { toastStore as ToastStoreValue } from './toast'
 
 type Reply = (config: InternalAxiosRequestConfig) => AxiosResponse | AxiosError
 
@@ -101,9 +101,9 @@ beforeEach(async () => {
   axios.defaults.adapter = adapter
 
   const clientModule = await import('./apiClient')
-  const sessionModule = await import('./session')
-  const toastModule = await import('./toast')
-  const loggerModule = await import('./errorLogger')
+  const sessionModule = await import('../auth/session')
+  const toastModule = await import('../notify/toast')
+  const loggerModule = await import('../errors/errorLogger')
 
   apiClient = clientModule.apiClient
   apiClient.defaults.adapter = adapter

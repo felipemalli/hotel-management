@@ -7,9 +7,9 @@ import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStateme
 import { CancelReservationDialog } from '@/features/reservations/components/CancelReservationDialog'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
 import { ReservationForm } from '@/features/reservations/ReservationForm'
-import { errorMessage } from '@/lib/errors'
-import { returnFocusToContent } from '@/lib/focus'
-import { notifySuccess } from '@/lib/toast'
+import { returnFocusToContent } from '@/lib/a11y/focus'
+import { errorMessage } from '@/lib/errors/errors'
+import { notifySuccess } from '@/lib/notify/toast'
 
 import { useDashboardDialog } from './useDashboardDialog'
 

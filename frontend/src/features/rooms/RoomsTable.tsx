@@ -13,8 +13,8 @@ import {
   THead,
   TR,
 } from '@/components/ui'
-import { formatISODateTime } from '@/lib/dates'
-import { errorMessage } from '@/lib/errors'
+import { errorMessage } from '@/lib/errors/errors'
+import { formatISODateTime } from '@/lib/format/dates'
 
 import { useRooms } from './hooks'
 import type { Room } from './types'

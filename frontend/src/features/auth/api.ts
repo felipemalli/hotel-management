@@ -1,5 +1,5 @@
-import { apiClient, AUTH_PATHS, parseResponse } from '@/lib/apiClient'
-import type { TokenPair } from '@/lib/session'
+import { apiClient, AUTH_PATHS, parseResponse } from '@/lib/api/apiClient'
+import type { TokenPair } from '@/lib/auth/session'
 
 import { currentUserSchema, tokenPairSchema } from './schemas'
 import type { CurrentUser } from './types'

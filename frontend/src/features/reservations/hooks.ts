@@ -1,8 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'
-import { RESERVATIONS_ROOT } from '@/lib/queryKeys'
-import { useInvalidateServerState } from '@/lib/useInvalidateServerState'
+import { DEFAULT_STALE_TIME_MS } from '@/lib/api/queryClient'
+import { RESERVATIONS_ROOT } from '@/lib/api/queryKeys'
+import { useInvalidateServerState } from '@/lib/api/useInvalidateServerState'
 
 import {
   cancelReservation,

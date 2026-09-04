@@ -6,8 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { AppProviders } from '@/app/providers'
 import { checkIn, checkOut } from '@/features/reservations/api'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
-import { ApiError } from '@/lib/errors'
-import { toastStore } from '@/lib/toast'
+import { ApiError } from '@/lib/errors/errors'
+import { toastStore } from '@/lib/notify/toast'
 
 import { Toaster } from './Toaster'
 

@@ -3,9 +3,9 @@ import { useId, useState } from 'react'
 import { Button, DismissButton, Input } from '@/components/ui'
 import { useGuests } from '@/features/guests/hooks'
 import { DEBOUNCE_MS } from '@/features/guests/tabs'
-import { errorMessage } from '@/lib/errors'
-import { formatDocument } from '@/lib/pii'
-import { useDebouncedValue } from '@/lib/useDebouncedValue'
+import { errorMessage } from '@/lib/errors/errors'
+import { formatDocument } from '@/lib/format/pii'
+import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 
 import type { GuestRef } from '../types'
 

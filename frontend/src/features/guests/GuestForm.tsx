@@ -3,9 +3,9 @@ import { useForm } from 'react-hook-form'
 
 import { Alert, Button, Input, Select } from '@/components/ui'
 import { AiFillGuest } from '@/features/ai/AiFillGuest'
-import { COUNTRY_OPTIONS } from '@/lib/countries'
-import { errorMessage, isApiErrorCode } from '@/lib/errors'
-import { applyServerErrors } from '@/lib/forms'
+import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
+import { COUNTRY_OPTIONS } from '@/lib/format/countries'
+import { applyServerErrors } from '@/lib/forms/forms'
 
 import { useCreateGuest } from './hooks'
 import { guestFormSchema, PHONE_HINT } from './schemas'

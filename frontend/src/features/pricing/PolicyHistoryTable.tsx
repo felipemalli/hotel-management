@@ -11,9 +11,9 @@ import {
   THead,
   TR,
 } from '@/components/ui'
-import { formatISODateTime } from '@/lib/dates'
-import { errorMessage } from '@/lib/errors'
-import { formatBRL, formatDecimalBR } from '@/lib/money'
+import { errorMessage } from '@/lib/errors/errors'
+import { formatISODateTime } from '@/lib/format/dates'
+import { formatBRL, formatDecimalBR } from '@/lib/format/money'
 
 import { usePolicies } from './hooks'
 

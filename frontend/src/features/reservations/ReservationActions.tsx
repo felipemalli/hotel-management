@@ -1,8 +1,13 @@
 import { useState } from 'react'
 
 import { Button } from '@/components/ui'
-import { type EarlyCheckinInfo, earlyCheckinInfo, errorMessage, isApiErrorCode } from '@/lib/errors'
-import { notifyError, notifySuccess } from '@/lib/toast'
+import {
+  type EarlyCheckinInfo,
+  earlyCheckinInfo,
+  errorMessage,
+  isApiErrorCode,
+} from '@/lib/errors/errors'
+import { notifyError, notifySuccess } from '@/lib/notify/toast'
 
 import { EarlyCheckinDialog } from './EarlyCheckinDialog'
 import { useCheckIn, useCheckOut } from './hooks'

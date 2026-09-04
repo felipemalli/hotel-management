@@ -1,4 +1,4 @@
-import { PAGE_PARAM, pageFromSearchParams, withPage } from '@/lib/pagination'
+import { PAGE_PARAM, pageFromSearchParams, withPage } from '@/lib/routing/pagination'
 
 import { reservationStatusSchema } from './schemas'
 import type { ReservationListParams, ReservationStatus } from './types'

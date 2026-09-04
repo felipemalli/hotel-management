@@ -1,7 +1,7 @@
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form'
 import { z } from 'zod'
 
-import { isApiErrorCode } from './errors'
+import { isApiErrorCode } from '../errors/errors'
 
 export const REQUIRED_MESSAGE = 'Campo obrigatório.'
 

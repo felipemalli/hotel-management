@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
-import { errorLogger } from '@/lib/errorLogger'
-import { isServerFault } from '@/lib/errors'
-import { AUTH_ROOT } from '@/lib/queryKeys'
-import { session } from '@/lib/session'
+import { AUTH_ROOT } from '@/lib/api/queryKeys'
+import { session } from '@/lib/auth/session'
+import { errorLogger } from '@/lib/errors/errorLogger'
+import { isServerFault } from '@/lib/errors/errors'
 
 import { type Credentials, fetchCurrentUser, login } from './api'
 import { useAuth } from './useAuth'

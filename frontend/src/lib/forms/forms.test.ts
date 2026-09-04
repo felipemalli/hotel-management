@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { ApiError } from './errors'
+import { ApiError } from '../errors/errors'
 import { applyServerErrors, REQUIRED_MESSAGE, requiredString } from './forms'
 
 interface GuestFields {

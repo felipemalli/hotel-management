@@ -1,4 +1,4 @@
-import { apiClient, type Paginated, parseResponse } from '@/lib/apiClient'
+import { apiClient, type Paginated, parseResponse } from '@/lib/api/apiClient'
 
 import { pricingPolicyPageSchema, pricingPolicySchema } from './schemas'
 import type { CreatePolicyPayload, PricingPolicy } from './types'

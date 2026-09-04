@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
 
-import { session } from '@/lib/session'
+import { session } from '@/lib/auth/session'
 
 export interface Auth {
   isAuthenticated: boolean

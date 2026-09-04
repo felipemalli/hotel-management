@@ -2,7 +2,7 @@ import type { FallbackProps } from 'react-error-boundary'
 
 import { AlertIcon, RefreshIcon } from '@/components/icons'
 import { Button } from '@/components/ui'
-import { isApiErrorCode } from '@/lib/errors'
+import { isApiErrorCode } from '@/lib/errors/errors'
 
 function describe(error: unknown): string {
   if (isApiErrorCode(error, 'NETWORK_ERROR')) {

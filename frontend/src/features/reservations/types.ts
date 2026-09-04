@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 
-import type { userRefSchema } from '@/lib/schemas'
+import type { userRefSchema } from '@/lib/api/schemas'
 
 import type {
   billLineSchema,

@@ -1,4 +1,4 @@
-import { apiClient, parseResponse } from '@/lib/apiClient'
+import { apiClient, parseResponse } from '@/lib/api/apiClient'
 
 import { aiStatusSchema, parsedGuestSchema } from './schemas'
 import type { AiStatus, ParsedGuestFields } from './types'

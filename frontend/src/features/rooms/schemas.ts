@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-import { requiredString } from '@/lib/forms'
-import { isoDateTime, paginated } from '@/lib/schemas'
+import { isoDateTime, paginated } from '@/lib/api/schemas'
+import { requiredString } from '@/lib/forms/forms'
 
 import type { CreateRoomPayload } from './types'
 

@@ -4,7 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
-import { ROUTES } from '@/lib/routes'
+import { ROUTES } from '@/lib/routing/routes'
 
 import { AppLayout } from './AppLayout'
 

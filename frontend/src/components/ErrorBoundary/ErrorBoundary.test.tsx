@@ -3,8 +3,8 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { errorLogger, type ErrorSink } from '@/lib/errorLogger'
-import { ApiError, errorMessage } from '@/lib/errors'
+import { errorLogger, type ErrorSink } from '@/lib/errors/errorLogger'
+import { ApiError, errorMessage } from '@/lib/errors/errors'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { ErrorBoundary } from './ErrorBoundary'

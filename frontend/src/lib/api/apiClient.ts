@@ -1,10 +1,10 @@
 import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
 import type { z } from 'zod'
 
-import { errorLogger } from './errorLogger'
-import { ApiError, type ErrorEnvelope, isErrorCode } from './errors'
-import { session } from './session'
-import { notifyInfo } from './toast'
+import { session } from '../auth/session'
+import { errorLogger } from '../errors/errorLogger'
+import { ApiError, type ErrorEnvelope, isErrorCode } from '../errors/errors'
+import { notifyInfo } from '../notify/toast'
 
 export interface Paginated<T> {
   count: number

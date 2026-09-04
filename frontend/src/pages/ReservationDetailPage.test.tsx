@@ -21,8 +21,8 @@ import {
   fetchReservationStatement,
 } from '@/features/reservations/api'
 import type { Reservation } from '@/features/reservations/types'
-import { ApiError } from '@/lib/errors'
-import { toastStore } from '@/lib/toast'
+import { ApiError } from '@/lib/errors/errors'
+import { toastStore } from '@/lib/notify/toast'
 import { renderPage } from '@/test/renderPage'
 import { signInForTest } from '@/test/renderWithProviders'
 

@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 import { roomSummarySchema } from '@/features/rooms/schemas'
-import { requiredString } from '@/lib/forms'
-import { isoDate, isoDateTime, moneyString, paginated, userRefSchema } from '@/lib/schemas'
+import { isoDate, isoDateTime, moneyString, paginated, userRefSchema } from '@/lib/api/schemas'
+import { requiredString } from '@/lib/forms/forms'
 
 import type { CreateReservationPayload, ReservationFormValues } from './types'
 

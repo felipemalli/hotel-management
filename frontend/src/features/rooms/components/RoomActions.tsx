@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui'
-import { notifySuccess } from '@/lib/toast'
+import { notifySuccess } from '@/lib/notify/toast'
 
 import { useUpdateRoom } from '../hooks'
 import type { Room } from '../types'

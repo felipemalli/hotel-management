@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createPolicy } from '@/features/pricing/api'
-import { ApiError } from '@/lib/errors'
-import { toastStore } from '@/lib/toast'
+import { ApiError } from '@/lib/errors/errors'
+import { toastStore } from '@/lib/notify/toast'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { BOOTSTRAP_POLICY, HIGH_SEASON_POLICY } from './__fixtures__/policies'

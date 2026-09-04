@@ -4,9 +4,9 @@ import { Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
 import { login } from '@/features/auth/api'
-import { ApiError } from '@/lib/errors'
-import { session, type TokenPair } from '@/lib/session'
-import { toastStore } from '@/lib/toast'
+import { session, type TokenPair } from '@/lib/auth/session'
+import { ApiError } from '@/lib/errors/errors'
+import { toastStore } from '@/lib/notify/toast'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { LoginPage } from './LoginPage'

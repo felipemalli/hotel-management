@@ -4,9 +4,9 @@ import type { ReactElement, ReactNode } from 'react'
 import { act } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 
-import { createQueryClient } from '@/lib/queryClient'
-import { session } from '@/lib/session'
-import { toastStore } from '@/lib/toast'
+import { createQueryClient } from '@/lib/api/queryClient'
+import { session } from '@/lib/auth/session'
+import { toastStore } from '@/lib/notify/toast'
 
 const ROUTER_FUTURE = { v7_startTransition: true, v7_relativeSplatPath: true }
 

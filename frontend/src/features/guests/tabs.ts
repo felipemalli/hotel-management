@@ -1,5 +1,5 @@
 import type { TabItem } from '@/components/ui'
-import type { Paginated } from '@/lib/apiClient'
+import type { Paginated } from '@/lib/api/apiClient'
 
 import type { Guest, GuestInHotel, GuestPendingCheckin, ReservationSummary } from './types'
 

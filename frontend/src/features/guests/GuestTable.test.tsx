@@ -4,8 +4,8 @@ import { act } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
-import type { Paginated } from '@/lib/apiClient'
-import { ApiError } from '@/lib/errors'
+import type { Paginated } from '@/lib/api/apiClient'
+import { ApiError } from '@/lib/errors/errors'
 import { elementAt, page } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 

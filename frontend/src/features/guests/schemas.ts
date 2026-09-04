@@ -1,10 +1,10 @@
 import { z } from 'zod'
 
 import { roomSummarySchema } from '@/features/rooms/schemas'
-import { isCountryCode } from '@/lib/countries'
-import { requiredString } from '@/lib/forms'
-import { DOCUMENT_MIN_LENGTH, isInternationalPhone, normalizeDocument } from '@/lib/normalize'
-import { isoDate, isoDateTime, paginated } from '@/lib/schemas'
+import { isoDate, isoDateTime, paginated } from '@/lib/api/schemas'
+import { isCountryCode } from '@/lib/format/countries'
+import { requiredString } from '@/lib/forms/forms'
+import { DOCUMENT_MIN_LENGTH, isInternationalPhone, normalizeDocument } from '@/lib/forms/normalize'
 
 import type { CreateGuestPayload } from './types'
 

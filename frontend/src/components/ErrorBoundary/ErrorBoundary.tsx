@@ -6,7 +6,7 @@ import {
   type OnErrorCallback,
 } from 'react-error-boundary'
 
-import { errorLogger } from '@/lib/errorLogger'
+import { errorLogger } from '@/lib/errors/errorLogger'
 
 import { ErrorFallback } from './ErrorFallback'
 

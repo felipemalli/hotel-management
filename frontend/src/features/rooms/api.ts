@@ -1,5 +1,5 @@
-import { apiClient, type Paginated } from '@/lib/apiClient'
-import { parseResponse } from '@/lib/apiClient'
+import { apiClient, type Paginated } from '@/lib/api/apiClient'
+import { parseResponse } from '@/lib/api/apiClient'
 
 import { roomPageSchema } from './schemas'
 import { roomSchema } from './schemas'

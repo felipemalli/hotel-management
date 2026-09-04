@@ -1,8 +1,14 @@
 import { MutationCache, QueryClient } from '@tanstack/react-query'
 
-import { errorLogger } from './errorLogger'
-import { type ErrorCode, errorMessage, isApiError, isApiErrorCode, isServerFault } from './errors'
-import { notifyError } from './toast'
+import { errorLogger } from '../errors/errorLogger'
+import {
+  type ErrorCode,
+  errorMessage,
+  isApiError,
+  isApiErrorCode,
+  isServerFault,
+} from '../errors/errors'
+import { notifyError } from '../notify/toast'
 
 export const DEFAULT_STALE_TIME_MS = 30_000
 

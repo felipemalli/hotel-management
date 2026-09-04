@@ -10,10 +10,10 @@ import { RoomDeactivateDialog } from '@/features/rooms/components/RoomDeactivate
 import { RoomForm } from '@/features/rooms/RoomForm'
 import { RoomsTable } from '@/features/rooms/RoomsTable'
 import type { Room } from '@/features/rooms/types'
-import { errorMessage } from '@/lib/errors'
-import { returnFocusToContent } from '@/lib/focus'
-import { pageFromSearchParams, withPage } from '@/lib/pagination'
-import { notifySuccess } from '@/lib/toast'
+import { returnFocusToContent } from '@/lib/a11y/focus'
+import { errorMessage } from '@/lib/errors/errors'
+import { notifySuccess } from '@/lib/notify/toast'
+import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
 
 type RoomsDialog =
   { kind: 'create' } | { kind: 'capacity'; room: Room } | { kind: 'deactivate'; room: Room } | null

@@ -3,9 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fetchReservationStatement, payReservation } from '@/features/reservations/api'
-import { ApiError } from '@/lib/errors'
-import { formatBRL } from '@/lib/money'
-import { toastStore } from '@/lib/toast'
+import { ApiError } from '@/lib/errors/errors'
+import { formatBRL } from '@/lib/format/money'
+import { toastStore } from '@/lib/notify/toast'
 import { elementAt } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 

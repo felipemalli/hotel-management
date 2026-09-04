@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BRUNO, DAVI, EVA } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests } from '@/features/guests/api'
 import { DEBOUNCE_MS } from '@/features/guests/tabs'
-import { ApiError } from '@/lib/errors'
+import { ApiError } from '@/lib/errors/errors'
 import { page } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
 

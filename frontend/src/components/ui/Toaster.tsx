@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 
-import { type Toast, toastStore, type ToastTone } from '@/lib/toast'
+import { type Toast, toastStore, type ToastTone } from '@/lib/notify/toast'
 
 import { DismissButton } from './DismissButton'
 

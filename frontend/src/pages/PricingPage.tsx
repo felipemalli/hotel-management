@@ -7,10 +7,10 @@ import { CurrentPolicyCard } from '@/features/pricing/CurrentPolicyCard'
 import { useCurrentPolicy } from '@/features/pricing/hooks'
 import { PolicyForm } from '@/features/pricing/PolicyForm'
 import { PolicyHistoryTable } from '@/features/pricing/PolicyHistoryTable'
-import { formatISODateTime } from '@/lib/dates'
-import { errorMessage } from '@/lib/errors'
-import { pageFromSearchParams, withPage } from '@/lib/pagination'
-import { notifySuccess } from '@/lib/toast'
+import { errorMessage } from '@/lib/errors/errors'
+import { formatISODateTime } from '@/lib/format/dates'
+import { notifySuccess } from '@/lib/notify/toast'
+import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
 
 export function PricingPage() {
   const isAdmin = useIsAdmin()

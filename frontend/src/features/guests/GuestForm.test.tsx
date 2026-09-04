@@ -3,7 +3,7 @@ import userEvent, { type UserEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createGuest } from '@/features/guests/api'
-import { ApiError } from '@/lib/errors'
+import { ApiError } from '@/lib/errors/errors'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { ANA } from './__fixtures__/guests'

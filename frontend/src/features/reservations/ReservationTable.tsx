@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui'
-import { formatISODate } from '@/lib/dates'
-import { formatBRL } from '@/lib/money'
-import { ROUTES } from '@/lib/routes'
+import { formatISODate } from '@/lib/format/dates'
+import { formatBRL } from '@/lib/format/money'
+import { ROUTES } from '@/lib/routing/routes'
 
 import { ReservationStatusBadge } from './components/ReservationStatusBadge'
 import { paymentLabel, peopleCount } from './status'

@@ -13,9 +13,9 @@ import {
   THead,
   TR,
 } from '@/components/ui'
-import { formatISODate, formatISODateTime } from '@/lib/dates'
-import { errorMessage, isApiErrorCode } from '@/lib/errors'
-import { formatBRL } from '@/lib/money'
+import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
+import { formatISODate, formatISODateTime } from '@/lib/format/dates'
+import { formatBRL } from '@/lib/format/money'
 
 import { usePayReservation, useReservationStatement } from './hooks'
 import { isPaymentMethod, PAYMENT_METHODS } from './payment'

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-import { requiredString } from '@/lib/forms'
-import type { TokenPair } from '@/lib/session'
+import type { TokenPair } from '@/lib/auth/session'
+import { requiredString } from '@/lib/forms/forms'
 
 import type { Credentials } from './api'
 

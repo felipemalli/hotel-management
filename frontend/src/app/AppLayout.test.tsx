@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ADMIN, ATTENDANT } from '@/features/auth/__fixtures__/users'
 import { fetchCurrentUser } from '@/features/auth/api'
-import { ROUTES } from '@/lib/routes'
-import { session } from '@/lib/session'
+import { session } from '@/lib/auth/session'
+import { ROUTES } from '@/lib/routing/routes'
 import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
 
 import { AppLayout } from './AppLayout'

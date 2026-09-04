@@ -1,4 +1,4 @@
-import { formatISODateTime } from '@/lib/dates'
+import { formatISODateTime } from '@/lib/format/dates'
 
 import { PAYMENT_METHOD_LABELS } from './status'
 import type { Reservation, UserRef } from './types'

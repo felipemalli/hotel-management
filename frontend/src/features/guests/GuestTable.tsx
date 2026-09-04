@@ -13,8 +13,8 @@ import {
   THead,
   TR,
 } from '@/components/ui'
-import { errorMessage } from '@/lib/errors'
-import { useDebouncedValue } from '@/lib/useDebouncedValue'
+import { errorMessage } from '@/lib/errors/errors'
+import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 
 import { GuestRowCells } from './components/GuestTableRows'
 import { GuestTableToolbar } from './components/GuestTableToolbar'

@@ -3,8 +3,8 @@ import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Toaster } from '@/components/ui'
-import { createQueryClient } from '@/lib/queryClient'
-import { session } from '@/lib/session'
+import { createQueryClient } from '@/lib/api/queryClient'
+import { session } from '@/lib/auth/session'
 
 // `DEV` é substituído por `false` no build, o que apaga o `import()` junto com o
 // ramo morto: as devtools não geram chunk em produção. O modo `test` fica de

@@ -3,8 +3,8 @@ import userEvent, { type UserEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createRoom } from '@/features/rooms/api'
-import { ApiError } from '@/lib/errors'
-import { toastStore } from '@/lib/toast'
+import { ApiError } from '@/lib/errors/errors'
+import { toastStore } from '@/lib/notify/toast'
 import { renderWithProviders } from '@/test/renderWithProviders'
 
 import { ROOM_101 } from './__fixtures__/rooms'

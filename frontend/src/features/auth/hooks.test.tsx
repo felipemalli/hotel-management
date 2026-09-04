@@ -4,9 +4,9 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { fetchCurrentUser } from '@/features/auth/api'
-import { errorLogger } from '@/lib/errorLogger'
-import { ApiError } from '@/lib/errors'
-import { createQueryClient } from '@/lib/queryClient'
+import { createQueryClient } from '@/lib/api/queryClient'
+import { errorLogger } from '@/lib/errors/errorLogger'
+import { ApiError } from '@/lib/errors/errors'
 import { signInForTest } from '@/test/renderWithProviders'
 
 import { ADMIN, ATTENDANT } from './__fixtures__/users'

@@ -9,8 +9,8 @@ import {
   CARLA_CHECKED_OUT,
 } from '@/features/reservations/__fixtures__/reservations'
 import { fetchReservations } from '@/features/reservations/api'
-import { ApiError } from '@/lib/errors'
-import { ROUTES } from '@/lib/routes'
+import { ApiError } from '@/lib/errors/errors'
+import { ROUTES } from '@/lib/routing/routes'
 import { page } from '@/test/fixtures'
 import { renderPage } from '@/test/renderPage'
 import { signInForTest } from '@/test/renderWithProviders'

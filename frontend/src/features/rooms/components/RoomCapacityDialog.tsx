@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
 import { Button, Dialog, Input } from '@/components/ui'
-import { applyServerErrors } from '@/lib/forms'
+import { applyServerErrors } from '@/lib/forms/forms'
 
 import { useUpdateRoom } from '../hooks'
 import { roomCapacitySchema } from '../schemas'

@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 
 import { Badge, TD } from '@/components/ui'
-import { countryName } from '@/lib/countries'
-import { formatISODate, formatISODateTime } from '@/lib/dates'
-import { formatDocument, formatPhone } from '@/lib/pii'
+import { countryName } from '@/lib/format/countries'
+import { formatISODate, formatISODateTime } from '@/lib/format/dates'
+import { formatDocument, formatPhone } from '@/lib/format/pii'
 
 import type { GuestRow, PartyRole } from '../tabs'
 import type { Guest, ReservationSummary } from '../types'

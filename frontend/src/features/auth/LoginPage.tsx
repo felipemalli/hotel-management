@@ -3,9 +3,9 @@ import { useForm } from 'react-hook-form'
 import { Navigate } from 'react-router-dom'
 
 import { Alert, Button, Input } from '@/components/ui'
-import { errorMessage } from '@/lib/errors'
-import { applyServerErrors } from '@/lib/forms'
-import { isLocallyPresented } from '@/lib/queryClient'
+import { isLocallyPresented } from '@/lib/api/queryClient'
+import { errorMessage } from '@/lib/errors/errors'
+import { applyServerErrors } from '@/lib/forms/forms'
 
 import type { Credentials } from './api'
 import { useLogin } from './hooks'

@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
-import { requiredString } from '@/lib/forms'
-import { toDecimalString } from '@/lib/money'
-import { factorString, isoDateTime, moneyString, paginated, userRefSchema } from '@/lib/schemas'
-import { timeHHMM } from '@/lib/schemas'
+import { factorString, isoDateTime, moneyString, paginated, userRefSchema } from '@/lib/api/schemas'
+import { timeHHMM } from '@/lib/api/schemas'
+import { toDecimalString } from '@/lib/format/money'
+import { requiredString } from '@/lib/forms/forms'
 
 import type { CreatePolicyPayload, PolicyFormValues, PricingPolicy } from './types'
 

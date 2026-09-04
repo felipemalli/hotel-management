@@ -15,10 +15,10 @@ import { ReservationStatusBadge } from '@/features/reservations/components/Reser
 import { parseReservationId } from '@/features/reservations/filters'
 import { useReservation, useReservationStatement } from '@/features/reservations/hooks'
 import { ReservationActions } from '@/features/reservations/ReservationActions'
-import { errorMessage, isApiErrorCode } from '@/lib/errors'
-import { returnFocusToContent } from '@/lib/focus'
-import { ROUTES } from '@/lib/routes'
-import { notifySuccess } from '@/lib/toast'
+import { returnFocusToContent } from '@/lib/a11y/focus'
+import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
+import { notifySuccess } from '@/lib/notify/toast'
+import { ROUTES } from '@/lib/routing/routes'
 
 type DetailDialog = 'statement' | 'cancel' | null
 
