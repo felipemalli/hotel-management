@@ -101,9 +101,53 @@ jobs:
       - name: Guard - money never becomes a number
         run: |
           set -eu
-          paths="src/lib/format/money.ts src/features/reservations/CheckoutStatementDialog.tsx src/features/reservations/components/ReservationSections.tsx src/features/reservations/ReservationTable.tsx src/features/pricing"
+          paths="src/lib/format/money.ts src/features/reservations/components/CheckoutStatementDialog src/features/reservations/components/ReservationSections src/features/reservations/components/ReservationTable src/features/pricing"
           for p in $paths; do test -e "$p" || { echo "::error::guard path missing: $p"; exit 1; }; done
           ! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" $paths
+
+      # A matriz RF/RN (RESUMO §10) aponta estes ids como prova: o arquivo pode
+      # mudar de pasta, mas o nome do arquivo e o id do caso ficam.
+      - name: Guard - normative test ids exist
+        run: |
+          set -eu
+          declare -A CASES=(
+            ["GuestForm.test.tsx"]="test_requires_name_document_phone"
+            ["ReservationForm.test.tsx"]="test_submits_dates_and_vehicle_flag"
+            ["GuestTable.test.tsx"]="test_search_input_debounces_and_queries test_tab_in_hotel_switches_dataset test_tab_pending_switches_dataset"
+            ["EarlyCheckinFlow.test.tsx"]="test_checkin_success_updates_row test_409_opens_dialog_and_retry_allow_early"
+            ["CheckoutStatementDialog.test.tsx"]="test_T7_full_statement test_T1_no_late_fee_line"
+            ["ProtectedRoute.test.tsx"]="test_redirects_anonymous_to_login"
+            ["CheckoutFlow.test.tsx"]="test_checkout_statement_survives_the_row_leaving_in_hotel"
+            ["schemas.test.ts"]="test_normalizes_money_and_factor"
+            ["PolicyForm.test.tsx"]="test_normalizes_money_and_factor_before_posting"
+            ["RoomsPage.test.tsx"]="test_toggle_inactive_widens_the_list"
+          )
+          for file in "${!CASES[@]}"; do
+            found="$(find src -name "$file")"
+            if [ -z "$found" ]; then
+              echo "::error::normative file missing: $file"
+              exit 1
+            fi
+            for id in ${CASES[$file]}; do
+              if ! grep -qF "it('$id'" $found; then
+                echo "::error::normative id missing: $file::$id"
+                exit 1
+              fi
+            done
+          done
+
+      # Pino sem arquivo passa em silencio (mapa vazio = 100%): a cobertura
+      # so prova o que existe, e este guard prova que os alvos existem.
+      - name: Guard - coverage pin targets exist
+        run: |
+          set -eu
+          for p in src/lib/format/money.ts src/lib/format/dates.ts src/lib/forms/normalize.ts; do
+            test -e "$p" || { echo "::error::coverage pin target missing: $p"; exit 1; }
+          done
+          find src/features -mindepth 2 -maxdepth 2 -name schemas.ts | grep -q . || {
+            echo "::error::no features/*/schemas.ts found for the coverage pin"
+            exit 1
+          }
 
       - name: Tests with coverage floor
         run: pnpm run test:coverage
@@ -118,3 +162,94 @@ jobs:
           name: frontend-coverage
           path: frontend/coverage/lcov.info
           if-no-files-found: warn
+
+  e2e:
+    name: e2e (playwright)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: hotel
+          POSTGRES_USER: hotel
+          POSTGRES_PASSWORD: hotel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hotel -d hotel"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DEBUG: "0"
+      SECRET_KEY: ci-only-secret-key
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: hotel
+      POSTGRES_USER: hotel
+      POSTGRES_PASSWORD: hotel
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      TZ: America/Sao_Paulo
+      # Alto o bastante para o login de cada spec não esbarrar no throttle.
+      THROTTLE_LOGIN: 1000/min
+      VITE_API_PROXY_TARGET: http://127.0.0.1:8000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Instalar dependencias do backend
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Preparar o banco de demonstracao
+        working-directory: backend
+        run: |
+          uv run python manage.py migrate --noinput
+          uv run python manage.py createcachetable
+          uv run python manage.py collectstatic --noinput
+          uv run python manage.py seed_demo
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install locked dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache dos navegadores do Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+
+      - name: Instalar o Chromium do Playwright
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Suite e2e
+        working-directory: frontend
+        run: pnpm run e2e
+
+      - name: Upload do relatorio do Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
