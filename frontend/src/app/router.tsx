@@ -2,9 +2,9 @@ import { lazy } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { LoginPage } from '@/features/auth/LoginPage'
-import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
+import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 import { ROUTES } from '@/lib/routing/routes'
+import { LoginPage } from '@/pages/LoginPage'
 
 import { AppLayout } from './layout/AppLayout'
 
