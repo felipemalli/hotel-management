@@ -51,3 +51,11 @@ export interface CheckInPayload {
   id: number
   allow_early: boolean
 }
+
+// Filtros aceitos pelo servidor. `page` some quando é a primeira: a URL do
+// atendente não carrega o padrão.
+export interface ReservationListParams {
+  status?: ReservationStatus
+  paid?: boolean
+  page?: number
+}

@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { roomSummarySchema } from '@/features/rooms/schemas'
 import { requiredString } from '@/lib/forms'
-import { isoDate, isoDateTime, moneyString, userRefSchema } from '@/lib/schemas'
+import { isoDate, isoDateTime, moneyString, paginated, userRefSchema } from '@/lib/schemas'
 
 import type { CreateReservationPayload, ReservationFormValues } from './types'
 
@@ -58,6 +58,8 @@ export const lateFeeSchema = z.discriminatedUnion('applied', [
   z.object({ applied: z.literal(true), base_rate: moneyString, amount: moneyString }),
   z.object({ applied: z.literal(false), base_rate: z.null(), amount: moneyString }),
 ])
+
+export const reservationPageSchema = paginated(reservationSchema)
 
 export const paymentSchema = z.object({
   paid_at: isoDateTime,

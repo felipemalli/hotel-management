@@ -83,7 +83,9 @@ export const CARLA_PAID = reservation({
   paid_by: ATTENDANT_REF,
 })
 
+// Id próprio: uma reserva cancelada é outra linha, não a mesma da pendente.
 export const ANA_CANCELLED = reservation({
+  id: 4,
   status: 'CANCELLED',
   cancelled_at: '2026-09-02T09:00:00-03:00',
   cancelled_by: ATTENDANT_REF,

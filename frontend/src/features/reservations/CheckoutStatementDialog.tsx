@@ -18,7 +18,8 @@ import { errorMessage, isApiErrorCode } from '@/lib/errors'
 import { formatBRL } from '@/lib/money'
 
 import { usePayReservation, useReservationStatement } from './hooks'
-import { isPaymentMethod, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from './payment'
+import { isPaymentMethod, PAYMENT_METHODS } from './payment'
+import { PAYMENT_METHOD_LABELS } from './status'
 import type { CheckoutStatement, PaymentMethod } from './types'
 
 export interface CheckoutStatementDialogProps {

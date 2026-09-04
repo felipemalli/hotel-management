@@ -1,12 +1,13 @@
-import { apiClient, parseResponse } from '@/lib/apiClient'
+import { apiClient, type Paginated, parseResponse } from '@/lib/apiClient'
 
-import { checkoutStatementSchema, reservationSchema } from './schemas'
+import { checkoutStatementSchema, reservationPageSchema, reservationSchema } from './schemas'
 import type {
   CheckInPayload,
   CheckoutStatement,
   CreateReservationPayload,
   PayReservationPayload,
   Reservation,
+  ReservationListParams,
 } from './types'
 
 export async function createReservation(payload: CreateReservationPayload): Promise<Reservation> {
@@ -44,4 +45,16 @@ export async function payReservation({
 }: PayReservationPayload): Promise<CheckoutStatement> {
   const response = await apiClient.post<unknown>(`/reservations/${id}/pay/`, { payment_method })
   return parseResponse(checkoutStatementSchema, response)
+}
+
+export async function fetchReservations(
+  params: ReservationListParams,
+): Promise<Paginated<Reservation>> {
+  const response = await apiClient.get<unknown>('/reservations/', { params })
+  return parseResponse(reservationPageSchema, response)
+}
+
+export async function fetchReservation(id: number): Promise<Reservation> {
+  const response = await apiClient.get<unknown>(`/reservations/${id}/`)
+  return parseResponse(reservationSchema, response)
 }

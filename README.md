@@ -164,7 +164,13 @@ usa, com o relógio injetado.
    por atendente" e não muda em mais nada — pagar não recalcula. Pagar de novo
    responde `409 INVALID_STATUS` com o `paid_at`, e a tela relê o extrato já
    pago em vez de insistir num botão que não cabe mais.
-7. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
+7. **Reservas (`/reservas`).** O menu leva à lista completa, com filtro por
+   status e — só sobre conta fechada — por pagamento. Os filtros e a página
+   vivem na **URL** (`?status=CHECKED_OUT&paid=false`), então recarregar,
+   voltar e compartilhar preservam a consulta. O filtro de pagamento aparece
+   apenas em "Finalizada" de propósito: no servidor `paid=false` casa também
+   toda reserva que ainda não pagou porque nem fechou.
+8. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
    endpoints da seção [6](#6-mapa-da-api), com exemplos de request, de resposta
    e dos erros de cada rota.
 
@@ -504,7 +510,7 @@ min, refresh de 12 h). Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 | `GET /api/guests/{id}/` | ✔ | Detalhe (PII completa) |
 | `GET /api/guests/in-hotel/` | ✔ | Hóspedes com reserva `CHECKED_IN` |
 | `GET /api/guests/pending-checkin/` | ✔ | Hóspedes com reservas `PENDING` |
-| `GET/POST /api/reservations/` | ✔ | Lista (`?status=&guest=`) / criação |
+| `GET/POST /api/reservations/` | ✔ | Lista (`?status=&guest=&paid=`) / criação (`room_id`, `companion_ids`) |
 | `GET /api/reservations/{id}/` | ✔ | Detalhe da reserva |
 | `GET /api/reservations/{id}/statement/` | ✔ | 2ª via do extrato (após o checkout) |
 | `POST /api/reservations/{id}/check-in/` | ✔ | Efetiva o check-in (com override `allow_early`) |

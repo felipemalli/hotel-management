@@ -14,6 +14,9 @@ import { AppLayout } from './AppLayout'
 const DashboardPage = lazy(() =>
   import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })),
 )
+const ReservationsPage = lazy(() =>
+  import('@/pages/ReservationsPage').then((module) => ({ default: module.ReservationsPage })),
+)
 
 export function AppRoutes() {
   const { pathname } = useLocation()
@@ -34,6 +37,7 @@ export function AppRoutes() {
           }
         >
           <Route path={ROUTES.home} element={<DashboardPage />} />
+          <Route path={ROUTES.reservations} element={<ReservationsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to={ROUTES.home} replace />} />

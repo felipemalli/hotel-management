@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { DEFAULT_STALE_TIME_MS } from '@/lib/queryClient'
 import { RESERVATIONS_ROOT } from '@/lib/queryKeys'
@@ -9,6 +9,8 @@ import {
   checkIn,
   checkOut,
   createReservation,
+  fetchReservation,
+  fetchReservations,
   fetchReservationStatement,
   payReservation,
 } from './api'
@@ -18,9 +20,12 @@ import type {
   CreateReservationPayload,
   PayReservationPayload,
   Reservation,
+  ReservationListParams,
 } from './types'
 
 export const reservationKeys = {
+  list: (params: ReservationListParams) => [...RESERVATIONS_ROOT, 'list', params] as const,
+  detail: (id: number) => [...RESERVATIONS_ROOT, id] as const,
   statement: (id: number) => [...RESERVATIONS_ROOT, id, 'statement'] as const,
 }
 
@@ -100,5 +105,25 @@ export function useCancelReservation(options?: { onSuccess?: (r: Reservation) =>
       invalidateServerState()
       options?.onSuccess?.(reservation)
     },
+  })
+}
+
+export function useReservations(params: ReservationListParams) {
+  return useQuery({
+    queryKey: reservationKeys.list(params),
+    queryFn: () => fetchReservations(params),
+    staleTime: DEFAULT_STALE_TIME_MS,
+    // Trocar de página não pode piscar a tabela vazia: o dado anterior fica na
+    // tela enquanto o seguinte não chega.
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useReservation(id: number | null) {
+  return useQuery({
+    queryKey: reservationKeys.detail(id ?? 0),
+    queryFn: () => fetchReservation(id ?? 0),
+    staleTime: DEFAULT_STALE_TIME_MS,
+    enabled: id !== null,
   })
 }
