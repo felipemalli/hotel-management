@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 import { Button } from '@/components/ui'
-import { earlyCheckinServerTime } from '@/lib/errors'
-import { notifySuccess } from '@/lib/toast'
+import { type EarlyCheckinInfo, earlyCheckinInfo, errorMessage, isApiErrorCode } from '@/lib/errors'
+import { notifyError, notifySuccess } from '@/lib/toast'
 
 import { EarlyCheckinDialog } from './EarlyCheckinDialog'
 import { useCheckIn, useCheckOut } from './hooks'
@@ -28,11 +28,11 @@ export function ReservationActions({
   onCheckedOut,
   onRequestCancel,
 }: ReservationActionsProps) {
-  const [serverTime, setServerTime] = useState<string | null>(null)
+  const [early, setEarly] = useState<EarlyCheckinInfo | null>(null)
 
   const checkIn = useCheckIn({
     onSuccess: () => {
-      setServerTime(null)
+      setEarly(null)
       notifySuccess(`Check-in de ${guestName} registrado.`)
     },
   })
@@ -43,8 +43,18 @@ export function ReservationActions({
       { id: reservationId, allow_early: allowEarly },
       {
         onError: (cause) => {
-          const time = earlyCheckinServerTime(cause)
-          if (time !== null) setServerTime(time)
+          const info = earlyCheckinInfo(cause)
+          if (info !== null) {
+            setEarly(info)
+            return
+          }
+          // Quarto ainda ocupado, chegada antecipada, ou um `EARLY_CHECKIN`
+          // sem os horários no `extra`: não há o que confirmar, e os dois
+          // códigos estão na lista dos apresentados localmente — sem este
+          // aviso o erro sumiria da tela.
+          if (isApiErrorCode(cause, 'ROOM_UNAVAILABLE') || isApiErrorCode(cause, 'EARLY_CHECKIN')) {
+            notifyError(errorMessage(cause))
+          }
         },
       },
     )
@@ -74,12 +84,13 @@ export function ReservationActions({
       </div>
 
       <EarlyCheckinDialog
-        open={serverTime !== null}
-        serverTime={serverTime ?? ''}
+        open={early !== null}
+        serverTime={early?.serverTime ?? ''}
+        opensAt={early?.opensAt ?? ''}
         guestName={guestName}
         pending={checkIn.isPending}
         onConfirm={() => runCheckIn(true)}
-        onCancel={() => setServerTime(null)}
+        onCancel={() => setEarly(null)}
       />
     </div>
   )

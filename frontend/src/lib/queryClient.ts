@@ -14,10 +14,14 @@ export const DEFAULT_STALE_TIME_MS = 30_000
 // query 4xx ou rede fora  -> `ErrorState` inline com retry
 // `NOT_AUTHENTICATED` entra na lista porque a expiração já é anunciada pelo
 // interceptor, e a credencial errada é assunto do formulário de login.
+// `ROOM_UNAVAILABLE` entra porque o formulário de reserva o mostra no alerta do
+// topo, junto da data do conflito; no check-in, onde não há formulário para
+// mostrá-lo, `ReservationActions` avisa por conta própria.
 const LOCALLY_PRESENTED_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
   'VALIDATION_ERROR',
   'DUPLICATE_DOCUMENT',
   'EARLY_CHECKIN',
+  'ROOM_UNAVAILABLE',
   'NOT_AUTHENTICATED',
 ])
 

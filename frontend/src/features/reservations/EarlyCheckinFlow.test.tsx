@@ -7,9 +7,11 @@ import { ANA, inHotel, pendingCheckin } from '@/features/guests/__fixtures__/gue
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import { checkIn } from '@/features/reservations/api'
 import { ApiError } from '@/lib/errors'
+import { toastStore } from '@/lib/toast'
 import { elementAt, page } from '@/test/fixtures'
 import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
 
+import { reservation } from './__fixtures__/reservations'
 import { ReservationActions } from './ReservationActions'
 import type { Reservation } from './types'
 
@@ -19,32 +21,23 @@ vi.mock('@/features/reservations/api')
 const RESERVATION_ID = ANA.id
 const GUEST_NAME = ANA.full_name
 const SERVER_TIME = '13:45'
+const OPENS_AT = '14:00'
 
 function earlyCheckinError(): ApiError {
   return new ApiError({
     code: 'EARLY_CHECKIN',
     detail: 'Check-in permitido a partir das 14:00.',
     status: 409,
-    extra: { server_time: SERVER_TIME },
+    extra: { server_time: SERVER_TIME, opens_at: OPENS_AT },
   })
 }
 
 function checkedInReservation(): Reservation {
-  return {
+  return reservation({
     id: RESERVATION_ID,
-    guest_id: 1,
-    checkin_date: '2026-09-01',
-    checkout_date: '2026-09-03',
-    has_vehicle: true,
     status: 'CHECKED_IN',
     checked_in_at: '2026-09-01T13:46:00-03:00',
-    checked_out_at: null,
-    total_daily: null,
-    total_parking: null,
-    late_fee: null,
-    total_amount: null,
-    created_at: '2026-09-01T08:00:00-03:00',
-  }
+  })
 }
 
 describe('EarlyCheckinFlow', () => {
@@ -171,6 +164,101 @@ describe('EarlyCheckinFlow', () => {
     await user.click(screen.getByRole('button', { name: 'Check-in' }))
 
     await waitFor(() => expect(checkIn).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  // O horario de abertura vem da politica vigente: publicar outra abertura tem
+  // de mudar o texto, e por isso ele nao pode estar escrito no componente.
+  it('usa o horario de abertura da politica no titulo e na pergunta', async () => {
+    const user = userEvent.setup()
+    vi.mocked(checkIn).mockRejectedValue(
+      new ApiError({
+        code: 'EARLY_CHECKIN',
+        detail: 'Check-in permitido a partir das 15:00.',
+        status: 409,
+        extra: { server_time: '14:30', opens_at: '15:00' },
+      }),
+    )
+
+    renderWithProviders(
+      <ReservationActions
+        reservationId={RESERVATION_ID}
+        guestName={GUEST_NAME}
+        state="PENDING"
+        onCheckedOut={vi.fn()}
+        onRequestCancel={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Check-in' }))
+
+    const alert = await screen.findByRole('alertdialog', { name: 'Check-in antes das 15:00' })
+    expect(alert).toHaveTextContent('São 14:30 — o check-in abre às 15:00. Confirmar mesmo assim?')
+  })
+
+  it('avisa por toast quando o quarto ainda esta ocupado, sem abrir o alerta', async () => {
+    const user = userEvent.setup()
+    vi.mocked(checkIn).mockRejectedValue(
+      new ApiError({
+        code: 'ROOM_UNAVAILABLE',
+        detail: 'Quarto ainda ocupado por outra estadia.',
+        status: 409,
+        extra: { room_id: 1 },
+      }),
+    )
+
+    renderWithProviders(
+      <ReservationActions
+        reservationId={RESERVATION_ID}
+        guestName={GUEST_NAME}
+        state="PENDING"
+        onCheckedOut={vi.fn()}
+        onRequestCancel={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Check-in' }))
+
+    await waitFor(() =>
+      expect(toastStore.getSnapshot()).toEqual([
+        expect.objectContaining({
+          tone: 'error',
+          message: 'Quarto ainda ocupado por outra estadia.',
+        }),
+      ]),
+    )
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  // Sem os horarios no `extra` nao ha dialogo a abrir, e o codigo esta na lista
+  // dos apresentados localmente: sem o aviso, o 409 sumiria da tela.
+  it('avisa por toast o EARLY_CHECKIN que nao trouxe os horarios', async () => {
+    const user = userEvent.setup()
+    vi.mocked(checkIn).mockRejectedValue(
+      new ApiError({
+        code: 'EARLY_CHECKIN',
+        detail: 'Check-in permitido a partir das 14:00.',
+        status: 409,
+      }),
+    )
+
+    renderWithProviders(
+      <ReservationActions
+        reservationId={RESERVATION_ID}
+        guestName={GUEST_NAME}
+        state="PENDING"
+        onCheckedOut={vi.fn()}
+        onRequestCancel={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Check-in' }))
+
+    await waitFor(() =>
+      expect(toastStore.getSnapshot()).toEqual([
+        expect.objectContaining({ message: 'Check-in permitido a partir das 14:00.' }),
+      ]),
+    )
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })

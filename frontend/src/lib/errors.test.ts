@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   ApiError,
   earlyCheckinInfo,
-  earlyCheckinServerTime,
   errorMessage,
   isApiError,
   isApiErrorCode,
@@ -51,21 +50,6 @@ describe('predicados de erro', () => {
     expect(isServerFault(apiError('NOT_FOUND', 404))).toBe(false)
     expect(isServerFault(apiError('VALIDATION_ERROR', 400))).toBe(false)
     expect(isServerFault(new Error('erro de render'))).toBe(false)
-  })
-})
-
-describe('acessores de extra', () => {
-  it('devolve a hora do servidor so no EARLY_CHECKIN e so quando e string', () => {
-    const early = new ApiError({
-      code: 'EARLY_CHECKIN',
-      detail: 'Check-in permitido a partir das 14:00.',
-      status: 409,
-      extra: { server_time: '13:45' },
-    })
-
-    expect(earlyCheckinServerTime(early)).toBe('13:45')
-    expect(earlyCheckinServerTime(apiError('EARLY_CHECKIN', 409))).toBeNull()
-    expect(earlyCheckinServerTime(apiError('INVALID_STATUS', 409))).toBeNull()
   })
 })
 

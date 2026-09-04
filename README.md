@@ -135,20 +135,29 @@ usa, com o relógio injetado.
    (D9). A nacionalidade é um código ISO 3166-1 alpha-2, escolhido numa lista
    com o Brasil no topo. O formulário abre em seguida a criação da reserva
    desse hóspede (RF2): a entrada não pode ser no passado e o mínimo é 1 noite.
-4. **Check-in (RF6, RN4).** Aba "Check-in pendente" → linha da Ana Souza →
-   "Check-in". Antes das 14h locais, a API responde `409 EARLY_CHECKIN` e a
-   aplicação abre o alerta com a hora do servidor ("São 13:45 — o check-in abre
-   às 14:00. Confirmar mesmo assim?"); confirmar reenvia com `allow_early:
-   true` e efetiva. A partir das 14h, o check-in é direto. O briefing pede
-   *alerta*, não bloqueio (D4).
-5. **Checkout com extrato (RF7, RN5, RN6).** Aba "No hotel" → a estadia do
+4. **Reservar com quarto e acompanhantes (RF2, D16, D19).** No formulário de
+   reserva, escolher entrada e saída carrega a lista de **quartos livres no
+   período** (`GET /api/rooms/available/`), já filtrada pela capacidade — somar
+   um acompanhante refaz a consulta com uma pessoa a mais, e um quarto que sai
+   da lista é desmarcado em vez de seguir para um 409 certo. Acompanhante é
+   hóspede completo: só se escolhe quem já está cadastrado. Se outro atendente
+   tomar o quarto no meio do caminho, o `409 ROOM_UNAVAILABLE` aparece no topo
+   do formulário com a data da reserva conflitante, e a lista é recarregada.
+5. **Check-in (RF6, RN4).** Aba "Check-in pendente" → linha da Ana Souza →
+   "Check-in". Antes do horário de abertura, a API responde `409 EARLY_CHECKIN`
+   e a aplicação abre o alerta com a hora do servidor ("São 13:45 — o check-in
+   abre às 14:00. Confirmar mesmo assim?"); confirmar reenvia com `allow_early:
+   true` e efetiva. O horário do texto é o `opens_at` da **política vigente**,
+   não uma constante da tela: publicar outra abertura muda a frase. A partir
+   dele, o check-in é direto. O briefing pede *alerta*, não bloqueio (D4).
+6. **Checkout com extrato (RF7, RN5, RN6).** Aba "No hotel" → a estadia do
    Bruno aparece em duas linhas, a dele e a da acompanhante Eva, as duas com o
    quarto 102 e a segunda marcada como "Acompanhante". Linha do Bruno Lima →
    "Checkout". Abre o extrato: uma linha por diária (data, dia da
    semana, diária, vaga), subtotais, a linha de multa **apenas** se houve saída
    após as 12h, e o total em destaque. Os totais ficam congelados na reserva na
    mesma transação — um segundo checkout responde `409 INVALID_STATUS`.
-6. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
+7. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
    endpoints da seção [6](#6-mapa-da-api), com exemplos de request, de resposta
    e dos erros de cada rota.
 

@@ -10,6 +10,7 @@ import { toastStore } from '@/lib/toast'
 import { page } from '@/test/fixtures'
 import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
 
+import { reservation } from './__fixtures__/reservations'
 import type { Reservation } from './types'
 
 vi.mock('@/features/guests/api')
@@ -20,21 +21,12 @@ const GUEST_NAME = ANA.full_name
 const EMPTY_PENDING = 'Nenhuma reserva aguardando check-in'
 
 function cancelledReservation(): Reservation {
-  return {
+  return reservation({
     id: RESERVATION_ID,
     guest_id: ANA.id,
-    checkin_date: '2026-09-01',
-    checkout_date: '2026-09-03',
-    has_vehicle: true,
     status: 'CANCELLED',
-    checked_in_at: null,
-    checked_out_at: null,
-    total_daily: null,
-    total_parking: null,
-    late_fee: null,
-    total_amount: null,
-    created_at: '2026-09-01T08:00:00-03:00',
-  }
+    cancelled_at: '2026-09-02T09:00:00-03:00',
+  })
 }
 
 function arrangeDashboard(stillPending: () => boolean) {

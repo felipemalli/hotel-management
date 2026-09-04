@@ -74,15 +74,6 @@ export function isServerFault(error: unknown): boolean {
   return isApiError(error) && (error.status === 0 || error.status >= 500)
 }
 
-// `EARLY_CHECKIN` traz `extra.server_time` no formato "HH:MM" — é o texto do
-// alerta, e o acessor existe para que o fluxo não adivinhe o formato. Some em
-// favor de `earlyCheckinInfo` assim que o diálogo passar a ler `opens_at`.
-export function earlyCheckinServerTime(error: unknown): string | null {
-  if (!isApiErrorCode(error, 'EARLY_CHECKIN')) return null
-  const time = error.extra.server_time
-  return typeof time === 'string' ? time : null
-}
-
 export interface EarlyCheckinInfo {
   serverTime: string
   opensAt: string

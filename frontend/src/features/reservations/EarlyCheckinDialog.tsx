@@ -3,6 +3,9 @@ import { Button, Dialog } from '@/components/ui'
 export interface EarlyCheckinDialogProps {
   open: boolean
   serverTime: string
+  // Vem da política vigente, não de uma constante: um admin publica outra
+  // abertura e o texto tem de acompanhar.
+  opensAt: string
   guestName: string
   pending?: boolean
   onConfirm: () => void
@@ -12,6 +15,7 @@ export interface EarlyCheckinDialogProps {
 export function EarlyCheckinDialog({
   open,
   serverTime,
+  opensAt,
   guestName,
   pending = false,
   onConfirm,
@@ -22,8 +26,8 @@ export function EarlyCheckinDialog({
       open={open}
       role="alertdialog"
       size="sm"
-      title="Check-in antes das 14:00"
-      description={`São ${serverTime} — o check-in abre às 14:00. Confirmar mesmo assim?`}
+      title={`Check-in antes das ${opensAt}`}
+      description={`São ${serverTime} — o check-in abre às ${opensAt}. Confirmar mesmo assim?`}
       onClose={onCancel}
       footer={
         <>
