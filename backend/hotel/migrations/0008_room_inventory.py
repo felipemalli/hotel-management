@@ -1,20 +1,7 @@
-# Inventario de quartos e o anti-overbooking.
-#
-# Ordem obrigatoria e sem `RunPython`:
-#   1. `BtreeGistExtension` -- a 0001 habilita so `pg_trgm`, e o `EXCLUDE`
-#      precisa comparar igualdade de FK (btree) e sobreposicao de range (gist)
-#      no MESMO indice. `btree_gist` e extensao *trusted* no PG >= 13: o dono
-#      do banco a instala sem ser superusuario.
-#   2. `CreateModel` do quarto.
-#   3. `AddField(null=True)` seguido de `AlterField(NOT NULL)`. Em banco vazio
-#      isso aplica direto; em banco com volume antigo falha ALTO -- que e o
-#      comportamento desejado, porque a decisao registrada e banco limpo
-#      (`docker compose down -v`) e um default inventado poria toda reserva
-#      historica num quarto que ela nunca ocupou.
-#   4. As duas constraints.
-#
-# Sem `RunPython` em nenhum ponto: a regra da casa proibe misturar backfill com
-# DDL da mesma tabela (FKs DEFERRABLE do Django -> "pending trigger events").
+# Inventario de quartos e anti-overbooking.
+# Ordem: btree_gist (EXCLUDE precisa btree+gist no mesmo indice), CreateModel,
+# AddField(null=True) + AlterField(NOT NULL) — banco com volume antigo falha
+# alto de proposito. Sem RunPython: FKs DEFERRABLE + DDL = pending trigger events.
 
 import django.contrib.postgres.constraints
 import django.contrib.postgres.fields.ranges
@@ -27,7 +14,6 @@ import hotel.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("hotel", "0007_statement_snapshot_and_payment"),
     ]
@@ -37,7 +23,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Room",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 ("number", models.CharField(max_length=10)),
                 (
                     "capacity",

@@ -1,11 +1,3 @@
-"""
-Views da politica de tarifas (SPEC 4.2-4.4).
-
-Leitura para qualquer autenticado -- o atendente precisa saber a tarifa que vai
-cobrar. Escrita so para `IsHotelAdmin`: publicar politica muda o dinheiro de
-toda estadia futura.
-"""
-
 from __future__ import annotations
 
 from django.utils import timezone
@@ -76,8 +68,6 @@ class PricingPolicyViewSet(
     mixins.CreateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Política de tarifas (append-only)."""
-
     queryset = PricingPolicy.objects.all()
 
     def get_permissions(self):
@@ -99,7 +89,7 @@ class PricingPolicyViewSet(
         policy = catalog_service.create_policy(
             **serializer.validated_data,
             actor=request.user,
-            now=timezone.now(),  # relogio injetado (SPEC 0.3)
+            now=timezone.now(),
         )
         return Response(
             PricingPolicySerializer(policy).data,
@@ -117,7 +107,6 @@ class PricingPolicyViewSet(
     )
     @action(detail=False, methods=["get"], url_path="current")
     def current(self, request: Request) -> Response:
-        # A view e o unico lugar que materializa o relogio (SPEC 0.3).
         policy = selectors.policy_in_force(timezone.now())
         return Response(PricingPolicySerializer(policy).data)
 

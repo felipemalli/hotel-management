@@ -1,8 +1,3 @@
-"""
-Politica de tarifa versionada: bootstrap, resolucao por vigencia e amarracao no
-check-in (D15). Precisa de PG (constraints e select_for_update).
-"""
-
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 
@@ -31,9 +26,6 @@ def local(day: date, hour: int, minute: int = 0, second: int = 0) -> datetime:
 @pytest.fixture
 def actor():
     return UserFactory(username="admin-da-politica", admin=True)
-
-
-# -- bootstrap ----------------------------------------------------------------
 
 
 def test_default_policy_row_matches_default_rates(default_policy):
@@ -73,14 +65,9 @@ def test_policy_in_force_without_bootstrap_fails_loudly():
         policy_in_force(local(MARCH_7, 15))
 
 
-# -- resolucao por vigencia ---------------------------------------------------
-
-
 def test_policy_in_force_picks_latest_by_effective_from_then_id(default_policy):
     older = PricingPolicyFactory(effective_from=local(MARCH_7, 8))
     same_instant = PricingPolicyFactory(effective_from=local(MARCH_7, 10))
-    # Duas publicacoes no MESMO instante: `-id` desfaz o empate, e vence a
-    # ultima inserida. Sem esse desempate a resposta seria arbitraria.
     latest = PricingPolicy.objects.create(
         weekday_rate=Decimal("130.00"),
         weekend_rate=Decimal("190.00"),
@@ -94,8 +81,6 @@ def test_policy_in_force_picks_latest_by_effective_from_then_id(default_policy):
 
     assert policy_in_force(local(MARCH_7, 9)) == older
     assert policy_in_force(local(MARCH_7, 11)) == latest
-    # Vigencia futura nao vale ainda: e o que impede "publicar" o futuro sem
-    # querer.
     assert policy_in_force(local(MARCH_7, 7)) == default_policy
 
 
@@ -140,9 +125,6 @@ def test_create_policy_rejects_checkout_after_checkin(actor):
         )
 
     assert "checkout_limit" in excinfo.value.extra
-
-
-# -- constraints --------------------------------------------------------------
 
 
 def test_policy_checkout_after_checkin_violates_constraint():
@@ -195,9 +177,6 @@ def test_reservation_checked_in_without_policy_violates_constraint():
         reservation.save(update_fields=["status", "checked_in_at"])
 
 
-# -- amarracao (D15) ----------------------------------------------------------
-
-
 def test_checkin_binds_policy_in_force_at_now(actor, default_policy):
     reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
 
@@ -214,9 +193,7 @@ def test_checkout_limit_and_factor_come_from_bound_policy_not_current(actor):
     as 12:30 e ATRASO sob A. Ler o limite da vigente no checkout faria diaria e
     multa virem de politicas diferentes dentro do mesmo extrato.
     """
-    reservation = ReservationFactory(
-        checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True
-    )
+    reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
     service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
 
     PricingPolicyFactory(
@@ -229,7 +206,6 @@ def test_checkout_limit_and_factor_come_from_bound_policy_not_current(actor):
 
     bill = service.check_out(reservation, now=local(MARCH_9, 12, 30), actor=actor)
 
-    # Numeros de T7: a politica nova nao encostou nesta estadia.
     assert bill.subtotal_daily == Decimal("300.00")
     assert bill.subtotal_parking == Decimal("35.00")
     assert bill.late_fee_applied is True
@@ -259,7 +235,7 @@ def test_checkin_opens_comes_from_the_policy_in_force_not_the_bound_one(actor):
     PricingPolicyFactory(effective_from=local(MARCH_7, 8), checkin_opens=time(13, 0))
     reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
 
-    # 13:30 seria cedo sob a politica default (14:00) e nao e sob a vigente.
+    # 13:30 seria cedo na default (14:00) e nao e na vigente.
     returned = service.check_in(reservation, now=local(MARCH_7, 13, 30), actor=actor)
 
     assert returned.status == ReservationStatus.CHECKED_IN

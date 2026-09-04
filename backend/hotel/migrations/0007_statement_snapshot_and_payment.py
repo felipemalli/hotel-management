@@ -1,14 +1,5 @@
-# O extrato deixa de ser recomputado e passa a ser um snapshot: `StatementLine`
-# por diaria, `late_fee_base` para a base da multa, e as tres colunas do
-# pagamento unico (D18).
-#
-# `late_fee_applied` NAO e coluna: deriva de `late_fee_base IS NOT NULL`. Duas
-# colunas para o mesmo fato podem discordar, e um `applied=True` com base nula
-# nao teria como ser reemitido.
-#
-# Sem RunPython: a decisao registrada e banco limpo (`docker compose down -v`).
-# Reserva ja encerrada num banco antigo ficaria sem linhas, e `statement()`
-# responde 409 explicito nesse caso em vez de devolver um recibo vazio.
+# Snapshot do extrato (StatementLine) e pagamento unico.
+# late_fee_applied nao e coluna: deriva de late_fee_base IS NOT NULL.
 
 import django.db.models.deletion
 from django.conf import settings
@@ -16,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("hotel", "0006_reservation_policy"),
@@ -62,7 +52,12 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="StatementLine",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 ("date", models.DateField()),
                 ("daily_rate", models.DecimalField(decimal_places=2, max_digits=10)),
                 ("parking_fee", models.DecimalField(decimal_places=2, max_digits=10)),
@@ -102,8 +97,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="reservation",
             constraint=models.CheckConstraint(
-                condition=models.Q(("paid_at__isnull", True))
-                | models.Q(("status", "CHECKED_OUT")),
+                condition=models.Q(("paid_at__isnull", True)) | models.Q(("status", "CHECKED_OUT")),
                 name="resv_paid_requires_checked_out",
             ),
         ),

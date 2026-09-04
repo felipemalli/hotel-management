@@ -1,12 +1,3 @@
-"""
-I/O dos hospedes (SPEC 4.3).
-
-Fronteira de I/O e nada mais: nenhuma regra de negocio e nenhuma leitura de
-relogio (SPEC 0.3). Formato de documento e telefone (D9) e **forma** e fica
-aqui; unicidade de documento (D12) depende do estado do banco e mora em
-`services.guests.create_guest`.
-"""
-
 from __future__ import annotations
 
 from drf_spectacular.utils import extend_schema_field
@@ -29,8 +20,6 @@ from hotel.serializers.reservations import ReservationSummarySerializer
 
 
 class GuestSerializer(serializers.ModelSerializer):
-    """Listagens, detalhe e abas: valor gravado, ja normalizado (SPEC 2.1)."""
-
     class Meta:
         model = Guest
         fields = ["id", "full_name", "document", "phone", "nationality", "created_at"]
@@ -38,25 +27,6 @@ class GuestSerializer(serializers.ModelSerializer):
 
 
 class GuestCreateSerializer(serializers.ModelSerializer):
-    """Forma do cadastro (SPEC 4.3). Os 3 campos minimos do briefing sao obrigatorios.
-
-    Comprimento do documento (D9) e forma, e fica aqui. O TELEFONE nao tem
-    mais checagem de comprimento aqui: "ao menos 8 digitos" era uma medida, nao
-    uma regra, e um numero valido com DDI passa por `to_e164_digits` no
-    servico. Duas checagens sobre o mesmo campo dariam duas mensagens
-    diferentes para a mesma entrada ruim, conforme qual falhasse primeiro. O que
-    depende de conhecimento de mundo NAO fica: a validade do telefone
-    internacional (lista de DDIs e planos de numeracao) e a lista ISO de
-    nacionalidades vivem em `services.guests.create_guest` (SPEC 3.4), junto
-    com a unicidade de documento (D12) -- tudo isso tem de valer para o seed e
-    para o shell, nao so para quem entra por HTTP. `nationality` aqui e so
-    "exatamente 2 caracteres".
-
-    `document` e `phone` sao declarados explicitamente para carregar
-    `allow_blank=False` e o maximo de entrada de D9 -- e para que o duplicado
-    nunca saia como `400 VALIDATION_ERROR` comparando valor nao normalizado.
-    """
-
     document = serializers.CharField(
         allow_blank=False,
         max_length=DOCUMENT_MAX_LENGTH,
@@ -83,8 +53,7 @@ class GuestCreateSerializer(serializers.ModelSerializer):
         }
 
     def validate_document(self, value: str) -> str:
-        # Minimo aferido APOS a normalizacao de D9 (alfanumerico maiusculo):
-        # `12.3` tem 4 caracteres, mas so 3 alfanumericos.
+        # Minimo aferido apos normalizar: `12.3` tem 4 caracteres e so 3 alfanumericos.
         normalized = normalize_document(value)
         if len(normalized) < DOCUMENT_MIN_LENGTH:
             raise serializers.ValidationError(
@@ -93,10 +62,7 @@ class GuestCreateSerializer(serializers.ModelSerializer):
         return value.strip()
 
 
-
 class GuestInHotelSerializer(GuestSerializer):
-    """Aba "no hotel" (RF4). `active_reservation` e unico pela constraint SPEC 1.5."""
-
     active_reservation = serializers.SerializerMethodField()
 
     class Meta(GuestSerializer.Meta):
@@ -111,8 +77,6 @@ class GuestInHotelSerializer(GuestSerializer):
 
 
 class GuestPendingCheckinSerializer(GuestSerializer):
-    """Aba "check-in pendente" (RF5). Plural: um hospede pode ter varias futuras."""
-
     pending_reservations = serializers.SerializerMethodField()
 
     class Meta(GuestSerializer.Meta):
@@ -127,14 +91,8 @@ class GuestPendingCheckinSerializer(GuestSerializer):
 
 
 def _merged(guest: Guest, own_attr: str, companion_attr: str) -> list:
-    """Reservas do hospede como titular e como acompanhante, em uma lista.
-
-    Ordenada por `(checkin_date, id)` em Python e nao no banco: sao dois
-    prefetches distintos, e ordenar cada um separadamente daria uma
-    concatenacao com as vencidas no meio. A aba precisa de
-    `[vencidas, futuras]` -- e o que `test_pending_checkin_endpoint_shape`
-    verifica.
-    """
+    # Ordena em Python: sao dois prefetches, e concatenar ja ordenados
+    # intercalaria vencidas no meio.
     own = getattr(guest, own_attr, None) or []
     companion = getattr(guest, companion_attr, None) or []
     return sorted([*own, *companion], key=lambda r: (r.checkin_date, r.pk))

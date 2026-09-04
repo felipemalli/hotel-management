@@ -1,14 +1,3 @@
-"""
-Fluxo completo de reserva na borda HTTP (SPEC 4.4, 1.5).
-
-Nomes normativos da matriz SPEC 6.3 (RF2, RF6, RF7, RN4, RN5, RN6).
-
-`freezegun` entra **so aqui**, na borda: a view le `timezone.now()` e injeta o
-resultado nos services (SPEC 0.3), logo congelar o relogio do processo e o
-jeito honesto de testar 13:59 x 14:00 e a multa de 12:01 ponta a ponta.
-Calendario de referencia: marco/2025 (SPEC 3.3).
-"""
-
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -65,9 +54,6 @@ def detail_url(reservation: Reservation) -> str:
 
 def statement_url(reservation: Reservation) -> str:
     return f"/api/reservations/{reservation.pk}/statement/"
-
-
-# -- criacao ------------------------------------------------------------------
 
 
 def test_create_reservation_persists_pending(auth_client):
@@ -163,9 +149,6 @@ def test_create_reservation_requires_existing_guest(auth_client):
     assert "guest_id" in response.data["extra"]
 
 
-# -- check-in -----------------------------------------------------------------
-
-
 def test_checkin_after_14_succeeds(auth_client):
     """RF6: 14:00:00 em ponto NAO e cedo (SPEC 3.3, fronteiras de check-in)."""
     reservation = t7_reservation()
@@ -191,9 +174,6 @@ def test_checkin_before_14_returns_409_and_override(auth_client):
         assert blocked.data == {
             "code": "EARLY_CHECKIN",
             "detail": "Check-in permitido a partir das 14:00.",
-            # `opens_at` e o horario da politica vigente, para o cliente
-            # montar a mensagem sem parsear `detail` (RESUMO 7). Com a politica
-            # do briefing o `detail` sai byte a byte igual ao de antes.
             "extra": {"server_time": "13:59", "opens_at": "14:00"},
         }
         reservation.refresh_from_db()
@@ -230,9 +210,6 @@ def test_checkin_on_cancelled_returns_invalid_status(auth_client):
 
     assert response.status_code == 409
     assert response.data["code"] == "INVALID_STATUS"
-
-
-# -- checkout -----------------------------------------------------------------
 
 
 def test_checkout_freezes_totals(auth_client):
@@ -274,9 +251,6 @@ def test_checkout_statement_matches_T7(auth_client):
         "subtotal_parking": "35.00",
         "late_fee": {"applied": True, "base_rate": "180.00", "amount": "90.00"},
         "total": "425.00",
-        # Conta fechada e em aberto: `null` e nao um dict de campos nulos, que
-        # diria "houve pagamento, sem dados". O cliente ramifica por `payment
-        # === null` (RESUMO 7).
         "payment": None,
     }
 
@@ -313,12 +287,8 @@ def test_statement_before_checkout_returns_invalid_status(auth_client):
 
 
 def test_reservation_detail_returns_the_full_object(auth_client):
-    # Datas fixas no calendario da SPEC 3.3: o trait `checked_out` usa `hoje`
-    # por default, e o total mudaria conforme o dia da semana em que a suite
-    # rodasse (sex 120 + sab 180 = 300,00 aqui, sem vaga e sem multa).
-    reservation = ReservationFactory(
-        checked_out=True, checkin_date=MARCH_7, checkout_date=MARCH_9
-    )
+    # Datas fixas: o trait checked_out usa "hoje" e o total mudaria com o weekday.
+    reservation = ReservationFactory(checked_out=True, checkin_date=MARCH_7, checkout_date=MARCH_9)
 
     response = auth_client.get(detail_url(reservation))
 
@@ -371,9 +341,6 @@ def test_checkout_without_checkin_returns_invalid_status(auth_client):
     assert response.data["code"] == "INVALID_STATUS"
 
 
-# -- cancelamento -------------------------------------------------------------
-
-
 def test_cancel_pending_reservation(auth_client):
     """D8: `PENDING -> CANCELLED` e a unica transicao de cancelamento."""
     reservation = t7_reservation()
@@ -395,9 +362,6 @@ def test_cancel_checked_in_returns_invalid_status(auth_client):
 
     assert response.status_code == 409
     assert response.data["code"] == "INVALID_STATUS"
-
-
-# -- listagem -----------------------------------------------------------------
 
 
 def test_list_reservations_filters_by_status_and_guest(auth_client):
@@ -468,9 +432,6 @@ def test_checkin_with_active_stay_returns_invalid_status_not_500(auth_client):
     assert second.status == ReservationStatus.PENDING
 
 
-# -- pagamento (D18) ----------------------------------------------------------
-
-
 def pay_url(reservation) -> str:
     return f"/api/reservations/{reservation.pk}/pay/"
 
@@ -491,7 +452,6 @@ def test_pay_returns_statement_with_payment(auth_client, attendant):
         response = auth_client.post(pay_url(reservation), {"payment_method": "PIX"}, format="json")
 
     assert response.status_code == 200
-    # O extrato inteiro continua sendo T7: pagar nao mexe em dinheiro.
     assert response.data["total"] == "425.00"
     assert response.data["lines"] == T7_LINES
     assert response.data["payment"] == {
@@ -520,8 +480,6 @@ def test_pay_twice_returns_409(auth_client):
     response = auth_client.post(pay_url(reservation), {"payment_method": "CARD"}, format="json")
 
     assert response.status_code == 409
-    # `INVALID_STATUS`, nao um `ALREADY_PAID`: pagar de novo e operacao ilegal
-    # para o estado atual do recurso -- o mesmo significado de D8.
     assert response.data["code"] == "INVALID_STATUS"
     assert response.data["extra"]["paid_at"] == "2025-03-09T12:30:00-03:00"
 
@@ -587,15 +545,10 @@ def test_reservation_list_does_not_grow_queries_with_rows(auth_client, django_as
     for _ in range(2):
         ReservationFactory(checked_out=True, checkin_date=MARCH_7, checkout_date=MARCH_9)
 
-    # Mesma contagem com o triplo de linhas: `select_related` esta cobrindo as
-    # 6 relacoes que o serializer le.
     with django_assert_num_queries(len(captured.captured_queries)):
         response = auth_client.get("/api/reservations/")
 
     assert response.data["count"] == 3
-
-
-# -- acompanhantes ------------------------------------------------------------
 
 
 def test_create_reservation_with_companions_persists_m2m(auth_client):

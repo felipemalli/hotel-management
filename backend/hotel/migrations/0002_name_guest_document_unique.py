@@ -2,33 +2,36 @@
 
 from django.db import migrations, models
 
-# Dois efeitos, um so proposito. `unique=True` no campo deixa o PostgreSQL
-# batizar o indice; a traducao de `IntegrityError` para 409 casa por NOME
-# (`hotel.models.GUEST_DOCUMENT_UNIQUE`), entao a unicidade passa a ser uma
-# `UniqueConstraint` nomeada. De carona, `status` perde o `db_index` proprio:
-# ele lidera o indice composto `resv_status_checkin`, logo o indice simples era
-# peso morto.
+# UniqueConstraint nomeada: a traducao de IntegrityError casa por nome.
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('hotel', '0001_initial'),
+        ("hotel", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='guest',
-            name='document',
+            model_name="guest",
+            name="document",
             field=models.CharField(max_length=40),
         ),
         migrations.AlterField(
-            model_name='reservation',
-            name='status',
-            field=models.CharField(choices=[('PENDING', 'Reserva pendente'), ('CHECKED_IN', 'Hospede no hotel'), ('CHECKED_OUT', 'Finalizada'), ('CANCELLED', 'Cancelada')], default='PENDING', max_length=11),
+            model_name="reservation",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("PENDING", "Reserva pendente"),
+                    ("CHECKED_IN", "Hospede no hotel"),
+                    ("CHECKED_OUT", "Finalizada"),
+                    ("CANCELLED", "Cancelada"),
+                ],
+                default="PENDING",
+                max_length=11,
+            ),
         ),
         migrations.AddConstraint(
-            model_name='guest',
-            constraint=models.UniqueConstraint(fields=('document',), name='guest_document_unique'),
+            model_name="guest",
+            constraint=models.UniqueConstraint(fields=("document",), name="guest_document_unique"),
         ),
     ]

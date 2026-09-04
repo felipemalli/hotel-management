@@ -1,25 +1,3 @@
-"""
-Feature opcional de IA (SPEC 7).
-
-Doutrina destes testes: **nenhum toca a rede** (SPEC 7.2). O cliente HTTP e
-substituido por um duble que registra a chamada, e o caminho sem chave -- o
-portao de fallback -- e provado de verdade, porque e ele que mantem o sistema
-inteiro funcional quando a chave nao existe.
-
-Cobertura:
-
-| Caso                                        | Prova                                  |
-|---------------------------------------------|----------------------------------------|
-| sem chave -> `enabled: false`, 503, 0 rede  | portao de fallback (SPEC 7.2)          |
-| com chave -> `enabled: true`, 200           | contrato da SPEC 7.1                   |
-| requisicao ao provedor                      | `/v1/messages`, header de versao, V9   |
-| lixo do modelo / campo faltante / timeout   | `502 AI_UPSTREAM_ERROR`                |
-| texto ausente ou vazio                      | `400 VALIDATION_ERROR`                 |
-| sem token                                   | `401 NOT_AUTHENTICATED` (SPEC 2.3)     |
-| log                                         | sem PII (SPEC 2.2)                     |
-| schema                                      | as duas rotas em `/api/docs/` (SPEC 4.4)|
-"""
-
 from __future__ import annotations
 
 import json
@@ -112,9 +90,6 @@ def ai_off(settings):
     return settings
 
 
-# -- Portao de fallback: o caminho sem chave (SPEC 7.2) ------------------------
-
-
 def test_status_reports_disabled_without_key(auth_client, ai_off):
     """DoD da SPEC 8.2/F: sem chave, `enabled: false` -- e nada quebra."""
     response = auth_client.get(STATUS_URL)
@@ -132,11 +107,7 @@ def test_parse_guest_returns_503_without_key(auth_client, ai_off, calls):
         "detail": "Preenchimento por IA indisponível: nenhuma chave configurada.",
         "extra": {},
     }
-    # Desligada quer dizer desligada: nem uma chamada sai.
     assert calls == []
-
-
-# -- Caminho feliz com chave (cliente HTTP dublado) --------------------------
 
 
 def test_status_reports_enabled_with_key(auth_client, ai_on):
@@ -201,9 +172,6 @@ def test_parse_guest_tolerates_a_fenced_json_block(auth_client, ai_on, calls):
     assert response.data == EXPECTED_FIELDS
 
 
-# -- Saida de LLM e input nao confiavel: tudo o que der errado da 502 ---------
-
-
 UPSTREAM_ENVELOPE = {
     "code": "AI_UPSTREAM_ERROR",
     "detail": "O provedor de IA não devolveu uma extração utilizável. Preencha à mão.",
@@ -245,9 +213,6 @@ def test_parse_guest_returns_502_on_upstream_trouble(
 
     assert response.status_code == 502, label
     assert response.data == UPSTREAM_ENVELOPE, label
-
-
-# -- Borda HTTP: validacao, autenticacao, privacidade -------------------------
 
 
 @pytest.mark.parametrize("payload", [{}, {"text": ""}, {"text": "   "}])
@@ -299,9 +264,6 @@ def test_parse_guest_failure_never_logs_the_free_text(auth_client, ai_on, calls,
     assert response.status_code == 502
     assert "Ana Souza" not in caplog.text
     assert "123.456.789-01" not in caplog.text
-
-
-# -- Contrato navegavel (SPEC 4.4) -------------------------------------------
 
 
 def test_schema_documents_both_ai_routes(api_client):

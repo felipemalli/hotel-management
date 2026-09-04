@@ -1,20 +1,11 @@
-# A FK da reserva para a politica, amarrada no check-in (D15), e a CHECK que
-# exige politica em toda reserva que passou por lá.
-#
-# Separada da 0005 por regra da casa: `RunPython` nunca no mesmo arquivo que
-# DDL da tabela que ele grava. A 0005 insere em `hotel_pricingpolicy`; aqui o
-# `ALTER TABLE` e em `hotel_reservation`. Juntar as duas nao estoura hoje, mas
-# a proxima migration que precisar de backfill estouraria com "pending trigger
-# events" -- as FKs do Django sao DEFERRABLE INITIALLY DEFERRED.
-#
-# Sem backfill: a decisao registrada e banco limpo (`docker compose down -v`).
+# FK da reserva para a politica. Separada da 0005: RunPython nunca no mesmo
+# arquivo que DDL da tabela que ele grava (pending trigger events).
 
 import django.db.models.deletion
 from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("hotel", "0005_pricingpolicy"),
     ]

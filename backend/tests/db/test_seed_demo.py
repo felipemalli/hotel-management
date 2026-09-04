@@ -1,12 +1,3 @@
-"""
-Contrato entre o dominio (B) e o seed de demonstracao (A, SPEC 8.2/A).
-
-O seed e a cadeia de subida do compose: se a interface do dominio divergir
-dele, `docker compose up` quebra antes de qualquer teste de API. Este modulo
-e o alarme antecipado disso -- e, de passagem, prova as promessas do seed:
-datas relativas (R4), idempotencia e um extrato de fim de semana com multa.
-"""
-
 from datetime import date
 from decimal import Decimal
 from io import StringIO
@@ -38,8 +29,7 @@ def test_seed_populates_the_three_tabs():
 
     assert get_user_model().objects.filter(username="atendente").exists()
     assert [guest.full_name for guest in selectors.guests_pending_checkin()] == ["Ana Souza"]
-    # Eva acompanha Bruno: o acompanhante ESTA no hotel, e a aba diria uma
-    # meia-verdade se listasse so o titular.
+    # Eva acompanha Bruno.
     assert [guest.full_name for guest in selectors.guests_in_hotel()] == [
         "Bruno Lima",
         "Eva Lima",
@@ -101,9 +91,7 @@ def test_seed_writes_through_the_services():
     ]
     assert Guest.objects.count() == len(created_guests)
     assert len(created_reservations) == Reservation.objects.count()
-    # A ficha de Carla e uma estadia estritamente passada: so entra porque
-    # `create_reservation` recebe `today=checkin` em vez de ler o relogio,
-    # que e o que mantem D11 valendo sem que o seed a contorne.
+    # today=checkin: a ficha de Carla e passada e D11 recusa agendamento no passado.
     assert min(created_reservations) < timezone.localdate()
 
 
@@ -118,11 +106,9 @@ def test_seed_guests_have_country_code():
 
     phones = list(Guest.objects.values_list("phone", flat=True))
     assert phones, "o seed nao criou hospede nenhum"
-    # Eva e argentina: o DDI dela nao e 55, e e justamente esse o ponto de o
-    # telefone exigir codigo de pais.
+    # Eva e argentina: o DDI nao e 55.
     assert all(phone.isdigit() and len(phone) >= 10 for phone in phones), phones
     assert any(phone.startswith("54") for phone in phones), phones
-    # O `+` nao persiste: a coluna e digito puro (D9).
     assert not any("+" in phone for phone in phones)
     assert set(Guest.objects.values_list("nationality", flat=True)) == {"AR", "BR", "PT"}
 
@@ -154,7 +140,6 @@ def test_seed_creates_admin_role_without_staff_flag():
     assert admin.is_staff is False
     assert admin.is_superuser is False
     assert admin.check_password("admin123")
-    # O atendente continua atendente: o seed nao promove ninguem por engano.
     attendant = get_user_model().objects.get(username="atendente")
     assert attendant.role == Role.ATTENDANT
 
@@ -185,7 +170,6 @@ def test_seed_demotes_an_existing_privileged_attendant():
     attendant = user_model.objects.get(username="atendente")
     assert attendant.is_staff is False
     assert attendant.is_superuser is False
-    # A senha do seed continua valendo: rebaixar nao e trocar credencial.
     assert attendant.check_password("atendente123")
 
 
@@ -204,13 +188,11 @@ def test_seed_is_idempotent_across_dates():
     guests_after_first = Guest.objects.count()
     reservations_after_first = Reservation.objects.count()
 
-    # O avaliador sobe o compose de novo, dois dias depois.
     with freeze_time("2026-09-03 10:00:00-03:00"):
         call_command("seed_demo", stdout=StringIO())
 
     assert Guest.objects.count() == guests_after_first
     assert Reservation.objects.count() == reservations_after_first
-    # As tres abas continuam povoadas, que e a razao de existir do seed.
     assert Reservation.objects.filter(status=ReservationStatus.PENDING).exists()
     assert Reservation.objects.filter(status=ReservationStatus.CHECKED_IN).exists()
     assert Reservation.objects.filter(status=ReservationStatus.CHECKED_OUT).exists()

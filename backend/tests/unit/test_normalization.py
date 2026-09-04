@@ -1,9 +1,3 @@
-"""
-Normalizacao por tipo (SPEC 2.1, D9).
-
-Puro: sem banco, sem settings.
-"""
-
 import pytest
 
 from hotel.normalization import (
@@ -41,9 +35,6 @@ def test_normalize_document_keeps_uppercase_alphanumerics(raw, expected):
 def test_normalize_phone_keeps_digits_only(raw, expected):
     """D9: telefone e digitos -- so a mascara de formatacao varia."""
     assert normalize_phone(raw) == expected
-
-
-# -- telefone internacional (D9 estendida) ------------------------------------
 
 
 @pytest.mark.parametrize(

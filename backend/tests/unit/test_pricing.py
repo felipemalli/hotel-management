@@ -1,15 +1,3 @@
-"""
-Motor financeiro, sem banco (SPEC 6.1).
-
-`test_truth_table` e a replica 1:1 da tabela SPEC 3.3 -- a fonte da verdade
-dos numeros. Calendario de referencia: marco/2025 (03=seg, 04=ter, 05=qua,
-06=qui, 07=sex, 08=sab, 09=dom, 10=seg). Se um caso aqui falhar, o erro esta
-no motor, nunca na tabela (SPEC 8.1).
-
-Datetimes sao naive de proposito: o modulo e puro e recebe HORA LOCAL ja
-convertida por quem chama (SPEC 3.2).
-"""
-
 from dataclasses import replace
 from datetime import datetime, time
 from decimal import Decimal
@@ -175,7 +163,7 @@ def test_truth_table(
     assert bill.total == expected_total
 
 
-# Mesmas entradas da tabela, sem os valores esperados: aqui prova-se o TIPO.
+# Mesmas entradas da tabela; aqui prova-se o tipo.
 STAY_INPUTS = [pytest.param(*case.values[:3], id=case.id) for case in TRUTH_TABLE]
 
 
@@ -307,9 +295,6 @@ def test_rate_table_reaches_parking_and_late_fee():
     assert bill.total == D("483.00")
 
 
-# -- horarios como parametro (politica versionada) ----------------------------
-
-
 def test_default_rates_carry_briefing_times():
     """Os horarios do briefing sao campos com default, nao constantes soltas."""
     assert pricing.DEFAULT_RATES.checkin_opens == time(14, 0)
@@ -336,7 +321,7 @@ def test_checkout_limit_is_a_parameter_and_the_exact_minute_is_exempt():
 
     assert pricing.late_checkout(dt(3, 12, 30)) is True
     assert pricing.late_checkout(dt(3, 12, 30), generous) is False
-    # O limite EM PONTO continua isento, seja ele qual for (D3).
+    # O limite em ponto continua isento, seja ele qual for.
     assert pricing.late_checkout(dt(3, 13, 0, 0), generous) is False
     assert pricing.late_checkout(dt(3, 13, 0, 1), generous) is True
 

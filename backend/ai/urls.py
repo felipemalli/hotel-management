@@ -1,5 +1,3 @@
-"""Rotas da IA (SPEC 4.2 / 7.1), montadas sob `api/ai/` por `config/urls.py`."""
-
 from __future__ import annotations
 
 from django.urls import path

@@ -1,7 +1,3 @@
-"""
-Modelos, normalizacao em escrita e constraints (SPEC 1.5, 2.1, 6.1). Precisa de PG.
-"""
-
 from datetime import timedelta
 
 import pytest

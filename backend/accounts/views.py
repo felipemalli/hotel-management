@@ -1,10 +1,3 @@
-"""
-Views de autenticacao e identidade (SPEC 2.3).
-
-O SimpleJWT ja entrega login e refresh; aqui se acrescenta limite de taxa e a
-rota que diz **quem** e o portador do token.
-"""
-
 from __future__ import annotations
 
 from drf_spectacular.utils import extend_schema
@@ -19,8 +12,6 @@ from accounts.models import Role
 
 
 class LoginRateThrottle(AnonRateThrottle):
-    """Por IP: quem chama estas rotas ainda nao tem identidade."""
-
     scope = "login"
 
 
@@ -33,22 +24,13 @@ class ThrottledTokenRefreshView(TokenRefreshView):
 
 
 class CurrentUserSerializer(serializers.Serializer):
-    """Identidade do portador do token. Sem PII e sem permissoes derivadas."""
-
     id = serializers.IntegerField()
     username = serializers.CharField()
     role = serializers.ChoiceField(choices=Role.choices)
 
 
 class CurrentUserView(APIView):
-    """`GET /api/auth/me/`.
-
-    O access token do SimpleJWT carrega apenas `user_id`: o cliente sabe que
-    esta autenticado e nao sabe como quem. Sem esta rota o frontend teria de
-    inferir o papel por tentativa e erro (bater numa rota de admin e ler o
-    403), ou o papel entraria como claim no token -- e claim nao expira junto
-    com a mudanca de papel, so junto com o token.
-    """
+    """O access token do SimpleJWT so carrega user_id; esta rota diz quem e o portador."""
 
     @extend_schema(
         tags=["auth"],

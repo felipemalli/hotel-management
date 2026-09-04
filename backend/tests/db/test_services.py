@@ -1,8 +1,3 @@
-"""
-Servicos de reserva: transicoes, relogio injetado e congelamento de totais
-(SPEC 1.5, 3.2, 4.4). Precisa de PG (select_for_update).
-"""
-
 from datetime import date, datetime, time
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -37,21 +32,7 @@ def t7_reservation() -> Reservation:
 
 @pytest.fixture
 def actor():
-    """O atendente que executa a acao.
-
-    `actor` e obrigatorio nas transicoes porque a coluna existe: cada uma grava
-    quem a fez. Como fixture, o ator do teste e um usuario de verdade -- um
-    dublê (`None`, ou um objeto qualquer) passaria pelo servico e estouraria na
-    FK, o que faria o teste falhar longe da causa.
-    """
     return UserFactory(username="atendente-do-teste")
-
-
-# -- criacao (SPEC 3.4) -------------------------------------------------------
-#
-# O ganho da simetria esta aqui: D11 depende de "hoje", e enquanto a regra
-# morava no serializer (lendo `timezone.localdate()`) so dava para testa-la
-# subindo HTTP com freezegun. Com `today` injetado, a data e um argumento.
 
 
 def test_create_reservation_starts_pending_without_money(actor):
@@ -99,7 +80,6 @@ def test_create_reservation_in_the_past_is_rejected(actor):
             today=MARCH_9,  # "hoje" e depois do check-in agendado
         )
 
-    # O envelope de validacao continua sendo por campo (SPEC 4.1).
     assert excinfo.value.code == "VALIDATION_ERROR"
     assert excinfo.value.status_code == 400
     assert "checkin_date" in excinfo.value.extra
@@ -201,7 +181,6 @@ def test_create_guest_leaves_an_outer_transaction_usable_after_the_race(monkeypa
                 phone="+55 21 90000-0000",
                 nationality="BR",
             )
-        # A transacao segue utilizavel: o cadastro seguinte entra.
         survivor = guests_service.create_guest(
             full_name="Proximo da Fila",
             document="98765432100",
@@ -314,9 +293,6 @@ def test_create_guest_upcases_the_nationality(actor):
     assert Guest.objects.get(pk=guest.pk).nationality == "BR"
 
 
-# -- ator das transicoes ------------------------------------------------------
-
-
 def test_transitions_record_actor_and_timestamp(actor):
     """Cada transicao grava QUEM a fez e QUANDO -- as colunas sao o historico.
 
@@ -344,8 +320,6 @@ def test_transitions_record_actor_and_timestamp(actor):
     assert stored.checked_out_by_id == actor.pk
     assert stored.checked_in_at is not None
     assert stored.checked_out_at is not None
-    # Nao houve cancelamento: a coluna correspondente fica vazia em vez de
-    # guardar um ator que nada fez.
     assert stored.cancelled_by_id is None
     assert stored.cancelled_at is None
 
@@ -379,8 +353,6 @@ def test_sync_matches_refresh_from_db(actor):
     expected = {field: getattr(from_db, field) for field in service.SYNCED_FIELDS}
 
     assert synced == expected
-    # E a lista cobre TODA coluna que as transicoes escrevem: se uma escrita
-    # nova nao entrar em SYNCED_FIELDS, o conjunto abaixo denuncia.
     written_by_transitions = {
         "status",
         "policy_id",
@@ -400,9 +372,6 @@ def test_sync_matches_refresh_from_db(actor):
         "total_amount",
     }
     assert set(service.SYNCED_FIELDS) == written_by_transitions
-
-
-# -- check-in ----------------------------------------------------------------
 
 
 def test_check_in_at_14_sets_status_and_timestamp(actor):
@@ -466,9 +435,6 @@ def test_check_in_rejects_non_pending(trait, actor):
         service.check_in(reservation, now=local(MARCH_9, 15), allow_early=True, actor=actor)
 
     assert exc.value.code == "INVALID_STATUS"
-
-
-# -- checkout ----------------------------------------------------------------
 
 
 def test_check_out_freezes_totals_matching_T7(actor):
@@ -542,9 +508,6 @@ def test_check_out_without_checkin_timestamp_is_rejected(actor):
 
     with pytest.raises(service.InvalidStatusError):
         service.check_out(reservation, now=local(MARCH_9, 11), actor=actor)
-
-
-# -- cancelamento e extrato --------------------------------------------------
 
 
 def test_cancel_pending_reservation(actor):

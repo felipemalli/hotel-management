@@ -1,11 +1,3 @@
-"""
-Permissao de papel (SPEC 2.3).
-
-Uma classe, um significado: "este usuario pode publicar cadastro
-administrativo". A rota declara a permissao; a view nao le `role` a mao e o
-dominio nao conhece `request`.
-"""
-
 from __future__ import annotations
 
 from rest_framework.permissions import BasePermission
@@ -16,12 +8,10 @@ from accounts.models import Role
 
 
 class IsHotelAdmin(BasePermission):
-    """`role == ADMIN` **ou** superusuario.
+    """role == ADMIN ou superusuario.
 
-    O `or is_superuser` nao e cortesia: quem foi criado por `createsuperuser`
-    para acessar o `/admin/` nasce com o `role` default (`ATTENDANT`) e
-    receberia 403 nas proprias rotas administrativas da API -- um 403 que
-    nenhuma tela explica e que so se resolve por SQL.
+    createsuperuser nasce com role ATTENDANT (o default) e receberia 403
+    nas proprias rotas administrativas da API.
     """
 
     message = "Ação restrita ao administrador do hotel."

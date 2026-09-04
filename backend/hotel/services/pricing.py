@@ -1,23 +1,11 @@
-"""
-Motor financeiro (SPEC 3).
-
-Modulo PURO por contrato: sem ORM, sem I/O, sem relogio proprio. Quem chama
-injeta os timestamps (SPEC 0.3), e eles chegam aqui **em hora local** --
-`services/reservations.py` converte com `timezone.localtime()` antes, porque
-as regras de 14h/12h sao regras de hora local, nao de UTC.
-
-A tabela SPEC 3.3 (T1-T9) e a fonte da verdade destes numeros e esta
-replicada 1:1 em `tests/unit/test_pricing.py`.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-CHECKIN_OPENS = time(14, 0, 0)  # check-in permitido se hora local >= isto (D4)
-CHECKOUT_LIMIT = time(12, 0, 0)  # multa se hora local > isto; 12:00:00 e isento (D3)
+CHECKIN_OPENS = time(14, 0, 0)  # permitido se hora local >= isto; 14:00:00 nao e cedo
+CHECKOUT_LIMIT = time(12, 0, 0)  # multa se hora local > isto; 12:00:00 e isento
 
 ZERO = Decimal("0.00")
 CENTS = Decimal("0.01")
@@ -36,34 +24,16 @@ WEEKDAY_LABELS = (
 
 @dataclass(frozen=True)
 class RateTable:
-    """Tarifas vigentes. Parametro, nao constante de modulo (SPEC 3.1).
-
-    A SPEC 1.3 afirma que o extrato e recomputavel deterministicamente dos
-    timestamps -- e isso so e verdade enquanto as tarifas nao mudarem. Com as
-    tarifas em constantes globais, o dia em que a diaria subir faz
-    `statement()` de uma reserva antiga discordar do `total_amount` congelado,
-    silenciosamente e sem nenhum teste pegar (a tabela SPEC 3.3 e fixture da
-    propria constante: mudaria junto). Como parametro, a tarifa de uma estadia
-    passada pode ser reconstituida; e o modulo continua puro, porque ganhou um
-    argumento, nao uma dependencia.
-    """
-
     weekday_rate: Decimal
     weekend_rate: Decimal
     weekday_park: Decimal
     weekend_park: Decimal
     late_fee_factor: Decimal
-    # No FIM e COM default: a tabela SPEC 3.3 e construida posicionalmente em
-    # `tests/unit/test_pricing.py`, e um campo novo em qualquer outra posicao
-    # deslocaria as 9 tuplas em silencio. Com default no fim, nenhuma
-    # assinatura existente muda um byte.
+    # Defaults no fim: os testes constroem RateTable posicionalmente.
     checkin_opens: time = CHECKIN_OPENS
     checkout_limit: time = CHECKOUT_LIMIT
 
 
-# A tarifa do briefing, e o estado inicial do sistema: a linha que a data
-# migration insere na `PricingPolicy` tem estes mesmos valores, e
-# `test_default_policy_row_matches_default_rates` amarra as duas.
 DEFAULT_RATES = RateTable(
     weekday_rate=Decimal("120.00"),
     weekend_rate=Decimal("180.00"),
@@ -77,8 +47,6 @@ DEFAULT_RATES = RateTable(
 
 @dataclass(frozen=True)
 class BillLine:
-    """Uma diaria: a data cobrada, sua tarifa e a taxa de vaga do dia."""
-
     date: date
     weekday_label: str
     daily_rate: Decimal
@@ -87,8 +55,6 @@ class BillLine:
 
 @dataclass(frozen=True)
 class Bill:
-    """Extrato completo. `late_fee_base` e None quando nao houve multa."""
-
     lines: list[BillLine]
     subtotal_daily: Decimal
     subtotal_parking: Decimal
@@ -99,7 +65,6 @@ class Bill:
 
 
 def quantize_money(value: Decimal) -> Decimal:
-    """Duas casas, ROUND_HALF_UP -- a unica arredondadora do sistema (SPEC 0.3)."""
     return value.quantize(CENTS, rounding=ROUND_HALF_UP)
 
 
@@ -108,7 +73,6 @@ def is_weekend(day: date) -> bool:
 
 
 def daily_rate(day: date, rates: RateTable = DEFAULT_RATES) -> Decimal:
-    """Tarifa da propria data da diaria (D2), nao da data em que a noite termina."""
     return rates.weekend_rate if is_weekend(day) else rates.weekday_rate
 
 
@@ -123,7 +87,7 @@ def weekday_label(day: date) -> str:
 
 
 def stay_dates(checkin: date, checkout: date) -> list[date]:
-    """Uma diaria por data em [checkin, checkout); day-use cobra 1 diaria (D1)."""
+    """Uma diaria por data em [checkin, checkout); day-use cobra a data de entrada."""
     days: list[date] = []
     current = checkin
     while current < checkout:
@@ -135,17 +99,10 @@ def stay_dates(checkin: date, checkout: date) -> list[date]:
 
 
 def early_checkin(now: datetime, rates: RateTable = DEFAULT_RATES) -> bool:
-    """True se a tentativa e antes do horario de abertura local (D4).
-
-    O horario exato NAO e cedo: `>= checkin_opens` passa. `rates` tem default
-    pelo mesmo motivo de `calculate_bill` -- a fronteira 13:59/14:00 da SPEC
-    3.3 vale com `DEFAULT_RATES` e nenhum teste unitario precisa de banco.
-    """
     return now.time() < rates.checkin_opens
 
 
 def late_checkout(now: datetime, rates: RateTable = DEFAULT_RATES) -> bool:
-    """True se a saida passa do limite local; o limite em ponto e isento (D3)."""
     return now.time() > rates.checkout_limit
 
 
@@ -156,13 +113,7 @@ def calculate_bill(
     has_vehicle: bool,
     rates: RateTable = DEFAULT_RATES,
 ) -> Bill:
-    """Extrato dos fatos reais (D6). `checkin`/`checkout` sao hora LOCAL.
-
-    `rates` tem default: a tabela SPEC 3.3 (T1-T9) vale com `DEFAULT_RATES` e
-    nenhum chamador precisa passar nada enquanto a tarifa for a do briefing.
-    O limite de checkout vem de `rates`, nao da constante do modulo: e a
-    politica amarrada na estadia que decide se houve atraso (D15).
-    """
+    """`checkin`/`checkout` ja em hora local."""
     lines = [
         BillLine(
             date=day,
@@ -177,8 +128,7 @@ def calculate_bill(
     subtotal_parking = quantize_money(sum((line.parking_fee for line in lines), ZERO))
 
     applied = late_checkout(checkout, rates)
-    # A multa usa a tarifa do dia da SAIDA (D3): o procedimento de checkout e
-    # o que o briefing penaliza, e ele acontece na data de saida.
+    # A multa usa a tarifa do dia da saida: e o procedimento de checkout que se penaliza.
     base = daily_rate(checkout.date(), rates) if applied else None
     fee = quantize_money(rates.late_fee_factor * base) if applied else ZERO
 

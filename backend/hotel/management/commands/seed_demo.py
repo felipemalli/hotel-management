@@ -1,19 +1,3 @@
-"""
-Seed de demonstracao (SPEC 8.2/A).
-
-Regras que este comando respeita e que valem revisao:
-
-* Datas relativas (R4): nenhum literal de data. Tudo deriva de
-  `timezone.localdate()`, logo o cenario e valido em qualquer dia de execucao.
-* Nunca escreve no ORM direto: criacao E transicoes passam pelos services
-  com relogio injetado (SPEC 0.3), os mesmos que a API usa. Isto e o que faz
-  do seed uma prova do dominio e nao um atalho em volta dele.
-* Idempotente: `get_or_create` por `document` (ja normalizado); reexecucao
-  nao duplica hospede nem re-transiciona reserva.
-* Nao registra PII em log (SPEC 2.1): imprime nome e status, nunca documento
-  ou telefone.
-"""
-
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta
@@ -38,12 +22,10 @@ SUNDAY = 6
 
 
 def local_dt(day: date, at: time) -> datetime:
-    """Datetime ciente no fuso local do projeto (America/Sao_Paulo)."""
     return timezone.make_aware(datetime.combine(day, at), timezone.get_current_timezone())
 
 
 def last_past_sunday(today: date) -> date:
-    """Domingo mais recente estritamente anterior a `today`."""
     offset = (today.weekday() - SUNDAY) % 7
     return today - timedelta(days=offset or 7)
 
@@ -59,7 +41,6 @@ class Command(BaseCommand):
         self._ensure_admin()
         rooms = self._ensure_rooms()
 
-        # 1. Ana Souza - reserva PENDING de hoje: povoa a aba "pendentes".
         ana = self._ensure_guest("Ana Souza", "123.456.789-01", "+55 21 98888-7777", "BR")
         self._ensure_reservation(
             ana,
@@ -70,10 +51,7 @@ class Command(BaseCommand):
             actor=attendant,
         )
 
-        # 2. Bruno Lima - check-in feito ontem: povoa a aba "no hotel".
         bruno = self._ensure_guest("Bruno Lima", "987.654.321-00", "+55 11 97777-6666", "BR")
-        # Acompanhante: hospede COMPLETO, com documento e telefone proprios. E
-        # ela quem prova que as duas abas listam acompanhantes.
         eva = self._ensure_guest("Eva Lima", "555.444.333-22", "+54 11 5555-4444", "AR")
         yesterday = today - timedelta(days=1)
         bruno_reservation = self._ensure_reservation(
@@ -94,9 +72,6 @@ class Command(BaseCommand):
             )
             self.stdout.write("  check-in aplicado: Bruno Lima")
 
-        # 3. Carla Nunes - estadia sexta->domingo estritamente passada, com vaga
-        #    e saida 12:01: extrato pronto com diaria de fim de semana (180,00)
-        #    e multa de checkout tardio (90,00).
         carla = self._ensure_guest("Carla Nunes", "AB123456", "+55 31 96666-5555", "PT")
         sunday = last_past_sunday(today)
         friday = sunday - timedelta(days=2)
@@ -118,14 +93,11 @@ class Command(BaseCommand):
             bill = reservation_services.check_out(
                 carla_reservation, now=local_dt(sunday, time(12, 1)), actor=attendant
             )
-            # Deliberadamente NAO paga: a demo precisa de uma conta fechada e
-            # em aberto para exercitar `POST /api/reservations/{id}/pay/`.
             self.stdout.write(
                 f"  estadia encerrada (em aberto): Carla Nunes - total R$ {bill.total} "
                 f"(multa R$ {bill.late_fee})"
             )
 
-        # 4. Davi Rocha - sem reserva: demonstra a busca por nome.
         self._ensure_guest("Davi Rocha", "321.654.987-00", "+55 41 95555-4444", "BR")
 
         self.stdout.write(self.style.SUCCESS("Seed de demonstracao aplicado."))
@@ -136,37 +108,22 @@ class Command(BaseCommand):
             f"| hospedes: {Guest.objects.count()} | reservas: {Reservation.objects.count()}"
         )
 
-    # -- auxiliares ----------------------------------------------------------
-
     def _ensure_attendant(self):
         user_model = get_user_model()
-        # Usuario COMUM: a SPEC 1.1 diz que o atendente e um CustomUser comum,
-        # sem papeis multiplos. Criar superusuario com senha conhecida a cada
-        # subida do compose seria uma conta administrativa publica de fato.
-        # Para acessar o /admin/, rode `manage.py createsuperuser`.
         attendant, created = user_model.objects.get_or_create(username=ATTENDANT_USERNAME)
         if created:
             attendant.set_password(ATTENDANT_PASSWORD)
             attendant.save(update_fields=["password"])
             self.stdout.write(f"  atendente criado: {ATTENDANT_USERNAME}")
         elif attendant.is_staff or attendant.is_superuser:
-            # Fora do `if created` de proposito: `get_or_create` nao mexe em
-            # linha existente, entao sem isto todo banco que subiu o compose
-            # antes desta correcao guardaria para sempre um superusuario com
-            # senha publica -- e o /admin/ nao passa pelo throttle do DRF.
+            # get_or_create nao mexe em linha existente: bancos antigos
+            # guardariam para sempre um superusuario com senha publicada.
             user_model.objects.filter(pk=attendant.pk).update(is_staff=False, is_superuser=False)
             self.stdout.write("  atendente rebaixado para usuario comum (SPEC 1.1)")
             attendant.refresh_from_db()
         return attendant
 
     def _ensure_admin(self) -> None:
-        """Credencial de demonstracao do papel ADMIN.
-
-        `is_staff=False` de proposito: o papel e do produto, e `is_staff`
-        significa "entra no /admin/". Um admin do hotel com acesso ao Django
-        admin poderia gravar no dominio por fora dos services, que e justo o
-        que este projeto recusa (nao existe `hotel/admin.py`).
-        """
         user_model = get_user_model()
         admin, created = user_model.objects.get_or_create(
             username=ADMIN_USERNAME,
@@ -178,8 +135,6 @@ class Command(BaseCommand):
             self.stdout.write(f"  admin criado: {ADMIN_USERNAME}")
 
     def _ensure_rooms(self) -> dict[str, Room]:
-        """Quatro quartos, capacidades diferentes: a demo precisa mostrar que
-        capacidade freia o numero de pessoas."""
         rooms: dict[str, Room] = {}
         for number, capacity in (("101", 2), ("102", 2), ("103", 3), ("201", 4)):
             room, created = Room.objects.get_or_create(
@@ -190,16 +145,7 @@ class Command(BaseCommand):
             rooms[number] = room
         return rooms
 
-    def _ensure_guest(
-        self, full_name: str, document: str, phone: str, nationality: str
-    ) -> Guest:
-        """Cadastra pelo servico; a idempotencia e a leitura previa por documento.
-
-        `get_or_create` gravava a linha direto no ORM, passando por cima de
-        `services.guests.create_guest` -- justo a camada que o resto do sistema
-        afirma ser o unico caminho de escrita. A consulta por documento
-        normalizado (a mesma chave de D12) mantem a reexecucao inocua.
-        """
+    def _ensure_guest(self, full_name: str, document: str, phone: str, nationality: str) -> Guest:
         existing = Guest.objects.filter(document=normalize_document(document)).first()
         if existing is not None:
             return existing
@@ -221,21 +167,6 @@ class Command(BaseCommand):
         has_vehicle: bool,
         actor,
     ) -> Reservation:
-        """Uma reserva por hospede do seed, criada uma unica vez.
-
-        A chave da idempotencia e o HOSPEDE, nao a data. Chavear por
-        `(guest, checkin_date, checkout_date)` parecia idempotente e nao era:
-        as datas do cenario derivam de `localdate()`, entao uma reexecucao no
-        dia seguinte nao encontrava a reserva anterior, criava outra, e o
-        `check_in` do Bruno batia na invariante de uma estadia ativa por
-        hospede -- o comando abortava e a cadeia de subida do compose parava
-        antes do gunicorn. `docker compose up` no dia seguinte, sem `-v`,
-        deixava a API no chao.
-
-        Deixar o cenario da execucao anterior de pe tambem e mais fiel: a
-        reserva PENDING da Ana vence e continua listada, que e exatamente o que
-        a D14 descreve.
-        """
         existing = guest.reservations.order_by("id").first()
         if existing is not None:
             return existing
@@ -248,11 +179,8 @@ class Command(BaseCommand):
             checkout_date=checkout,
             has_vehicle=has_vehicle,
             actor=actor,
-            # `today=checkin`, nao `localdate()`: as fichas de Bruno e Carla
-            # sao estadias passadas, e D11 recusa agendamento no passado. O
-            # relogio e parametro justamente para que o seed possa se situar no
-            # instante em que cada reserva foi feita, em vez de contornar a
-            # regra escrevendo no ORM.
+            # today=checkin, nao localdate(): fichas de Bruno/Carla sao passadas
+            # e D11 recusa agendamento no passado.
             today=checkin,
         )
         self.stdout.write(f"  reserva criada: {guest.full_name} {checkin} -> {checkout}")

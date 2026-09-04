@@ -1,11 +1,3 @@
-"""
-Views de reservas e transicoes (SPEC 4.2-4.4).
-
-Relogio injetavel (SPEC 0.3): a view e o unico lugar que chama
-`timezone.now()` / `timezone.localdate()`; a regra recebe `now`/`today` como
-parametro e por isso o teste pode congelar o tempo sem monkeypatch de dominio.
-"""
-
 from __future__ import annotations
 
 from django.utils import timezone
@@ -109,8 +101,6 @@ class ReservationViewSet(
     mixins.CreateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Reservas e transições de status (RF2, RF6, RF7)."""
-
     queryset = selectors.reservation_queryset()
 
     def get_serializer_class(self):
@@ -122,8 +112,6 @@ class ReservationViewSet(
         base = selectors.reservation_queryset()
         if self.action != "list":
             return base
-        # Os filtros passam por serializer: tipos, enum e mensagens de erro
-        # saem do mesmo lugar que documenta o schema.
         query = ReservationListQuerySerializer(data=self.request.query_params)
         query.is_valid(raise_exception=True)
         return selectors.list_reservations(
@@ -138,7 +126,7 @@ class ReservationViewSet(
         reservation = reservations_service.create_reservation(
             **serializer.validated_data,
             actor=request.user,
-            today=timezone.localdate(),  # relogio injetado (SPEC 0.3)
+            today=timezone.localdate(),
         )
         return Response(
             ReservationSerializer(reservation).data,
@@ -184,7 +172,7 @@ class ReservationViewSet(
         payload.is_valid(raise_exception=True)
         reservations_service.check_in(
             reservation,
-            now=timezone.now(),  # relogio injetado (SPEC 0.3)
+            now=timezone.now(),
             actor=request.user,
             allow_early=payload.validated_data["allow_early"],
         )
@@ -212,9 +200,7 @@ class ReservationViewSet(
     @action(detail=True, methods=["post"], url_path="checkout")
     def checkout(self, request: Request, pk: str | None = None) -> Response:
         reservation = self.get_object()
-        bill = reservations_service.check_out(
-            reservation, now=timezone.now(), actor=request.user
-        )
+        bill = reservations_service.check_out(reservation, now=timezone.now(), actor=request.user)
         return Response(StatementSerializer(build_statement(reservation, bill)).data)
 
     @extend_schema(
@@ -282,7 +268,7 @@ class ReservationViewSet(
         payload.is_valid(raise_exception=True)
         reservations_service.mark_paid(
             reservation,
-            now=timezone.now(),  # relogio injetado (SPEC 0.3)
+            now=timezone.now(),
             actor=request.user,
             payment_method=payload.validated_data["payment_method"],
         )

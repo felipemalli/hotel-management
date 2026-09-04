@@ -1,10 +1,3 @@
-"""
-Camada de leitura (SPEC 4.3, 6.1). Precisa de PG (trigram).
-
-Os nomes desta suite sao normativos: matriz de rastreabilidade SPEC 6.3
-(RF3, RF4, RF5).
-"""
-
 from datetime import timedelta
 
 import pytest
@@ -97,7 +90,6 @@ def test_in_hotel_only_checked_in():
     result = list(selectors.guests_in_hotel())
 
     assert result == [inside]
-    # A constraint SPEC 1.5 garante exatamente uma reserva ativa por hospede.
     active = getattr(result[0], selectors.ACTIVE_RESERVATIONS_ATTR)
     assert len(active) == 1
     assert active[0].status == ReservationStatus.CHECKED_IN

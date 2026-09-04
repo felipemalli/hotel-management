@@ -1,7 +1,3 @@
-"""
-Autenticacao JWT (SPEC 2.3, 4.2). Nomes normativos da matriz SPEC 6.3 (RF8).
-"""
-
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.test import APIRequestFactory
@@ -103,9 +99,7 @@ def test_login_is_rate_limited(api_client, attendant, monkeypatch):
     O `Throttled` do DRF cai no fallback do handler e sai no envelope da
     SPEC 4.1 com `code: "THROTTLED"`.
     """
-    # O DRF captura `THROTTLE_RATES` no import da classe, entao sobrescrever
-    # `settings.REST_FRAMEWORK` aqui nao teria efeito: o limite se ajusta na
-    # propria classe de throttle.
+    # DRF captura THROTTLE_RATES no import da classe; settings.REST_FRAMEWORK nao basta.
     monkeypatch.setattr(LoginRateThrottle, "rate", "3/min", raising=False)
 
     codes = [
@@ -151,9 +145,6 @@ def test_login_throttle_ignores_a_spoofed_forwarded_for(api_client, attendant, m
     ]
 
     assert codes == [401, 401, 401, 429]
-
-
-# -- identidade e papel -------------------------------------------------------
 
 
 def test_me_returns_role(auth_client, attendant):

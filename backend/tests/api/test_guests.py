@@ -1,8 +1,3 @@
-"""
-Hospedes na borda HTTP (SPEC 4.3, 2.1). Nomes normativos da matriz SPEC 6.3
-(RF1, RF3, RF4, RF5).
-"""
-
 from datetime import timedelta
 
 import pytest
@@ -65,7 +60,6 @@ def test_duplicate_document_returns_409(auth_client):
     """D12: `document` unico -- o segundo cadastro e conflito, nao payload invalido."""
     assert auth_client.post("/api/guests/", ANA, format="json").status_code == 201
 
-    # Outra formatacao do MESMO documento: a normalizacao de D9 iguala os dois.
     response = auth_client.post("/api/guests/", {**ANA, "document": "12345678901"}, format="json")
 
     assert response.status_code == 409
@@ -96,9 +90,7 @@ def test_duplicate_phone_is_allowed(auth_client):
     ("payload", "field"),
     [
         ({"document": "1.2", "phone": "+55 21 98888-7777"}, "document"),
-        # Telefone curto demais para o plano do pais: quem recusa e o SERVIÇO
-        # (`is_valid_number`), nao mais uma contagem de digitos no serializer --
-        # e o envelope sai igual, que e o ponto de `DomainValidationError`.
+        # Recusa do servico (is_valid_number), nao contagem de digitos no serializer.
         ({"document": "12345678901", "phone": "+55 21 9"}, "phone"),
     ],
 )
@@ -245,9 +237,6 @@ def test_create_guest_rejects_oversized_pii(auth_client, field, value):
     assert field in response.data["extra"]
 
 
-# -- telefone internacional e nacionalidade (D9 estendida) --------------------
-
-
 @pytest.mark.parametrize(
     "phone",
     ["(21) 98888-7777", "11933334444", "21988887777"],
@@ -300,9 +289,7 @@ def test_create_guest_requires_nationality(auth_client):
 
 @pytest.mark.parametrize("nationality", ["ZZ", "BRA", "b"], ids=["unassigned", "alpha3", "single"])
 def test_create_guest_rejects_a_nationality_outside_iso_alpha2(auth_client, nationality):
-    response = auth_client.post(
-        "/api/guests/", {**ANA, "nationality": nationality}, format="json"
-    )
+    response = auth_client.post("/api/guests/", {**ANA, "nationality": nationality}, format="json")
 
     assert response.status_code == 400
     assert "nationality" in response.data["extra"]
@@ -335,8 +322,6 @@ def test_pending_checkin_lists_companions(auth_client):
     assert response.status_code == 200
     names = [row["full_name"] for row in response.data["results"]]
     assert names == ["Bruno Lima", "Eva Lima"]
-    # A linha do acompanhante aponta para a reserva do TITULAR: o front deriva
-    # "acompanhante" de `guest_id != id`, sem campo `role` computado.
     eva_row = next(row for row in response.data["results"] if row["full_name"] == "Eva Lima")
     assert eva_row["pending_reservations"][0]["guest_id"] == holder.pk
 
@@ -344,9 +329,7 @@ def test_pending_checkin_lists_companions(auth_client):
 def test_in_hotel_lists_companions(auth_client):
     holder = GuestFactory(full_name="Bruno Lima")
     eva = GuestFactory(full_name="Eva Lima")
-    reservation = ReservationFactory(
-        guest=holder, room=RoomFactory(capacity=2), checked_in=True
-    )
+    reservation = ReservationFactory(guest=holder, room=RoomFactory(capacity=2), checked_in=True)
     reservation.companions.add(eva)
 
     response = auth_client.get("/api/guests/in-hotel/")

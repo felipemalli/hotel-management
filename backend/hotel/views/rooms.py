@@ -1,11 +1,3 @@
-"""
-Views do inventario de quartos (SPEC 4.2-4.4).
-
-Leitura para qualquer autenticado -- o atendente escolhe o quarto no balcao.
-Escrita so para `IsHotelAdmin`. Sem `DELETE`: a FK e `PROTECT` e o quarto
-carrega historico; tirar de operacao e `PATCH is_active=false`.
-"""
-
 from __future__ import annotations
 
 from django.utils import timezone
@@ -92,8 +84,6 @@ class RoomViewSet(
     mixins.CreateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Inventário de quartos (E1)."""
-
     queryset = Room.objects.all()
     serializer_class = RoomSerializer
 
@@ -138,7 +128,7 @@ class RoomViewSet(
         query.is_valid(raise_exception=True)
         rooms = selectors.available_rooms(
             **query.validated_data,
-            today=timezone.localdate(),  # relogio injetado (SPEC 0.3)
+            today=timezone.localdate(),
         )
         page = self.paginate_queryset(rooms)
         if page is not None:

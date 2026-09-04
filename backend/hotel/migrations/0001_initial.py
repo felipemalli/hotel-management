@@ -1,4 +1,4 @@
-# Regenerated: Guest stores document/phone as normalized plaintext (SPEC 1.2, D5).
+# Regenerated: document/phone persistidos ja normalizados.
 
 import django.contrib.postgres.indexes
 import django.db.models.deletion

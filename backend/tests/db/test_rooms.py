@@ -1,7 +1,3 @@
-"""
-Inventario de quartos e anti-overbooking (D16). Precisa de PG (EXCLUDE gist).
-"""
-
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -42,9 +38,6 @@ def book(room, *, actor, checkin=MARCH_7, checkout=MARCH_9, today=MARCH_7, **kwa
         today=today,
         **kwargs,
     )
-
-
-# -- constraints --------------------------------------------------------------
 
 
 def test_room_overlap_rejected_by_exclusion():
@@ -111,9 +104,6 @@ def test_room_with_reservations_is_protected_from_deletion():
         reservation.room.delete()
 
 
-# -- criacao ------------------------------------------------------------------
-
-
 def test_create_reservation_raises_room_unavailable_with_conflict_id(actor):
     room = RoomFactory()
     existing = book(room, actor=actor)
@@ -123,8 +113,6 @@ def test_create_reservation_raises_room_unavailable_with_conflict_id(actor):
 
     assert excinfo.value.code == "ROOM_UNAVAILABLE"
     assert excinfo.value.status_code == 409
-    # O `extra` diz O QUE conflita: sem isso o atendente recebe
-    # "indisponivel" e nada com que agir.
     assert excinfo.value.extra == {
         "room_id": room.pk,
         "conflicting_reservation_id": existing.pk,
@@ -181,9 +169,6 @@ def test_overdue_pending_holds_the_room_until_cancelled(actor):
     assert book(room, actor=actor, checkin=date(2025, 3, 8), checkout=MARCH_11).pk
 
 
-# -- check-in -----------------------------------------------------------------
-
-
 def test_checkin_blocked_while_room_still_occupied(actor):
     """OVERSTAY: o anterior nao saiu, mesmo com a agenda ja liberada."""
     room = RoomFactory()
@@ -225,9 +210,6 @@ def test_early_arrival_is_allowed_when_the_room_is_free(actor):
     assert returned.status == ReservationStatus.CHECKED_IN
 
 
-# -- disponibilidade ----------------------------------------------------------
-
-
 def test_available_rooms_excludes_overlapping_undersized_and_overstayed():
     free = RoomFactory(number="201", capacity=2)
     booked = RoomFactory(number="202", capacity=2)
@@ -236,8 +218,6 @@ def test_available_rooms_excludes_overlapping_undersized_and_overstayed():
     overstayed = RoomFactory(number="205", capacity=2)
 
     ReservationFactory(room=booked, checkin_date=MARCH_7, checkout_date=MARCH_9)
-    # Estadia que ja passou da data, com hospede dentro: a agenda liberou, o
-    # quarto nao.
     ReservationFactory(
         room=overstayed,
         checkin_date=date(2025, 3, 1),
@@ -289,17 +269,12 @@ def test_available_rooms_ignores_overstay_for_a_future_period():
     assert room in future
 
 
-# -- cadastro administrativo --------------------------------------------------
-
-
 def test_create_room_rejects_a_duplicate_number():
     catalog.create_room(number="401", capacity=2)
 
     with pytest.raises(catalog.DuplicateRoomNumberError) as excinfo:
         catalog.create_room(number="401", capacity=3)
 
-    # 400 no campo e nao um codigo novo: e erro de formulario, nao conflito com
-    # o estado de um recurso.
     assert excinfo.value.status_code == 400
     assert "number" in excinfo.value.extra
 
@@ -340,6 +315,4 @@ def test_seed_dates_do_not_collide_in_the_same_room():
     ReservationFactory(room=room, checkin_date=today, checkout_date=today + timedelta(days=2))
 
     with pytest.raises(IntegrityError), transaction.atomic():
-        ReservationFactory(
-            room=room, checkin_date=today, checkout_date=today + timedelta(days=1)
-        )
+        ReservationFactory(room=room, checkin_date=today, checkout_date=today + timedelta(days=1))

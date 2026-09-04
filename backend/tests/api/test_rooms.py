@@ -1,7 +1,3 @@
-"""
-Rotas do inventario de quartos (SPEC 4.2): leitura autenticada, escrita ADMIN.
-"""
-
 from datetime import timedelta
 
 import pytest
@@ -104,9 +100,7 @@ def test_available_rooms_endpoint(auth_client):
     today = timezone.localdate()
     free = RoomFactory(number="501", capacity=2)
     booked = RoomFactory(number="502", capacity=2)
-    ReservationFactory(
-        room=booked, checkin_date=today, checkout_date=today + timedelta(days=3)
-    )
+    ReservationFactory(room=booked, checkin_date=today, checkout_date=today + timedelta(days=3))
 
     response = auth_client.get(
         AVAILABLE_URL,

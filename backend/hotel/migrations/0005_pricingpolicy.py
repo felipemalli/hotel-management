@@ -1,21 +1,7 @@
-# A politica de tarifas e a linha de bootstrap com os valores do briefing.
-#
-# Os literais estao ESCRITOS AQUI, e a migration nao importa `hotel.services.
-# pricing`: migration e registro historico, e importar a constante faria o
-# passado mudar junto com o codigo. `test_default_policy_row_matches_default_
-# rates` compara a linha com `DEFAULT_RATES` campo a campo -- e o teste, nao o
-# import, que mantem as duas em dia.
-#
-# `effective_from` e uma SENTINELA em 2000-01-01, nao o instante da migracao:
-# os testes de API congelam o relogio em marco/2025 e o seed faz check-in
-# "ontem". Com a vigencia no momento do `migrate`, `policy_in_force` nao
-# encontraria politica nenhuma para qualquer data anterior -- o seed abortaria
-# na cadeia de subida do compose e a suite cairia inteira.
-#
-# `RunPython` sobre a tabela que o `CreateModel` acabou de criar (CREATE ->
-# INSERT) e seguro; o que a regra da casa proibe e o inverso na mesma
-# transacao (INSERT -> ALTER), que estoura com "pending trigger events" por
-# causa das FKs DEFERRABLE do Django. O DDL em `Reservation` fica na 0006.
+# Literais escritos aqui — migration nao importa DEFAULT_RATES (passado nao
+# muda com o codigo). effective_from e sentinela em 2000: testes congelam o
+# relogio em 2025 e o seed faz check-in "ontem".
+# RunPython apos CreateModel e seguro; DDL de Reservation fica na 0006.
 
 from datetime import datetime, UTC
 from decimal import Decimal
@@ -54,7 +40,6 @@ def drop_bootstrap_policy(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("hotel", "0004_guest_nationality"),
@@ -64,12 +49,20 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="PricingPolicy",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
                 ("weekday_rate", models.DecimalField(decimal_places=2, max_digits=10)),
                 ("weekend_rate", models.DecimalField(decimal_places=2, max_digits=10)),
                 ("weekday_park", models.DecimalField(decimal_places=2, max_digits=10)),
                 ("weekend_park", models.DecimalField(decimal_places=2, max_digits=10)),
-                ("late_fee_factor", models.DecimalField(decimal_places=4, default=Decimal("0.5"), max_digits=5)),
+                (
+                    "late_fee_factor",
+                    models.DecimalField(decimal_places=4, default=Decimal("0.5"), max_digits=5),
+                ),
                 ("checkin_opens", models.TimeField()),
                 ("checkout_limit", models.TimeField()),
                 ("effective_from", models.DateTimeField(db_index=True)),

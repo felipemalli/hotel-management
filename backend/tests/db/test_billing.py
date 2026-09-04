@@ -1,7 +1,3 @@
-"""
-Extrato persistido (snapshot) e pagamento unico (D18). Precisa de PG.
-"""
-
 from datetime import date, datetime, time
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -32,21 +28,14 @@ def actor():
 
 def t7_checked_out(actor) -> Reservation:
     """Estadia T7 fechada de verdade, pelo servico (sex->dom, vaga, 12:01)."""
-    reservation = ReservationFactory(
-        checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True
-    )
+    reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
     service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
     service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
     return reservation
 
 
-# -- snapshot do extrato ------------------------------------------------------
-
-
 def test_checkout_persists_statement_lines_equal_to_bill(actor):
-    reservation = ReservationFactory(
-        checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True
-    )
+    reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
     service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
 
     bill = service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
@@ -55,7 +44,6 @@ def test_checkout_persists_statement_lines_equal_to_bill(actor):
     assert [(line.date, line.daily_rate, line.parking_fee) for line in lines] == [
         (line.date, line.daily_rate, line.parking_fee) for line in bill.lines
     ]
-    # A base da multa tambem congela: `late_fee_applied` deriva dela.
     reservation.refresh_from_db()
     assert reservation.late_fee_base == Decimal("180.00")
 
@@ -119,9 +107,6 @@ def test_statement_lines_are_unique_per_date(actor):
         )
 
 
-# -- pagamento (D18) ----------------------------------------------------------
-
-
 def test_mark_paid_sets_actor_method_and_timestamp(actor):
     reservation = t7_checked_out(actor)
     cashier = UserFactory(username="quem-recebeu")
@@ -135,9 +120,7 @@ def test_mark_paid_sets_actor_method_and_timestamp(actor):
     assert stored.paid_at == paid_at
     assert stored.payment_method == PaymentMethod.PIX
     assert stored.paid_by_id == cashier.pk
-    # `_sync` mantem a instancia do chamador em dia sem um segundo SELECT.
     assert returned.paid_at == paid_at
-    # Pagar NAO e transicao: o estado terminal continua CHECKED_OUT.
     assert stored.status == ReservationStatus.CHECKED_OUT
 
 
@@ -151,8 +134,6 @@ def test_mark_paid_twice_is_rejected(actor):
             reservation, now=local(MARCH_9, 13), actor=actor, payment_method=PaymentMethod.CARD
         )
 
-    # `INVALID_STATUS` e nao um `ALREADY_PAID` proprio: pagar de novo e uma
-    # operacao ilegal para o estado atual do recurso. O `extra` diz quando foi.
     assert excinfo.value.code == "INVALID_STATUS"
     assert excinfo.value.extra["paid_at"] == first.isoformat()
     stored = Reservation.objects.get(pk=reservation.pk)

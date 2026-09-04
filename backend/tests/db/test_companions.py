@@ -1,7 +1,3 @@
-"""
-Titular + acompanhantes: capacidade, lock ordenado e as duas abas. Precisa de PG.
-"""
-
 from datetime import date, datetime, time
 from decimal import Decimal
 from zoneinfo import ZoneInfo
@@ -42,9 +38,6 @@ def book(*, actor, room=None, companions=(), guest=None, checkin=MARCH_7, checko
         actor=actor,
         today=checkin,
     )
-
-
-# -- criacao ------------------------------------------------------------------
 
 
 def test_create_reservation_persists_the_companions(actor):
@@ -105,8 +98,6 @@ def test_create_reservation_is_atomic_across_companions(actor, monkeypatch):
     def explode(self, *args, **kwargs):
         raise RuntimeError("falha ao gravar acompanhante")
 
-    # A classe do manager de M2M e criada dinamicamente pelo Django; pegamos a
-    # de uma reserva ja salva, que e a mesma que `create_reservation` vai usar.
     manager_class = type(ReservationFactory().companions)
     monkeypatch.setattr(manager_class, "set", explode)
     before = Reservation.objects.count()
@@ -114,11 +105,7 @@ def test_create_reservation_is_atomic_across_companions(actor, monkeypatch):
     with pytest.raises(RuntimeError):
         book(actor=actor, companions=[GuestFactory()])
 
-    # Nenhuma reserva a mais: a falha nos acompanhantes desfez a reserva junto.
     assert Reservation.objects.count() == before
-
-
-# -- check-in -----------------------------------------------------------------
 
 
 def test_checkin_locks_people_in_pk_order_without_join(actor):
@@ -182,9 +169,6 @@ def test_bill_ignores_companions(actor):
     assert len(bill.lines) == 2
 
 
-# -- abas ---------------------------------------------------------------------
-
-
 def test_in_hotel_includes_companions_of_checked_in_stay(actor):
     eva = GuestFactory(full_name="Eva Lima")
     holder = GuestFactory(full_name="Bruno Lima")
@@ -224,9 +208,8 @@ def test_pending_merges_own_and_companion_rows_in_date_order(actor):
     guest = selectors.guests_pending_checkin().get(pk=person.pk)
     rows = GuestPendingCheckinSerializer(guest).data["pending_reservations"]
 
-    # Ordenadas por (checkin_date, id): as vencidas antes das futuras.
     assert [row["id"] for row in rows] == [earlier.pk, later.pk]
-    # `guest_id` e o TITULAR: o front deriva "acompanhante" de guest_id != id.
+    # guest_id e o titular; o front deriva acompanhante de guest_id != id.
     assert rows[0]["guest_id"] != person.pk
     assert rows[1]["guest_id"] == person.pk
 

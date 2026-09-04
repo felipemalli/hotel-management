@@ -1,7 +1,3 @@
-"""
-Rotas da politica de tarifa (SPEC 4.2): leitura autenticada, escrita so ADMIN.
-"""
-
 from decimal import Decimal
 
 import pytest
@@ -60,7 +56,6 @@ def test_admin_creates_policy_201(admin_client, hotel_admin):
         "id": hotel_admin.pk,
         "username": hotel_admin.username,
     }
-    # Vigencia definida pelo SERVIDOR: o cliente nao a enviou.
     assert response.data["effective_from"]
 
     published = PricingPolicy.objects.get(pk=response.data["id"])
@@ -138,8 +133,6 @@ def test_policy_history_is_newest_first(admin_client):
     assert response.status_code == 200
     rows = response.data["results"]
     assert len(rows) == 2
-    # A publicada vem primeiro; o bootstrap (2000) fica no fim -- corrigir e
-    # publicar outra linha, e o historico continua visivel.
     assert rows[0]["note"] == "alta temporada"
     assert rows[1]["note"] == "tarifa do briefing (bootstrap)"
 

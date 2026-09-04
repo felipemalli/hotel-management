@@ -1,9 +1,3 @@
-"""
-Contrato navegavel (SPEC 4.4, 8.3/4): o schema tem de refletir a SPEC 4.2
-inteira, e as actions custom tem de estar documentadas -- Swagger e contrato,
-nao decoracao.
-"""
-
 import pytest
 
 pytestmark = pytest.mark.django_db
@@ -72,7 +66,6 @@ def test_docs_page_is_csp_exempt_while_api_is_not(api_client):
     api = api_client.get("/api/health/")
 
     assert "Content-Security-Policy" not in docs.headers
-    # django-csp emite as diretivas em ordem alfabetica; o contrato e o conjunto.
     directives = {
         part.strip() for part in api.headers["Content-Security-Policy"].split(";") if part.strip()
     }

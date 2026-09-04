@@ -1,13 +1,3 @@
-"""
-Pecas de OpenAPI compartilhadas entre views (SPEC 4.4).
-
-`/api/docs/` e contrato navegavel, e isso custa `@extend_schema`. Os
-decoradores ficam **colados** as actions -- e o idioma do drf-spectacular e a
-proximidade e o que os mantem verdadeiros. O que vem para ca e apenas o que
-mais de uma view usa: respostas e exemplos de erro. Sem isso o exemplo do
-envelope era copiado por rota e divergia em silencio.
-"""
-
 from __future__ import annotations
 
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse

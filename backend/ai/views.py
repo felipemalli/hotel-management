@@ -1,14 +1,3 @@
-"""
-Views da IA (SPEC 7.1). Autenticadas por JWT como todo o resto (SPEC 4.2).
-
-Views finas, mesma disciplina da SPEC 0.3: elas resolvem HTTP, consultam o
-portao de fallback e delegam. Quem fala com o provedor e `ai/client.py`; quem
-julga a resposta do modelo e `ai/serializers.py`.
-
-`@extend_schema` em ambas (SPEC 4.4): as duas rotas aparecem em `/api/docs/`
-com request, response e os erros `AI_DISABLED` / `AI_UPSTREAM_ERROR`.
-"""
-
 from __future__ import annotations
 
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
@@ -65,13 +54,6 @@ AI_UPSTREAM_RESPONSE = OpenApiResponse(
 
 
 class AiRateThrottle(UserRateThrottle):
-    """Cada chamada gasta credito de um provedor externo: limite por usuario.
-
-    O `rate` vem da propria feature (`ai.config`), nao do dict global de
-    settings: o DRF usa `self.rate` quando ele existe e nem consulta
-    `DEFAULT_THROTTLE_RATES`.
-    """
-
     scope = "ai"
     rate = ai_throttle_rate()
 
@@ -120,10 +102,6 @@ def ai_status(_request: Request) -> Response:
             value={
                 "full_name": "Ana Souza",
                 "document": "123.456.789-01",
-                # Devolvido COMO ESTA no texto: a extracao nao infere DDI
-                # (inferir pais e regra de negocio, e erraria calado no
-                # hospede estrangeiro). O atendente completa o `+55` no
-                # formulario, e `POST /api/guests/` exige o codigo do pais.
                 "phone": "(21) 98888-7777",
             },
             response_only=True,
@@ -141,9 +119,8 @@ def parse_guest(request: Request) -> Response:
 
     extracted = ParsedGuestSerializer(data=extract_guest_fields(payload.validated_data["text"]))
     if not extracted.is_valid():
-        # Saida de LLM que nao respeita o contrato e falha de upstream, nao
-        # erro do atendente -- e o `extra` fica vazio de proposito: os erros
-        # por campo do serializer citariam o valor devolvido pelo modelo.
+        # LLM fora do contrato e falha de upstream, nao do atendente.
+        # extra vazio: os erros por campo citariam o valor devolvido pelo modelo.
         raise AiUpstreamError
 
     return Response(extracted.validated_data)

@@ -1,11 +1,3 @@
-"""
-Views de hospedes (SPEC 4.2-4.3).
-
-Views **finas** por invariante (SPEC 0.3): resolvem HTTP, leem o relogio e
-delegam. Nenhuma view calcula dinheiro nem monta QuerySet a mao -- leitura vem
-de `selectors`, mutacao vem de `services`.
-"""
-
 from __future__ import annotations
 
 from drf_spectacular.utils import (
@@ -89,8 +81,6 @@ class GuestViewSet(
     mixins.CreateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Hóspedes (RF1, RF3, RF4, RF5). Registros imutáveis após criação (SPEC 0.1)."""
-
     queryset = Guest.objects.all()
 
     def get_queryset(self):

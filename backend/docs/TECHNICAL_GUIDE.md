@@ -78,9 +78,9 @@ Três origens, mesmo JSON.
 
 ```python
 document = serializers.CharField(
-  allow_blank=False,
-  max_length=DOCUMENT_MAX_LENGTH,
-  trim_whitespace=True,
+    allow_blank=False,
+    max_length=DOCUMENT_MAX_LENGTH,
+    trim_whitespace=True,
 )
 ```
 
@@ -89,9 +89,7 @@ document = serializers.CharField(
 ```python
 def validate_phone(self, value: str) -> str:
     if len(normalize_phone(value)) < PHONE_MIN_LENGTH:
-        raise serializers.ValidationError(
-            f"Telefone exige ao menos {PHONE_MIN_LENGTH} dígitos."
-        )
+        raise serializers.ValidationError(f"Telefone exige ao menos {PHONE_MIN_LENGTH} dígitos.")
 ```
 
 Ps.: com `validate_<campo>`, o DRF usa o nome depois de `validate_` como chave. O exemplo acima, no default do DRF, retorna:

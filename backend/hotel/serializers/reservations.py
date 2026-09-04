@@ -1,10 +1,3 @@
-"""
-I/O das reservas (SPEC 4.3/4.4).
-
-Campos financeiros saem como string decimal (`money_field`); a aritmetica
-inteira e de `services/pricing.py` (SPEC 0.3).
-"""
-
 from __future__ import annotations
 
 from rest_framework import serializers
@@ -19,16 +12,12 @@ from hotel.serializers.rooms import RoomSummarySerializer
 
 
 class ReservationSummarySerializer(serializers.ModelSerializer):
-    """Reserva resumida dentro das abas de hospedes (SPEC 4.3)."""
-
     room = RoomSummarySerializer(read_only=True)
 
     class Meta:
         model = Reservation
         fields = [
-            # `guest_id` e o TITULAR. O front deriva "esta pessoa e
-            # acompanhante" de `guest_id != row.id`, sem um campo `role`
-            # computado que so existiria para dizer o que dois ids ja dizem.
+            # guest_id e o titular. O front deriva acompanhante de guest_id != row.id.
             "id",
             "guest_id",
             "room",
@@ -41,8 +30,6 @@ class ReservationSummarySerializer(serializers.ModelSerializer):
 
 
 class ReservationSerializer(serializers.ModelSerializer):
-    """Reserva completa. Campos financeiros ficam `null` ate o checkout."""
-
     guest_id = serializers.IntegerField(read_only=True)
     room = RoomSummarySerializer(read_only=True)
     companions = GuestMinimalSerializer(many=True, read_only=True)
@@ -51,8 +38,6 @@ class ReservationSerializer(serializers.ModelSerializer):
     late_fee = money_field(read_only=True)
     late_fee_base = money_field(read_only=True)
     total_amount = money_field(read_only=True)
-    # Atores como objeto e nao como id cru: a tela mostra "quem", e um id
-    # obrigaria o cliente a uma segunda chamada por linha da lista.
     created_by = UserMinimalSerializer(read_only=True)
     checked_in_by = UserMinimalSerializer(read_only=True)
     checked_out_by = UserMinimalSerializer(read_only=True)
@@ -92,32 +77,16 @@ class ReservationSerializer(serializers.ModelSerializer):
 
 
 class ReservationCreateSerializer(serializers.ModelSerializer):
-    """Forma do payload de criacao (SPEC 4.4).
-
-    Aqui so mora forma: tipos, campos e a existencia do hospede referenciado.
-    As regras de negocio D11 (data no passado) e D13 (minimo 1 noite) vivem em
-    `services.reservations.create_reservation` (SPEC 3.4) -- D11 depende de
-    "hoje", e serializer que le o relogio torna a regra intestavel sem HTTP
-    (SPEC 0.3). O cliente nao percebe a diferenca: as duas continuam saindo
-    como `400 VALIDATION_ERROR` com o erro no campo.
-    """
-
     guest_id = serializers.PrimaryKeyRelatedField(
         queryset=Guest.objects.all(),
         source="guest",
         help_text="Id de um hóspede já cadastrado.",
     )
-    # So EXISTENCIA, como `guest_id`. Se o quarto esta ativo e se esta livre no
-    # periodo sao regras de estado, e vivem no servico (400 `room_id` /
-    # 409 `ROOM_UNAVAILABLE`).
     room_id = serializers.PrimaryKeyRelatedField(
         queryset=Room.objects.all(),
         source="room",
         help_text="Id do quarto que a reserva vai ocupar.",
     )
-    # Tambem so existencia. Titular na propria lista, repetidos e estouro de
-    # capacidade sao regras de AGREGADO e vivem no servico -- o serializer nao
-    # conhece o quarto nem o titular ao validar um id isolado.
     companion_ids = serializers.PrimaryKeyRelatedField(
         queryset=Guest.objects.all(),
         source="companions",
@@ -140,8 +109,6 @@ class ReservationCreateSerializer(serializers.ModelSerializer):
 
 
 class PaymentRequestSerializer(serializers.Serializer):
-    """Forma de pagamento (D18). Valor nao entra: o pagamento e integral."""
-
     payment_method = serializers.ChoiceField(
         choices=PaymentMethod.choices,
         help_text="Como a conta foi paga.",
@@ -149,14 +116,6 @@ class PaymentRequestSerializer(serializers.Serializer):
 
 
 class ReservationListQuerySerializer(serializers.Serializer):
-    """Filtros de `GET /api/reservations/` (SPEC 4.2).
-
-    Com um parametro so, dois metodos privados na view eram mais baratos; com
-    tres, a consolidacao se paga: os tipos, o enum e as mensagens de erro
-    passam a sair do mesmo lugar que documenta o schema, em vez de `int(raw)`
-    dentro de um `try` na view.
-    """
-
     status = serializers.ChoiceField(
         choices=ReservationStatus.choices,
         required=False,
@@ -176,8 +135,6 @@ class ReservationListQuerySerializer(serializers.Serializer):
 
 
 class CheckInRequestSerializer(serializers.Serializer):
-    """Override do alerta de check-in antecipado (D4)."""
-
     allow_early = serializers.BooleanField(
         default=False,
         help_text="Reenvie como `true` para confirmar o check-in antes das 14:00.",
