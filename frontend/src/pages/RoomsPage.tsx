@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Button, Checkbox, Dialog, FieldLabel } from '@/components/ui'
+import { Button, Checkbox, Dialog, FieldLabel, Typography } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { RoomActions } from '@/features/rooms/components/RoomActions'
 import { RoomCapacityDialog } from '@/features/rooms/components/RoomCapacityDialog'
@@ -49,9 +49,9 @@ export function RoomsPage() {
   return (
     <section aria-labelledby="quartos-titulo" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 id="quartos-titulo" className="text-xl font-semibold text-slate-900">
+        <Typography as="h2" id="quartos-titulo" variant="pageTitle">
           Quartos
-        </h2>
+        </Typography>
         {isAdmin ? (
           <Button onClick={() => setDialog({ kind: 'create' })}>Novo quarto</Button>
         ) : null}

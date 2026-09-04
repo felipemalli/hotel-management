@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { ErrorState, TableSkeleton } from '@/components/common'
-import { Button, Dialog } from '@/components/ui'
+import { Button, Dialog, Typography } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { CurrentPolicyCard } from '@/features/pricing/CurrentPolicyCard'
 import { useCurrentPolicy } from '@/features/pricing/hooks'
@@ -24,23 +24,23 @@ export function PricingPage() {
   return (
     <section aria-labelledby="tarifas-titulo" className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 id="tarifas-titulo" className="text-xl font-semibold text-slate-900">
+        <Typography as="h2" id="tarifas-titulo" variant="pageTitle">
           Tarifas
-        </h2>
+        </Typography>
         {isAdmin && current.data ? (
           <Button onClick={() => setPublishing(true)}>Publicar nova tarifa</Button>
         ) : null}
       </div>
 
-      <p className="text-sm text-slate-600">
+      <Typography as="p" variant="body" tone="muted">
         A tarifa é amarrada à estadia no check-in: publicar uma nova muda o futuro e nunca o extrato
         de quem já entrou.
-      </p>
+      </Typography>
 
       <section aria-labelledby="tarifa-vigente" className="flex flex-col gap-2">
-        <h3 id="tarifa-vigente" className="text-base font-semibold text-slate-900">
+        <Typography as="h3" id="tarifa-vigente" variant="sectionTitle">
           Tarifa vigente
-        </h3>
+        </Typography>
         {current.isPending ? (
           <TableSkeleton rows={4} columns={2} />
         ) : current.isError ? (
@@ -54,9 +54,9 @@ export function PricingPage() {
       </section>
 
       <section aria-labelledby="historico-tarifas" className="flex flex-col gap-2">
-        <h3 id="historico-tarifas" className="text-base font-semibold text-slate-900">
+        <Typography as="h3" id="historico-tarifas" variant="sectionTitle">
           Histórico
-        </h3>
+        </Typography>
         <PolicyHistoryTable
           page={page}
           currentId={current.data?.id}

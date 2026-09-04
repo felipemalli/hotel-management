@@ -1,4 +1,4 @@
-import { Button, Dialog } from '@/components/ui'
+import { Button, Dialog, Typography } from '@/components/ui'
 
 export interface EarlyCheckinDialogProps {
   open: boolean
@@ -40,10 +40,13 @@ export function EarlyCheckinDialog({
         </>
       }
     >
-      <p className="text-sm text-slate-600">
-        O check-in de <strong className="text-slate-900">{guestName}</strong> será registrado fora
-        do horário de abertura.
-      </p>
+      <Typography as="p" variant="body" tone="muted">
+        O check-in de{' '}
+        <Typography as="strong" variant="body">
+          {guestName}
+        </Typography>{' '}
+        será registrado fora do horário de abertura.
+      </Typography>
     </Dialog>
   )
 }

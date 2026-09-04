@@ -1,7 +1,7 @@
 import { RefreshCw, TriangleAlert } from 'lucide-react'
 import type { FallbackProps } from 'react-error-boundary'
 
-import { Button } from '@/components/ui'
+import { Button, Typography } from '@/components/ui'
 import { isApiErrorCode } from '@/lib/errors/errors'
 
 function describe(error: unknown): string {
@@ -26,8 +26,12 @@ export function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
     >
       <TriangleAlert className="size-6 text-red-600" />
       <div className="flex flex-col gap-1">
-        <p className="text-base font-semibold">Algo deu errado</p>
-        <p className="text-slate-600">{describe(error)}</p>
+        <Typography as="p" variant="cardTitle">
+          Algo deu errado
+        </Typography>
+        <Typography as="p" variant="body" tone="muted">
+          {describe(error)}
+        </Typography>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
         <Button onClick={resetErrorBoundary}>

@@ -1,6 +1,6 @@
 import { Input as InputPrimitive } from '@base-ui/react/input'
-import { forwardRef } from 'react'
 import type * as React from 'react'
+import { forwardRef } from 'react'
 
 import { cn } from '@/lib/utils'
 

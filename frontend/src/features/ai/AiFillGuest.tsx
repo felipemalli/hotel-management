@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import { FormField } from '@/components/common'
-import { Button, Textarea } from '@/components/ui'
+import { Button, Textarea, Typography } from '@/components/ui'
 
 import { useAiStatus, useParseGuestText } from './hooks'
 import type { ParsedGuestFields } from './types'
@@ -48,10 +48,10 @@ export function AiFillGuest({ onFilled }: AiFillGuestProps) {
           />
         )}
       </FormField>
-      <p className="text-xs text-slate-500">
+      <Typography as="p" variant="caption">
         O texto é enviado a um provedor externo (Anthropic) para extração dos campos. Nada é salvo
         por aqui: revise nome, documento e telefone antes de cadastrar.
-      </p>
+      </Typography>
       <div className="flex justify-end gap-2">
         <Button
           variant="ghost"

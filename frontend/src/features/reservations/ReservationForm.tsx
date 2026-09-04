@@ -3,7 +3,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { Controller, useController, useForm } from 'react-hook-form'
 
 import { Alert, FormField } from '@/components/common'
-import { Button, Checkbox, Field, FieldError, FieldLabel, Input, Select } from '@/components/ui'
+import {
+  Button,
+  Checkbox,
+  Field,
+  FieldError,
+  FieldLabel,
+  Input,
+  Select,
+  Typography,
+} from '@/components/ui'
 import type { GuestRef as GuestSummary } from '@/features/guests/types'
 import { useAvailableRooms } from '@/features/rooms/hooks'
 import { useInvalidateServerState } from '@/lib/api/useInvalidateServerState'
@@ -120,9 +129,12 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
       {rootError ? <Alert tone="error">{rootError}</Alert> : null}
 
-      <p className="text-sm text-slate-600">
-        Hóspede: <strong className="text-slate-900">{guest.full_name}</strong>
-      </p>
+      <Typography as="p" variant="body" tone="muted">
+        Hóspede:{' '}
+        <Typography as="strong" variant="body">
+          {guest.full_name}
+        </Typography>
+      </Typography>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Entrada" error={errors.checkin_date?.message}>

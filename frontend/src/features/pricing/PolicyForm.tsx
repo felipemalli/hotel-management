@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 
 import { Alert, FormField } from '@/components/common'
-import { Button, Input } from '@/components/ui'
+import { Button, Input, Typography } from '@/components/ui'
 import { applyServerErrors } from '@/lib/forms/forms'
 
 import { useCreatePolicy } from './hooks'
@@ -57,10 +57,10 @@ export function PolicyForm({ current, onSuccess, onCancel }: PolicyFormProps) {
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
       {rootError ? <Alert tone="error">{rootError}</Alert> : null}
 
-      <p className="text-sm text-slate-600">
+      <Typography as="p" variant="body" tone="muted">
         A tarifa vale a partir da publicação e rege apenas as estadias cujo check-in acontecer
         depois dela: quem já entrou mantém a tarifa amarrada no seu check-in.
-      </p>
+      </Typography>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField

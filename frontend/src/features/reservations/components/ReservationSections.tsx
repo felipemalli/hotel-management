@@ -1,6 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 
 import { DescriptionList, ErrorState } from '@/components/common'
+import { Typography } from '@/components/ui'
 import type { Guest } from '@/features/guests/types'
 import { errorMessage } from '@/lib/errors/errors'
 import { countryName } from '@/lib/format/countries'
@@ -19,9 +20,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       aria-labelledby={id}
       className="flex flex-col gap-3 rounded-lg bg-white p-5 ring-1 ring-slate-200"
     >
-      <h3 id={id} className="text-sm font-semibold text-slate-900">
+      <Typography as="h3" id={id} variant="cardTitle">
         {title}
-      </h3>
+      </Typography>
       {children}
     </section>
   )
@@ -63,28 +64,34 @@ export function ReservationPeopleSection({
   return (
     <Section title="Pessoas">
       <div className="flex flex-col gap-1">
-        <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Titular</p>
+        <Typography as="p" variant="overline">
+          Titular
+        </Typography>
         {guest.isPending ? (
-          <p className="text-sm text-slate-500">Carregando…</p>
+          <Typography as="p" variant="body" tone="muted">
+            Carregando…
+          </Typography>
         ) : guest.isError ? (
           <ErrorState message={errorMessage(guest.error)} onRetry={() => void guest.refetch()} />
         ) : (
-          <p className="text-sm text-slate-900">
+          <Typography as="p" variant="body">
             {guest.data.full_name}{' '}
-            <span className="font-mono text-xs text-slate-500">
+            <Typography as="span" variant="mono" tone="muted">
               {formatDocument(guest.data.document)} · {formatPhone(guest.data.phone)} ·{' '}
               <span title={countryName(guest.data.nationality)}>{guest.data.nationality}</span>
-            </span>
-          </p>
+            </Typography>
+          </Typography>
         )}
       </div>
 
       <div className="flex flex-col gap-1">
-        <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+        <Typography as="p" variant="overline">
           Acompanhantes
-        </p>
+        </Typography>
         {reservation.companions.length === 0 ? (
-          <p className="text-sm text-slate-500">Sem acompanhantes</p>
+          <Typography as="p" variant="body" tone="muted">
+            Sem acompanhantes
+          </Typography>
         ) : (
           <ul className="flex flex-col gap-0.5 text-sm text-slate-900">
             {reservation.companions.map((companion) => (
@@ -131,7 +138,11 @@ export function ReservationAccountSection({ reservation }: { reservation: Reserv
           },
           {
             label: 'Total',
-            value: <strong className="text-base">{money(reservation.total_amount)}</strong>,
+            value: (
+              <Typography as="strong" variant="body" className="text-base">
+                {money(reservation.total_amount)}
+              </Typography>
+            ),
           },
           {
             label: 'Pagamento',

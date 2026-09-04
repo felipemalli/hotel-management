@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { Alert, EmptyState, ErrorState, TableSkeleton } from '@/components/common'
-import { Button } from '@/components/ui'
+import { Button, Typography } from '@/components/ui'
 import { useGuest } from '@/features/guests/hooks'
 import { CheckoutStatementDialog } from '@/features/reservations/CheckoutStatementDialog'
 import { CancelReservationDialog } from '@/features/reservations/components/CancelReservationDialog'
@@ -58,7 +58,9 @@ export function ReservationDetailPage() {
     <article className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-semibold text-slate-900">Reserva #{current.id}</h2>
+          <Typography as="h2" variant="pageTitle">
+            Reserva #{current.id}
+          </Typography>
           <ReservationStatusBadge status={current.status} />
         </div>
         <Link to={ROUTES.reservations} className="text-sm text-slate-600 underline">
@@ -91,7 +93,9 @@ export function ReservationDetailPage() {
         ) : null}
 
         {current.status === 'CANCELLED' ? (
-          <p className="text-sm text-slate-500">Reserva cancelada — nenhuma ação disponível.</p>
+          <Typography as="p" variant="body" tone="muted">
+            Reserva cancelada — nenhuma ação disponível.
+          </Typography>
         ) : null}
       </div>
 

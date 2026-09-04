@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 
 import { DismissButton, FormField } from '@/components/common'
-import { Button, Input } from '@/components/ui'
+import { Button, Input, Typography } from '@/components/ui'
 import { useGuests } from '@/features/guests/hooks'
 import { DEBOUNCE_MS } from '@/features/guests/tabs'
 import { errorMessage } from '@/lib/errors/errors'
@@ -37,27 +37,31 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
 
   return (
     <fieldset className="flex flex-col gap-2" aria-describedby={error ? errorId : undefined}>
-      <legend className="text-sm font-medium text-slate-800">Acompanhantes</legend>
+      <Typography as="legend" variant="label">
+        Acompanhantes
+      </Typography>
 
       {value.length > 0 ? (
         <ul aria-label="Acompanhantes escolhidos" className="flex flex-wrap gap-2">
           {value.map((companion) => (
-            <li
+            <Typography
+              as="li"
               key={companion.id}
-              className="flex items-center gap-1 rounded-full bg-slate-100 py-0.5 pr-1 pl-3 text-sm text-slate-800 ring-1 ring-slate-200 ring-inset"
+              variant="body"
+              className="flex items-center gap-1 rounded-full bg-slate-100 py-0.5 pr-1 pl-3 ring-1 ring-slate-200 ring-inset"
             >
               {companion.full_name}
               <DismissButton
                 label={`Remover ${companion.full_name}`}
                 onClick={() => onChange(value.filter((kept) => kept.id !== companion.id))}
               />
-            </li>
+            </Typography>
           ))}
         </ul>
       ) : (
-        <p className="text-xs text-slate-500">
+        <Typography as="p" variant="caption">
           Nenhum acompanhante. Só hóspedes já cadastrados podem ser adicionados.
-        </p>
+        </Typography>
       )}
 
       <FormField label="Buscar acompanhante">
@@ -75,9 +79,16 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
       {term ? renderCandidates() : null}
 
       {error ? (
-        <p id={errorId} role="alert" className="text-xs font-medium text-red-700">
+        <Typography
+          as="p"
+          id={errorId}
+          role="alert"
+          variant="caption"
+          tone="destructive"
+          weight="medium"
+        >
           {error}
-        </p>
+        </Typography>
       ) : null}
     </fieldset>
   )
@@ -87,33 +98,42 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
   function renderCandidates() {
     if (results.isPending) {
       return (
-        <p role="status" className="text-xs text-slate-500">
+        <Typography as="p" role="status" variant="caption">
           Buscando…
-        </p>
+        </Typography>
       )
     }
 
     if (results.isError) {
       return (
-        <p role="alert" className="text-xs font-medium text-red-700">
+        <Typography as="p" role="alert" variant="caption" tone="destructive" weight="medium">
           {errorMessage(results.error)}
-        </p>
+        </Typography>
       )
     }
 
     if (candidates.length === 0) {
-      return <p className="text-xs text-slate-500">Nenhum hóspede encontrado.</p>
+      return (
+        <Typography as="p" variant="caption">
+          Nenhum hóspede encontrado.
+        </Typography>
+      )
     }
 
     return (
       <ul aria-label="Resultados da busca" className="flex flex-col gap-1">
         {candidates.map((guest) => (
-          <li key={guest.id} className="flex items-center justify-between gap-3 text-sm">
+          <Typography
+            as="li"
+            key={guest.id}
+            variant="body"
+            className="flex items-center justify-between gap-3"
+          >
             <span>
               {guest.full_name}{' '}
-              <span className="font-mono text-xs text-slate-500">
+              <Typography as="span" variant="mono" tone="muted">
                 {formatDocument(guest.document)}
-              </span>
+              </Typography>
             </span>
             <Button
               size="sm"
@@ -126,7 +146,7 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
             >
               Adicionar
             </Button>
-          </li>
+          </Typography>
         ))}
       </ul>
     )

@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Badge, Button } from '@/components/ui'
+import { Badge, Button, Typography } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { useAuth } from '@/features/auth/useAuth'
 import { MAIN_CONTENT_ID } from '@/lib/a11y/focus'
@@ -52,7 +52,9 @@ export function AppLayout() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
           <div className="flex flex-wrap items-center gap-6">
-            <h1 className="text-lg font-semibold text-slate-900">Gestão de Hóspedes</h1>
+            <Typography as="h1" variant="title">
+              Gestão de Hóspedes
+            </Typography>
             <nav aria-label="Principal" className="flex flex-wrap gap-1">
               {NAV_ITEMS.map((item) => (
                 <NavLink key={item.to} to={item.to} end={item.end} className={navClassName}>
@@ -62,10 +64,12 @@ export function AppLayout() {
             </nav>
           </div>
           <nav aria-label="Sessão" className="flex items-center gap-3">
-            <p className="flex items-center gap-2 text-xs text-slate-500">
-              <span className="font-medium text-slate-700">{username ?? 'atendente'}</span>
+            <Typography as="p" variant="caption" className="flex items-center gap-2">
+              <Typography as="span" variant="caption" weight="medium" className="text-foreground">
+                {username ?? 'atendente'}
+              </Typography>
               {isAdmin ? <Badge variant="info">admin</Badge> : null}
-            </p>
+            </Typography>
             <Button variant="ghost" size="sm" onClick={onSignOut}>
               Sair
             </Button>

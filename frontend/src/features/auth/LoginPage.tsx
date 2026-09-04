@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { Navigate } from 'react-router-dom'
 
 import { Alert, FormField } from '@/components/common'
-import { Button, Input } from '@/components/ui'
+import { Button, Input, Typography } from '@/components/ui'
 import { isLocallyPresented } from '@/lib/api/queryClient'
 import { errorMessage } from '@/lib/errors/errors'
 import { applyServerErrors } from '@/lib/forms/forms'
@@ -53,8 +53,12 @@ export function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
       <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
-        <h1 className="text-xl font-semibold text-slate-900">Gestão de Hóspedes</h1>
-        <p className="mt-1 text-sm text-slate-600">Acesso do atendente.</p>
+        <Typography as="h1" variant="pageTitle">
+          Gestão de Hóspedes
+        </Typography>
+        <Typography as="p" variant="body" tone="muted" className="mt-1">
+          Acesso do atendente.
+        </Typography>
 
         <form className="mt-6 flex flex-col gap-4" onSubmit={submit} noValidate>
           {rootError ? <Alert tone="error">{rootError}</Alert> : null}

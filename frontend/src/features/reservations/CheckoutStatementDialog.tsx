@@ -1,7 +1,19 @@
 import { useState } from 'react'
 
 import { Alert } from '@/components/common'
-import { Badge, Button, Dialog, Select, Table, TBody, TD, TH, THead, TR } from '@/components/ui'
+import {
+  Badge,
+  Button,
+  Dialog,
+  Select,
+  Table,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Typography,
+} from '@/components/ui'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { formatISODate, formatISODateTime } from '@/lib/format/dates'
 import { formatBRL } from '@/lib/format/money'
@@ -32,11 +44,19 @@ function SummaryRow({
     <div
       className={[
         'flex items-baseline justify-between gap-4 py-1.5',
-        emphasis ? 'border-t border-slate-300 pt-3 text-base font-semibold' : 'text-sm',
+        emphasis ? 'border-t border-slate-300 pt-3' : '',
       ].join(' ')}
     >
-      <span className={emphasis ? 'text-slate-900' : 'text-slate-600'}>{label}</span>
-      <span className={emphasis ? 'text-slate-900' : 'text-slate-800'}>{value}</span>
+      <Typography
+        as="span"
+        variant={emphasis ? 'sectionTitle' : 'body'}
+        tone={emphasis ? 'default' : 'muted'}
+      >
+        {label}
+      </Typography>
+      <Typography as="span" variant={emphasis ? 'sectionTitle' : 'body'}>
+        {value}
+      </Typography>
     </div>
   )
 }
@@ -121,19 +141,19 @@ export function CheckoutStatementDialog({
 
           <div className="mt-3 flex flex-col gap-2 border-t border-slate-200 pt-3">
             {payment ? (
-              <p className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+              <Typography as="p" variant="body" className="flex flex-wrap items-center gap-2">
                 <Badge variant="success">Pago</Badge>
                 <span>
                   Pago em {formatISODateTime(payment.paid_at)} ·{' '}
                   {PAYMENT_METHOD_LABELS[payment.method]} · por {payment.paid_by.username}
                 </span>
-              </p>
+              </Typography>
             ) : (
               <>
-                <p className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                <Typography as="p" variant="body" className="flex flex-wrap items-center gap-2">
                   <Badge variant="warning">Em aberto</Badge>
                   <span>Pagamento ainda não registrado.</span>
-                </p>
+                </Typography>
                 {allowPayment ? (
                   <div className="flex flex-wrap items-end gap-2">
                     <Select

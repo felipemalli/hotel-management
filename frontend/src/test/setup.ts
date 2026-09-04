@@ -71,7 +71,7 @@ if (typeof globalThis.PointerEvent === 'undefined') {
     getPredictedEvents = (): PointerEvent[] => []
   }
 
-  globalThis.PointerEvent = PointerEventPolyfill as unknown as typeof PointerEvent
+  globalThis.PointerEvent = PointerEventPolyfill
 }
 
 // O sink de console é útil no navegador e só ruído aqui: quem afirma sobre o

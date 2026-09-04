@@ -1,4 +1,5 @@
 import { EmptyState, ErrorState, Pagination, TableSkeleton } from '@/components/common'
+import { Typography } from '@/components/ui'
 import { ReservationFilters } from '@/features/reservations/components/ReservationFilters'
 import { toListParams } from '@/features/reservations/filters'
 import { useReservations } from '@/features/reservations/hooks'
@@ -14,11 +15,13 @@ export function ReservationsPage() {
   return (
     <section aria-labelledby="reservas-titulo" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 id="reservas-titulo" className="text-xl font-semibold text-slate-900">
+        <Typography as="h2" id="reservas-titulo" variant="pageTitle">
           Reservas
-        </h2>
+        </Typography>
         {query.isFetching && !query.isPending ? (
-          <span className="text-xs text-slate-500">Atualizando…</span>
+          <Typography as="span" variant="caption">
+            Atualizando…
+          </Typography>
         ) : null}
       </div>
 
