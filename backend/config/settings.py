@@ -36,6 +36,11 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "localhost,127.0.0.1,backend")
 
+# O proxy do Vite reescreve o Host e repassa o Origin: sem a lista, CSRF recusa por origem.
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+)
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -45,6 +50,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "drf_spectacular_sidecar",
     "accounts",
@@ -122,8 +128,6 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 
-# Throttle do DRF e o unico consumidor. LocMemCache e por processo: com varios
-# workers o limite nunca e atingido. Redis se houver REDIS_URL; senao DatabaseCache.
 REDIS_URL = env("REDIS_URL")
 
 if REDIS_URL:
@@ -151,6 +155,7 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "DEFAULT_THROTTLE_RATES": {
         "login": env("THROTTLE_LOGIN", "10/min"),
+        "refresh": env("THROTTLE_REFRESH", "60/min"),
     },
     # Default do DRF (None) usa X-Forwarded-For. Gunicorn atende direto, entao
     # o cliente inventa o IP e zera o throttle. 0 = REMOTE_ADDR, ignora o header.
@@ -158,6 +163,9 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "hotel.exceptions.api_exception_handler",
 }
 
+# O `exp` carimbado no login e o teto absoluto da sessao: renovar devolve um access
+# novo e nao estende o prazo. O app `token_blacklist` esta instalado pelo logout, que
+# e o unico ponto em que a sessao morre no servidor antes da hora.
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(hours=12),
@@ -181,7 +189,12 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
-SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG
+COOKIE_SECURE = env_bool("COOKIE_SECURE", not DEBUG)
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = COOKIE_SECURE
+
+REFRESH_COOKIE_NAME = "hotel_refresh"
+REFRESH_COOKIE_PATH = "/api/auth/"
+REFRESH_COOKIE_SECURE = COOKIE_SECURE
 
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {

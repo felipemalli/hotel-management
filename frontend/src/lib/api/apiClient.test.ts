@@ -11,13 +11,18 @@ import { z } from 'zod'
 import type { session as SessionValue } from '../auth/session'
 import type { ErrorContext } from '../errors/errorLogger'
 import type { toastStore as ToastStoreValue } from '../notify/toast'
-import type { apiClient as ApiClientValue, parseResponse as ParseResponseValue } from './apiClient'
+import type {
+  apiClient as ApiClientValue,
+  parseResponse as ParseResponseValue,
+  restoreSession as RestoreSessionValue,
+} from './apiClient'
 
 type Reply = (config: InternalAxiosRequestConfig) => AxiosResponse | AxiosError
 
 interface RecordedRequest {
   url: string
   authorization: string | undefined
+  csrf: string | undefined
   body: string | undefined
 }
 
@@ -66,8 +71,8 @@ function nextReply(url: string): Reply {
   return first
 }
 
-function authorizationOf(config: InternalAxiosRequestConfig): string | undefined {
-  const value = AxiosHeaders.from(config.headers).get('Authorization')
+function headerOf(config: InternalAxiosRequestConfig, name: string): string | undefined {
+  const value = AxiosHeaders.from(config.headers).get(name)
   return typeof value === 'string' ? value : undefined
 }
 
@@ -75,7 +80,8 @@ const adapter: AxiosAdapter = (config) => {
   const url = config.url ?? ''
   requests.push({
     url,
-    authorization: authorizationOf(config),
+    authorization: headerOf(config, 'Authorization'),
+    csrf: headerOf(config, 'X-CSRFToken'),
     body: typeof config.data === 'string' ? config.data : undefined,
   })
 
@@ -87,6 +93,7 @@ const originalAdapter = axios.defaults.adapter
 
 let apiClient: typeof ApiClientValue
 let parseResponse: typeof ParseResponseValue
+let restoreSession: typeof RestoreSessionValue
 let session: typeof SessionValue
 let toastStore: typeof ToastStoreValue
 let capture: ReturnType<typeof vi.fn<(error: unknown, context: ErrorContext) => void>>
@@ -104,19 +111,21 @@ beforeEach(async () => {
   apiClient = clientModule.apiClient
   apiClient.defaults.adapter = adapter
   parseResponse = clientModule.parseResponse
+  restoreSession = clientModule.restoreSession
   session = sessionModule.session
   toastStore = toastModule.toastStore
   capture = vi.fn<(error: unknown, context: ErrorContext) => void>()
   loggerModule.errorLogger.use({ capture })
 
-  session.set({ access: 'access-1', refresh: 'refresh-1', username: 'recepcao' })
+  session.setAccessToken('access-1')
+  document.cookie = 'csrftoken=csrf-do-teste'
 })
 
 afterEach(() => {
   axios.defaults.adapter = originalAdapter
   requests.length = 0
   replies.clear()
-  window.localStorage.clear()
+  document.cookie = 'csrftoken=; max-age=0'
 })
 
 function callsTo(url: string): RecordedRequest[] {
@@ -135,7 +144,7 @@ describe('apiClient · injecao do token', () => {
     expect(callsTo(TOKEN)[0]?.authorization).toBeUndefined()
   })
 
-  // `/auth/me/` está sob `/auth/` mas precisa do token: a isenção é `token`/`refresh`, não a pasta.
+  // `/auth/me/` está sob `/auth/` mas precisa do token: a isenção é por rota, não pela pasta.
   it('manda o Bearer na rota do usuario corrente', async () => {
     on(ME, ok({ id: 1, username: 'recepcao', role: 'ATTENDANT' }))
 
@@ -154,7 +163,9 @@ describe('apiClient · refresh unico', () => {
 
     expect(response.data.results).toEqual(['ana'])
     expect(callsTo(REFRESH)).toHaveLength(1)
-    expect(callsTo(REFRESH)[0]?.body).toContain('refresh-1')
+    // O refresh viaja no cookie HttpOnly: o corpo nao carrega credencial nenhuma.
+    expect(callsTo(REFRESH)[0]?.body).toBe('{}')
+    expect(callsTo(REFRESH)[0]?.csrf).toBe('csrf-do-teste')
     expect(callsTo(GUESTS).map((request) => request.authorization)).toEqual([
       'Bearer access-1',
       'Bearer access-2',
@@ -204,7 +215,7 @@ describe('apiClient · sessao expirada', () => {
     ])
 
     expect(session.getAccessToken()).toBeNull()
-    expect(session.getRefreshToken()).toBeNull()
+    expect(session.getStatus()).toBe('anonymous')
     const toasts = toastStore.getSnapshot()
     expect(toasts).toHaveLength(1)
     expect(toasts[0]).toMatchObject({
@@ -229,6 +240,50 @@ describe('apiClient · sessao expirada', () => {
     expect(session.getAccessToken()).toBe('access-1')
     expect(callsTo(REFRESH)).toHaveLength(0)
     expect(toastStore.getSnapshot()).toEqual([])
+  })
+})
+
+describe('restoreSession', () => {
+  it('recupera a sessao a partir do cookie no boot', async () => {
+    on(REFRESH, ok({ access: 'access-do-cookie' }))
+    session.markAnonymous()
+
+    await restoreSession()
+
+    expect(session.getStatus()).toBe('authenticated')
+    expect(session.getAccessToken()).toBe('access-do-cookie')
+    expect(callsTo(REFRESH)[0]?.csrf).toBe('csrf-do-teste')
+  })
+
+  it('nem tenta renovar quando o navegador nunca guardou o csrftoken', async () => {
+    document.cookie = 'csrftoken=; max-age=0'
+    on(REFRESH, ok({ access: 'nunca-deveria-chegar' }))
+
+    await restoreSession()
+
+    expect(callsTo(REFRESH)).toHaveLength(0)
+    expect(session.getStatus()).toBe('anonymous')
+  })
+
+  it('trata 401 no boot como anonimo, sem toast nem registro', async () => {
+    on(REFRESH, failure(401, { code: 'NOT_AUTHENTICATED', detail: 'Sem sessão.' }))
+
+    await restoreSession()
+
+    expect(session.getStatus()).toBe('anonymous')
+    expect(toastStore.getSnapshot()).toEqual([])
+    expect(capture).not.toHaveBeenCalled()
+  })
+
+  it('registra a falha de servidor no boot, e ainda assim segue anonimo', async () => {
+    on(REFRESH, failure(500, '<html>Server Error</html>'))
+
+    await restoreSession()
+
+    expect(session.getStatus()).toBe('anonymous')
+    expect(capture.mock.calls.map(([, context]) => context)).toContainEqual(
+      expect.objectContaining({ scope: 'auth-restore' }),
+    )
   })
 })
 

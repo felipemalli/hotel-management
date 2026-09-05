@@ -6,8 +6,9 @@ from rest_framework.routers import SimpleRouter
 
 from accounts.views import (
     CurrentUserView,
-    ThrottledTokenObtainPairView,
-    ThrottledTokenRefreshView,
+    LoginView,
+    LogoutView,
+    RefreshFromCookieView,
 )
 from config.health import health
 from hotel.views import (
@@ -27,8 +28,9 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health, name="health"),
     # SimpleJWT nasce com permission_classes = (), senao IsAuthenticated tranca o login.
-    path("api/auth/token/", ThrottledTokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/auth/token/refresh/", ThrottledTokenRefreshView.as_view(), name="token_refresh"),
+    path("api/auth/token/", LoginView.as_view(), name="token_obtain_pair"),
+    path("api/auth/token/refresh/", RefreshFromCookieView.as_view(), name="token_refresh"),
+    path("api/auth/logout/", LogoutView.as_view(), name="logout"),
     path("api/auth/me/", CurrentUserView.as_view(), name="current_user"),
     path("api/", include(router.urls)),
     path("api/ai/", include("ai.urls")),

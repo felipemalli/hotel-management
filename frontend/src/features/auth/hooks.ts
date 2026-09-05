@@ -16,8 +16,8 @@ export const authKeys = {
 export function useLogin() {
   return useMutation({
     mutationFn: (credentials: Credentials) => login(credentials),
-    onSuccess: (tokens, credentials) => {
-      session.set({ ...tokens, username: credentials.username })
+    onSuccess: ({ access }) => {
+      session.setAccessToken(access)
     },
   })
 }

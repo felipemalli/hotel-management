@@ -1,88 +1,64 @@
-const ACCESS_KEY = 'hotel.access'
-const REFRESH_KEY = 'hotel.refresh'
-const USERNAME_KEY = 'hotel.username'
-
-export interface TokenPair {
-  access: string
-  refresh: string
-}
-
-export interface SessionData extends TokenPair {
-  username: string
-}
+export type SessionStatus = 'restoring' | 'anonymous' | 'authenticated'
 
 type Listener = () => void
 
+const CHANNEL_NAME = 'hotel.auth'
+const SIGNED_OUT = 'signed-out'
+
+// Nasce restaurando: o access não sobrevive ao F5, e o cookie decide.
+let status: SessionStatus = 'restoring'
+let access: string | null = null
+
 const listeners = new Set<Listener>()
-
-function read(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-function write(key: string, value: string | null): void {
-  try {
-    if (value === null) window.localStorage.removeItem(key)
-    else window.localStorage.setItem(key, value)
-  } catch {
-    // modo privado / cookies bloqueados: a sessão fica só em memória
-  }
-}
-
-let access: string | null = read(ACCESS_KEY)
-let refresh: string | null = read(REFRESH_KEY)
-let username: string | null = read(USERNAME_KEY)
 
 function emit(): void {
   for (const listener of listeners) listener()
 }
 
-const OWN_KEYS: readonly string[] = [ACCESS_KEY, REFRESH_KEY, USERNAME_KEY]
-
-// `storage` só dispara nas outras abas — escrever aqui não cria laço.
-window.addEventListener('storage', (event) => {
-  if (event.key !== null && !OWN_KEYS.includes(event.key)) return
-  access = read(ACCESS_KEY)
-  refresh = read(REFRESH_KEY)
-  username = read(USERNAME_KEY)
+function forgetLocally(): boolean {
+  if (status === 'anonymous' && access === null) return false
+  access = null
+  status = 'anonymous'
   emit()
-})
+  return true
+}
+
+let channel: BroadcastChannel | null = null
+
+export function connectTabs(): () => void {
+  if (typeof BroadcastChannel !== 'function') return () => undefined
+
+  const open = new BroadcastChannel(CHANNEL_NAME)
+  open.onmessage = (event: MessageEvent<unknown>) => {
+    if (event.data === SIGNED_OUT) forgetLocally()
+  }
+  channel = open
+
+  return () => {
+    open.close()
+    if (channel === open) channel = null
+  }
+}
 
 export const session = {
+  getStatus: (): SessionStatus => status,
+
   getAccessToken: (): string | null => access,
-
-  getRefreshToken: (): string | null => refresh,
-
-  // Do login, não de /auth/me/: precisa existir antes da primeira resposta.
-  getUsername: (): string | null => username,
-
-  set: (data: SessionData): void => {
-    access = data.access
-    refresh = data.refresh
-    username = data.username
-    write(ACCESS_KEY, access)
-    write(REFRESH_KEY, refresh)
-    write(USERNAME_KEY, username)
-    emit()
-  },
 
   setAccessToken: (token: string): void => {
     access = token
-    write(ACCESS_KEY, token)
+    status = 'authenticated'
     emit()
   },
 
+  // Não avisa as outras: rede caída no boot não derruba quem já está dentro.
+  markAnonymous: (): void => {
+    forgetLocally()
+  },
+
   clear: (): void => {
-    access = null
-    refresh = null
-    username = null
-    write(ACCESS_KEY, null)
-    write(REFRESH_KEY, null)
-    write(USERNAME_KEY, null)
-    emit()
+    // O remetente não recebe o próprio postMessage: a aba local se limpa aqui.
+    if (forgetLocally()) channel?.postMessage(SIGNED_OUT)
   },
 
   subscribe: (listener: Listener): (() => void) => {

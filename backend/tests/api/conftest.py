@@ -21,6 +21,11 @@ def api_client() -> APIClient:
 
 
 @pytest.fixture
+def csrf_client() -> APIClient:
+    return APIClient(enforce_csrf_checks=True)
+
+
+@pytest.fixture
 def attendant(db):
     return UserFactory()
 

@@ -1,25 +1,33 @@
 import { useCallback, useSyncExternalStore } from 'react'
 
-import { session } from '@/lib/auth/session'
+import { session, type SessionStatus } from '@/lib/auth/session'
+import { errorLogger } from '@/lib/errors/errorLogger'
+
+import { logout } from './api'
 
 export interface Auth {
+  status: SessionStatus
   isAuthenticated: boolean
-  username: string | null
   signOut: () => void
 }
 
-export function useAuth(): Auth {
-  const accessToken = useSyncExternalStore(
-    session.subscribe,
-    session.getAccessToken,
-    session.getAccessToken,
-  )
+async function endSession(): Promise<void> {
+  try {
+    await logout()
+  } catch (cause) {
+    // Sem a revogação o cookie sobrevive, mas travar o Sair numa rede caída é pior.
+    errorLogger.capture(cause, { scope: 'auth-logout' })
+  } finally {
+    session.clear()
+  }
+}
 
-  const username = useSyncExternalStore(session.subscribe, session.getUsername, session.getUsername)
+export function useAuth(): Auth {
+  const status = useSyncExternalStore(session.subscribe, session.getStatus, session.getStatus)
 
   const signOut = useCallback(() => {
-    session.clear()
+    void endSession()
   }, [])
 
-  return { isAuthenticated: accessToken !== null, username, signOut }
+  return { status, isAuthenticated: status === 'authenticated', signOut }
 }

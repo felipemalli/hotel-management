@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ATTENDANT } from '@/features/auth/__fixtures__/users'
+import { fetchCurrentUser } from '@/features/auth/api'
 import { fetchGuests } from '@/features/guests/api'
 import { session } from '@/lib/auth/session'
 import { signInForTest } from '@/test/renderWithProviders'
@@ -12,6 +14,7 @@ vi.mock('@/features/auth/api')
 
 describe('App', () => {
   beforeEach(() => {
+    vi.mocked(fetchCurrentUser).mockResolvedValue(ATTENDANT)
     vi.mocked(fetchGuests).mockResolvedValue({
       count: 0,
       next: null,
@@ -44,7 +47,7 @@ describe('App', () => {
 
   // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('nao entrega ao proximo atendente a listagem do anterior', async () => {
-    signInForTest('recepcao')
+    signInForTest()
     render(<App />)
 
     await screen.findByRole('tablist', { name: 'Listagens de hóspedes' })
@@ -53,7 +56,7 @@ describe('App', () => {
     session.clear()
     expect(await screen.findByLabelText('Usuário')).toBeInTheDocument()
 
-    signInForTest('gerencia')
+    signInForTest()
 
     // Sem purgar o cache, `staleTime` devolveria a listagem do atendente anterior.
     await waitFor(() => expect(fetchGuests).toHaveBeenCalledTimes(2))

@@ -5,6 +5,7 @@ pytestmark = pytest.mark.django_db
 EXPECTED_PATHS = [
     "/api/auth/token/",
     "/api/auth/token/refresh/",
+    "/api/auth/logout/",
     "/api/auth/me/",
     "/api/health/",
     "/api/guests/",

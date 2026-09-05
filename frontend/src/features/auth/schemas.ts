@@ -1,19 +1,17 @@
 import { z } from 'zod'
 
-import type { TokenPair } from '@/lib/auth/session'
 import { requiredString } from '@/lib/forms/forms'
 
-import type { Credentials } from './api'
+import type { Credentials, SessionToken } from './api'
 
 export const credentialsSchema = z.object({
   username: requiredString(),
   password: requiredString(),
 }) satisfies z.ZodType<Credentials>
 
-export const tokenPairSchema = z.object({
+export const sessionTokenSchema = z.object({
   access: z.string().min(1),
-  refresh: z.string().min(1),
-}) satisfies z.ZodType<TokenPair>
+}) satisfies z.ZodType<SessionToken>
 
 export const userRoleSchema = z.enum(['ATTENDANT', 'ADMIN'])
 

@@ -4,7 +4,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ErrorState } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Typography } from '@/components/ui'
-import { useIsAdmin } from '@/features/auth/hooks'
+import { useCurrentUser } from '@/features/auth/hooks'
 import { useAuth } from '@/features/auth/useAuth'
 import { MAIN_CONTENT_ID } from '@/lib/a11y/focus'
 import { errorMessage } from '@/lib/errors/errors'
@@ -31,8 +31,8 @@ function navClassName({ isActive }: { isActive: boolean }): string {
 }
 
 export function AppLayout() {
-  const { username, signOut } = useAuth()
-  const isAdmin = useIsAdmin()
+  const { signOut } = useAuth()
+  const { data: user } = useCurrentUser()
   const { pathname } = useLocation()
 
   function onSignOut() {
@@ -40,7 +40,7 @@ export function AppLayout() {
     toastStore.clear()
   }
 
-  const displayName = username ?? 'atendente'
+  const displayName = user?.username ?? 'atendente'
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -66,7 +66,11 @@ export function AppLayout() {
             </nav>
           </div>
           <nav aria-label="Sessão" className="flex items-center gap-3">
-            <SessionMenu username={displayName} isAdmin={isAdmin} onSignOut={onSignOut} />
+            <SessionMenu
+              username={displayName}
+              isAdmin={user?.role === 'ADMIN'}
+              onSignOut={onSignOut}
+            />
           </nav>
         </div>
       </header>

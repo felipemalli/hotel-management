@@ -3,8 +3,9 @@ import userEvent, { type UserEvent } from '@testing-library/user-event'
 import { Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
+import type { SessionToken } from '@/features/auth/api'
 import { login } from '@/features/auth/api'
-import { session, type TokenPair } from '@/lib/auth/session'
+import { session } from '@/lib/auth/session'
 import { ApiError } from '@/lib/errors/errors'
 import { toastStore } from '@/lib/notify/toast'
 import { renderWithProviders } from '@/test/renderWithProviders'
@@ -13,7 +14,7 @@ import { LoginPage } from './LoginPage'
 
 vi.mock('@/features/auth/api')
 
-const TOKENS: TokenPair = { access: 'access-do-atendente', refresh: 'refresh-do-atendente' }
+const TOKENS: SessionToken = { access: 'access-do-atendente' }
 
 function renderLogin() {
   return renderWithProviders(
@@ -73,12 +74,12 @@ describe('LoginPage', () => {
     expect(login).toHaveBeenCalledWith({ username: 'atendente', password: 'senha-secreta' })
     expect(await screen.findByRole('heading', { name: 'Painel da recepção' })).toBeInTheDocument()
     expect(session.getAccessToken()).toBe(TOKENS.access)
-    expect(session.getUsername()).toBe('atendente')
+    expect(window.localStorage.length).toBe(0)
   })
 
   it('anuncia o pedido em voo no próprio botão', async () => {
     const user = userEvent.setup()
-    vi.mocked(login).mockReturnValue(new Promise<TokenPair>(() => undefined))
+    vi.mocked(login).mockReturnValue(new Promise<SessionToken>(() => undefined))
     renderLogin()
 
     await fillCredentials(user)

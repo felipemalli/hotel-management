@@ -1,6 +1,7 @@
 import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios'
 import type { z } from 'zod'
 
+import { csrfHeaders, csrfToken } from '../auth/csrf'
 import { session } from '../auth/session'
 import { errorLogger } from '../errors/errorLogger'
 import { ApiError, type ErrorEnvelope, isErrorCode } from '../errors/errors'
@@ -16,6 +17,7 @@ export interface Paginated<T> {
 export const AUTH_PATHS = {
   token: '/auth/token/',
   refresh: '/auth/token/refresh/',
+  logout: '/auth/logout/',
   me: '/auth/me/',
 } as const
 
@@ -26,7 +28,6 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Sem interceptors: o refresh pelo interceptor de 401 recursaria.
 const refreshClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
@@ -41,7 +42,6 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
-// Prefixo do caminho: `includes` casaria em qualquer URL com o texto.
 function pathOf(url: string): string {
   const [beforeQuery = ''] = url.split('?')
   const withoutOrigin = beforeQuery.replace(/^https?:\/\/[^/]+/, '')
@@ -54,30 +54,54 @@ function pathOf(url: string): string {
 function isAuthPath(url: string | undefined): boolean {
   if (!url) return false
   const path = pathOf(url)
-  return path.startsWith(AUTH_PATHS.token) || path.startsWith(AUTH_PATHS.refresh)
+  return (
+    path.startsWith(AUTH_PATHS.token) ||
+    path.startsWith(AUTH_PATHS.refresh) ||
+    path.startsWith(AUTH_PATHS.logout)
+  )
 }
 
-// Uma renovação por vez: as demais aguardam a mesma promise.
-let refreshInFlight: Promise<string> | null = null
-
-function refreshAccessToken(refresh: string): Promise<string> {
-  if (refreshInFlight) return refreshInFlight
-
-  refreshInFlight = refreshClient
+function requestAccessToken(): Promise<string> {
+  return refreshClient
     .post<{ access: string }>(
       AUTH_PATHS.refresh,
-      { refresh },
-      { baseURL: apiClient.defaults.baseURL },
+      {},
+      { baseURL: apiClient.defaults.baseURL, headers: csrfHeaders() },
     )
     .then((response) => {
       session.setAccessToken(response.data.access)
       return response.data.access
     })
-    .finally(() => {
-      refreshInFlight = null
-    })
+}
 
+// N requisições com 401 ao mesmo tempo disparam uma renovação só. Entre abas não há
+// corrida: o cookie é o mesmo para todas e a renovação não o altera.
+let refreshInFlight: Promise<string> | null = null
+
+function refreshAccessToken(): Promise<string> {
+  refreshInFlight ??= requestAccessToken().finally(() => {
+    refreshInFlight = null
+  })
   return refreshInFlight
+}
+
+export async function restoreSession(): Promise<void> {
+  // O login grava os dois cookies, e este vive mais: sem ele não há sessão a restaurar.
+  if (csrfToken() === null) {
+    session.markAnonymous()
+    return
+  }
+
+  try {
+    await refreshAccessToken()
+  } catch (cause) {
+    const error = toApiError(cause)
+    // 401 no boot é o anônimo de todo dia; o resto é falha que merece registro.
+    if (error.status !== 401 && error.status !== 403) {
+      errorLogger.capture(error, { scope: 'auth-restore' })
+    }
+    session.markAnonymous()
+  }
 }
 
 function expireSession(cause: unknown): void {
@@ -97,8 +121,7 @@ apiClient.interceptors.response.use(
       throw toApiError(error)
     }
 
-    const refresh = session.getRefreshToken()
-    if (config._retried || refresh === null) {
+    if (config._retried || session.getStatus() !== 'authenticated') {
       expireSession(error)
       throw toApiError(error)
     }
@@ -106,7 +129,7 @@ apiClient.interceptors.response.use(
     // `_retried` antes do await: um replay por requisição.
     config._retried = true
     try {
-      await refreshAccessToken(refresh)
+      await refreshAccessToken()
     } catch (refreshCause) {
       expireSession(refreshCause)
       throw toApiError(error)

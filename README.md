@@ -75,6 +75,17 @@ docker compose run --rm --no-deps backend uv run python -c "import secrets; prin
 docker compose up --build
 ```
 
+> A demo serve em `http://localhost`, sem TLS, então o Compose sobe com
+> `COOKIE_SECURE=0` e os cookies saem sem a flag `Secure`. Sobre http, só
+> Chromium e Firefox aceitam cookie `Secure` em loopback; sem isso o login
+> responde 200 mas o cookie do refresh é descartado, e o F5 devolve a tela de
+> entrar. Atrás de TLS, `COOKIE_SECURE=1` (ver
+> [5.2](#52-matriz-de-variáveis-de-ambiente)).
+>
+> Para abrir a demo de outra máquina, pelo IP da rede, não basta: as rotas de
+> sessão comparam o `Origin`, então acrescente `http://<ip>:5173` a
+> `CSRF_TRUSTED_ORIGINS` no `.env` — senão renovar e sair respondem 403.
+
 O que acontece nessa ordem, sem nenhum script `.sh` no repositório (a cadeia
 vive no próprio `docker-compose.yml`): o `db` sobe e fica `healthy`; o backend
 roda `migrate`, `collectstatic` e `seed_demo`, e só então sobe o `gunicorn`; o
@@ -276,9 +287,9 @@ Três notas honestas sobre esse caminho:
 
 ## 3. Verificação: as suítes de teste
 
-Retrato de 04/09/2026: **369 testes de backend** (unitários puros do motor
+Retrato de 04/09/2026: **380 testes de backend** (unitários puros do motor
 financeiro, testes de banco com PostgreSQL real e testes de API ponta a ponta),
-**309 testes de frontend** em 47 arquivos (Vitest + Testing Library) e **7
+**325 testes de frontend** em 50 arquivos (Vitest + Testing Library) e **8
 cenários de e2e** (Playwright, 4 arquivos) contra o backend real. O número sobe
 conforme testes entram — os comandos abaixo é que valem como verdade, não a
 contagem.
@@ -312,7 +323,9 @@ puro fica para lógica sem UI (dinheiro, PII, datas, schemas com regra); e2e
 fica para o fluxo real contra o backend — só Chromium, porque o objetivo é
 provar o contrato ponta a ponta, não compatibilidade entre motores de
 navegador (nenhuma regra de negócio depende de um `overflow` ou de uma
-API do WebKit).
+API do WebKit). Um project `webkit` funcionaria com `COOKIE_SECURE=0`, o default
+da demo; com a flag ligada, o WebKit descarta cookie `Secure` sobre http e o dev
+precisaria de TLS.
 
 **Cobertura condicionada ao que importa, não perseguida como meta.** O piso
 global é propositalmente baixo (80% de linhas) — é um alarme contra regressão
@@ -350,7 +363,7 @@ o que permite rodar só uma fatia: `pnpm test -- --run -t "RN5"` no frontend,
 | RF5 | `test_pending_checkin_lists_pending` | `GuestTable.test.tsx::test_tab_pending_switches_dataset` | `reception.spec.ts` |
 | RF6 | `test_checkin_after_14_succeeds` | `EarlyCheckinFlow.test.tsx::test_checkin_success_updates_row` | `reception.spec.ts` |
 | RF7 | `test_checkout_freezes_totals` | `CheckoutStatementDialog.test.tsx::test_T7_full_statement` | `reception.spec.ts`, `checkout.spec.ts` |
-| RF8 | `test_login_returns_access_refresh` | `ProtectedRoute.test.tsx::test_redirects_anonymous_to_login` | `login.spec.ts`, `admin.spec.ts` |
+| RF8 | `test_login_returns_access_and_sets_refresh_cookie` | `ProtectedRoute.test.tsx::test_redirects_anonymous_to_login` | `login.spec.ts`, `admin.spec.ts` |
 | RN1 | `test_truth_table[T1]`, `[T4]` | `test_T1_no_late_fee_line` | `checkout.spec.ts` |
 | RN2 | `test_truth_table[T2]` | `test_T7_full_statement` | `checkout.spec.ts` |
 | RN3 | `test_truth_table[T2]`, `[T3]`, `[T9]` | `test_T7_full_statement` | `checkout.spec.ts` |
@@ -508,11 +521,15 @@ fora dele, exporte com `set -a && . ../.env && set +a`, como na seção 2.
 |---|---|---|---|
 | `SECRET_KEY` | **sim** | `insecure-dev-key-change-me` | Assinatura do Django. Gere a sua (5.1). |
 | `DEBUG` | não | `0` | O Compose fixa `0` no serviço `backend`. |
+| `COOKIE_SECURE` | não | `not DEBUG` | Flag `Secure` dos cookies (sessão, `csrftoken` e refresh). O `.env.example` e o Compose usam `0`: sobre `http://`, só Chromium e Firefox aceitam cookie `Secure` em loopback; Safari e IPs de rede o descartam. Atrás de TLS, `1`. |
 | `ALLOWED_HOSTS` | não | `localhost,127.0.0.1,backend` | O Compose fixa o valor acima. |
+| `CSRF_TRUSTED_ORIGINS` | não | `http://localhost:5173,http://127.0.0.1:5173` | Origens que o CSRF aceita. O proxy do Vite reescreve o `Host` mas repassa o `Origin` do navegador; sem esta lista as rotas de sessão respondem 403. O `127.0.0.1` é o `baseURL` do Playwright. |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | não | `hotel` / `hotel` / `hotel` | Credenciais do banco; valem para o serviço `db` e para o backend. |
 | `DB_HOST` | não | `localhost` | Host do banco **visto pelo backend**. O Compose injeta `db`; o default serve ao caminho híbrido. |
 | `DB_PORT` | não | `5432` | Porta do banco **vista pelo backend**. O Compose injeta `5432` (rede interna); no caminho híbrido, iguale a `DB_PORT_HOST`. |
 | `DB_PORT_HOST` | não | `5432` | Porta que o serviço `db` **publica no host**. Troque (ex.: `5433`) se 5432 já estiver em uso na sua máquina — foi exatamente o caso na máquina de desenvolvimento deste projeto. |
+| `THROTTLE_LOGIN` | não | `10/min` | Limite do login, por IP. |
+| `THROTTLE_REFRESH` | não | `60/min` | Limite da renovação, por IP. Escopo próprio: o boot do frontend renova a cada carga de página, e o balcão divide um IP atrás do NAT. |
 | `SECURE_HSTS_SECONDS` | não | `31536000` | HSTS; só tem efeito atrás de TLS. |
 | `ANTHROPIC_API_KEY` | não | vazio | **Liga** o diferencial de IA da seção 5.4. Vazio = feature desligada. |
 | `ANTHROPIC_MODEL` | não | `claude-haiku-4-5` | Modelo usado pela extração, quando a IA está ligada. Não consta do `.env.example` por ser opcional; se você a adicionar ao `.env`, o Compose a entrega ao backend como qualquer outra. |
@@ -592,15 +609,22 @@ tocar em nada que o briefing pede.
 
 ## 6. Mapa da API
 
-Base `/api/`. Autenticação `Authorization: Bearer <access>` (JWT, access de 60
-min, refresh de 12 h). Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
+Base `/api/`. Rotas de negócio com `Authorization: Bearer <access>` (JWT, access
+de 60 min, **em memória no cliente**). O refresh não trafega em JSON: sai num
+cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/auth/`, e o `exp` fixado no
+login é o teto de 12 h: renovar não estende a sessão. As duas rotas
+que se autenticam por esse cookie (`/auth/token/refresh/` e `/auth/logout/`)
+exigem `X-CSRFToken`; as de negócio não precisam, porque header não é credencial
+ambiente. O desenho inteiro está em `backend/docs/TECHNICAL_GUIDE.md`.
+Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 (`"120.00"`) — o frontend formata, nunca calcula. Paginação padrão do DRF
 (`page_size=20`).
 
 | Método & rota | Auth | Função |
 |---|---|---|
-| `POST /api/auth/token/` | — | Login → `{access, refresh}` |
-| `POST /api/auth/token/refresh/` | — | Renova o access |
+| `POST /api/auth/token/` | — | Login → `{access}` no corpo + refresh no cookie |
+| `POST /api/auth/token/refresh/` | — | Renova o access a partir do cookie (exige `X-CSRFToken`) |
+| `POST /api/auth/logout/` | — | Revoga o refresh na denylist e apaga o cookie (exige `X-CSRFToken`) |
 | `GET /api/auth/me/` | ✔ | `{id, username, role}` — o papel vem do servidor, nunca do token |
 | `GET /api/health/` | — | `{"status":"ok"}` (healthcheck do Compose) |
 | `GET /api/rooms/` · `/{id}/` | ✔ | Inventário (`?is_active=false` inclui os desativados) |
@@ -674,7 +698,8 @@ hotel-management/
         │                       #   e app/layout/: AppLayout (menu), SessionMenu, PageFallback
         ├── pages/              # uma pasta por rota (Página.tsx + testes + index.ts);
         │                       #   não conhece `app/`
-        ├── lib/                # sem UI: api (apiClient, Bearer + refresh-once),
+        ├── lib/                # sem UI: api (apiClient, Bearer + refresh-once pelo cookie),
+        │                       #   auth (session em memória, csrf),
         │                       #   errors, format (money, dates, pii, countries),
         │                       #   forms (schemas/normalize, zod), a11y (foco),
         │                       #   auth (sessão), notify (toast), routing, utils (cn)
@@ -809,15 +834,30 @@ do Swagger; headers de nosniff, referrer-policy e clickjacking; imagens Docker
 rodando como usuário **non-root**; assets do Swagger servidos localmente
 (funciona offline).
 
-E o trade-off que fica em aberto, dito com o nome certo: os tokens vivem em
-`localStorage` (`frontend/src/lib/session.ts`), logo um XSS na aplicação os lê.
-O que limita o dano é o access de 60 min, o refresh de 12 h e a ausência de
-script de terceiro na página — **não** uma CSP, porque quem serve o documento
-HTML da aplicação é o Vite, e o cabeçalho de CSP vem do middleware do Django,
-que não serve essa página. As duas alternativas custam mais do que valem aqui:
-cookie `HttpOnly` + CSRF exigiria endpoint que a API não expõe, e servir a
-aplicação por nginx com CSP própria trocaria o caminho canônico do Compose. Fica
-registrado como evolução, não escondido como defeito.
+Sobre o trade-off que este README registrava como evolução em aberto — "os
+tokens vivem em `localStorage`, logo um XSS os lê" —: **ele foi fechado.**
+Nenhuma credencial mora em disco. O access fica numa variável de módulo
+(`frontend/src/lib/auth/session.ts`) e morre com a aba; o refresh saiu do
+alcance de qualquer script, num cookie `HttpOnly; Secure; SameSite=Strict;
+Path=/api/auth/` que o navegador só anexa às duas rotas de sessão. Há teste em
+cada camada afirmando que `localStorage` e `sessionStorage` ficam vazios.
+
+O que veio junto: `POST /auth/logout/` que revoga o refresh na denylist do
+servidor — antes "Sair" só limpava o cliente e o refresh seguia válido 12 h — e um
+teto absoluto de sessão, sem código próprio: o `exp` fixado no login é o prazo, e
+renovar devolve um access novo sem estendê-lo. O CSRF ficou confinado às rotas de
+cookie: rota autenticada por `Bearer` é imune por construção, já que o navegador
+não anexa header sozinho.
+`backend/docs/TECHNICAL_GUIDE.md` explica cada uma dessas decisões, incluindo
+por que a denylist não foi para o Redis e por que a sessão nativa do Django foi
+avaliada e recusada.
+
+O que **continua** em aberto, dito com o nome certo: a CSP não cobre o
+documento HTML da aplicação, porque quem o serve é o Vite e o cabeçalho vem do
+middleware do Django. Com XSS ativo na página, `HttpOnly` impede a exfiltração
+do refresh, não o abuso da sessão enquanto a aba está aberta. Servir a aplicação
+por nginx com CSP própria trocaria o caminho canônico do Compose, e fica
+registrado como o próximo passo — não escondido como defeito.
 
 ---
 

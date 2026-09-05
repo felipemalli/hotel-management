@@ -49,7 +49,7 @@ describe('AppLayout', () => {
 
   it('mostra o chip quando o servidor diz que o usuario e admin', async () => {
     vi.mocked(fetchCurrentUser).mockResolvedValue(ADMIN)
-    signInForTest('admin')
+    signInForTest()
     renderLayout()
 
     expect(await screen.findByText('admin', { selector: 'span' })).toBeInTheDocument()
@@ -72,17 +72,26 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: 'Recepção' })).not.toHaveAttribute('aria-current')
   })
 
-  it('mostra o atendente da sessao e oferece o menu para encerra-la', () => {
-    signInForTest('gerencia')
+  it('mostra o atendente que o servidor identificou e oferece o menu para encerrar', async () => {
+    vi.mocked(fetchCurrentUser).mockResolvedValue({ ...ATTENDANT, username: 'gerencia' })
+    signInForTest()
     renderLayout()
 
-    expect(screen.getByText('gerencia')).toBeInTheDocument()
+    expect(await screen.findByText('gerencia')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Menu da sessão' })).toBeInTheDocument()
+  })
+
+  it('cai no rotulo generico enquanto a identidade nao chegou', () => {
+    vi.mocked(fetchCurrentUser).mockReturnValue(new Promise(() => undefined))
+    signInForTest()
+    renderLayout()
+
+    expect(screen.getByText('atendente')).toBeInTheDocument()
   })
 
   // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('encerra a sessao', () => {
-    signInForTest('gerencia')
+    signInForTest()
     renderLayout()
 
     session.clear()

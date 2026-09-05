@@ -6,7 +6,7 @@ const CI = !!process.env.CI
 // repetido; ANTHROPIC_API_KEY vazio tira o botão de IA do cadastro.
 const BACKEND_COMMAND =
   '[ -f ../.env ] && . ../.env; ' +
-  'THROTTLE_LOGIN=1000/min ANTHROPIC_API_KEY= ' +
+  'THROTTLE_LOGIN=1000/min THROTTLE_REFRESH=1000/min ANTHROPIC_API_KEY= ' +
   'uv run gunicorn config.wsgi -b 127.0.0.1:8000'
 
 export default defineConfig({

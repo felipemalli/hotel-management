@@ -1,7 +1,7 @@
 import { apiClient, AUTH_PATHS, parseResponse } from '@/lib/api/apiClient'
-import type { TokenPair } from '@/lib/auth/session'
+import { csrfHeaders } from '@/lib/auth/csrf'
 
-import { currentUserSchema, tokenPairSchema } from './schemas'
+import { currentUserSchema, sessionTokenSchema } from './schemas'
 import type { CurrentUser } from './types'
 
 export interface Credentials {
@@ -9,9 +9,17 @@ export interface Credentials {
   password: string
 }
 
-export async function login(credentials: Credentials): Promise<TokenPair> {
+export interface SessionToken {
+  access: string
+}
+
+export async function login(credentials: Credentials): Promise<SessionToken> {
   const response = await apiClient.post<unknown>(AUTH_PATHS.token, credentials)
-  return parseResponse(tokenPairSchema, response)
+  return parseResponse(sessionTokenSchema, response)
+}
+
+export async function logout(): Promise<void> {
+  await apiClient.post(AUTH_PATHS.logout, {}, { headers: csrfHeaders() })
 }
 
 // Papel não viaja no token: a claim é opaca e não expiraria com mudança fora da sessão.
