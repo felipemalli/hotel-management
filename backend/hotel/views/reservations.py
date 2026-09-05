@@ -57,6 +57,12 @@ from hotel.views.openapi import (
                 required=False,
                 type=bool,
             ),
+            OpenApiParameter(
+                name="search",
+                description="Nº da reserva (com ou sem '#'), titular ou quarto, por fragmento.",
+                required=False,
+                type=str,
+            ),
         ],
         responses={200: ReservationSerializer(many=True), 400: ErrorEnvelopeSerializer},
     ),
@@ -118,6 +124,7 @@ class ReservationViewSet(
             status=query.validated_data.get("status"),
             guest_id=query.validated_data.get("guest"),
             paid=query.validated_data.get("paid"),
+            search=query.validated_data.get("search"),
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:

@@ -17,7 +17,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section
       aria-labelledby={id}
-      className="flex flex-col gap-3 rounded-lg bg-white p-5 ring-1 ring-slate-200"
+      className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6 shadow-sm"
     >
       <Typography as="h3" id={id} variant="cardTitle">
         {title}
@@ -25,6 +25,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       {children}
     </section>
   )
+}
+
+function initialsOf(fullName: string): string {
+  return fullName
+    .split(' ')
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
 }
 
 // Ausência é travessão, nunca R$ 0,00 (zero é valor cobrado).
@@ -60,42 +68,53 @@ export function ReservationPeopleSection({
 }) {
   return (
     <Section title="Pessoas">
-      <div className="flex flex-col gap-1">
-        <Typography as="p" variant="overline">
-          Titular
-        </Typography>
-        {guest.isPending ? (
-          <Typography as="p" variant="body" tone="muted">
-            Carregando…
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-8 gap-y-4">
+        <div className="flex flex-col gap-2">
+          <Typography as="p" variant="overline">
+            Titular
           </Typography>
-        ) : guest.isError ? (
-          <ErrorState message={errorMessage(guest.error)} onRetry={() => void guest.refetch()} />
-        ) : (
-          <Typography as="p" variant="body">
-            {guest.data.full_name}{' '}
-            <Typography as="span" variant="mono" tone="muted">
-              {formatDocument(guest.data.document)} · {formatPhone(guest.data.phone)} ·{' '}
-              <span title={countryName(guest.data.nationality)}>{guest.data.nationality}</span>
+          {guest.isPending ? (
+            <Typography as="p" variant="body" tone="muted">
+              Carregando…
             </Typography>
-          </Typography>
-        )}
-      </div>
+          ) : guest.isError ? (
+            <ErrorState message={errorMessage(guest.error)} onRetry={() => void guest.refetch()} />
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-8 flex-none items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold text-muted-foreground">
+                {initialsOf(guest.data.full_name)}
+              </div>
+              <div>
+                <Typography as="p" variant="body" weight="medium">
+                  {guest.data.full_name}
+                </Typography>
+                <Typography as="p" variant="mono" tone="muted">
+                  {formatDocument(guest.data.document)} · {formatPhone(guest.data.phone)} ·{' '}
+                  <span title={countryName(guest.data.nationality)}>{guest.data.nationality}</span>
+                </Typography>
+              </div>
+            </div>
+          )}
+        </div>
 
-      <div className="flex flex-col gap-1">
-        <Typography as="p" variant="overline">
-          Acompanhantes
-        </Typography>
-        {reservation.companions.length === 0 ? (
-          <Typography as="p" variant="body" tone="muted">
-            Sem acompanhantes
+        <div className="flex flex-col gap-2">
+          <Typography as="p" variant="overline">
+            Acompanhantes
           </Typography>
-        ) : (
-          <ul className="flex flex-col gap-0.5 text-sm text-slate-900">
-            {reservation.companions.map((companion) => (
-              <li key={companion.id}>{companion.full_name}</li>
-            ))}
-          </ul>
-        )}
+          {reservation.companions.length === 0 ? (
+            <Typography as="p" variant="body" tone="muted">
+              Sem acompanhantes
+            </Typography>
+          ) : (
+            <ul className="flex flex-col gap-0.5">
+              {reservation.companions.map((companion) => (
+                <Typography as="li" key={companion.id} variant="body">
+                  {companion.full_name}
+                </Typography>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </Section>
   )
@@ -104,9 +123,17 @@ export function ReservationPeopleSection({
 export function ReservationHistorySection({ reservation }: { reservation: Reservation }) {
   return (
     <Section title="Histórico">
-      <ol className="flex flex-col gap-1 text-sm text-slate-700">
+      <ol className="flex flex-col gap-3">
         {historyEntries(reservation).map((entry) => (
-          <li key={entry.label}>{describeEntry(entry)}</li>
+          <li key={entry.label} className="flex items-baseline gap-2.5">
+            <span
+              aria-hidden="true"
+              className="size-1.5 flex-none -translate-y-px rounded-full bg-muted-foreground/50"
+            />
+            <Typography as="span" variant="body">
+              {describeEntry(entry)}
+            </Typography>
+          </li>
         ))}
       </ol>
     </Section>
@@ -117,37 +144,51 @@ export function ReservationAccountSection({ reservation }: { reservation: Reserv
   // Os três campos do pagamento são nulos juntos; ler o método estreita o tipo.
   const method = reservation.payment_method
 
+  const lines = [
+    { label: 'Diárias', value: money(reservation.total_daily) },
+    { label: 'Vaga', value: money(reservation.total_parking) },
+    {
+      // Base da multa, não o fator: o extrato congelado não carrega o fator.
+      label: 'Multa de checkout tardio',
+      value:
+        reservation.late_fee_base === null
+          ? '—'
+          : `${money(reservation.late_fee)} (base ${money(reservation.late_fee_base)})`,
+    },
+  ]
+  const paymentLine =
+    method === null
+      ? 'Em aberto'
+      : `${PAYMENT_METHOD_LABELS[method]} · por ${reservation.paid_by?.username ?? 'sistema'}`
+
   return (
     <Section title="Conta">
-      <DescriptionList
-        items={[
-          { label: 'Diárias', value: money(reservation.total_daily) },
-          { label: 'Vaga', value: money(reservation.total_parking) },
-          {
-            // Base da multa, não o fator: o extrato congelado não carrega o fator.
-            label: 'Multa de checkout tardio',
-            value:
-              reservation.late_fee_base === null
-                ? '—'
-                : `${money(reservation.late_fee)} (base ${money(reservation.late_fee_base)})`,
-          },
-          {
-            label: 'Total',
-            value: (
-              <Typography as="strong" variant="body" className="text-base">
-                {money(reservation.total_amount)}
-              </Typography>
-            ),
-          },
-          {
-            label: 'Pagamento',
-            value:
-              method === null
-                ? 'Em aberto'
-                : `${PAYMENT_METHOD_LABELS[method]} · por ${reservation.paid_by?.username ?? 'sistema'}`,
-          },
-        ]}
-      />
+      <dl className="flex flex-col gap-3">
+        {lines.map((line) => (
+          <div key={line.label} className="flex items-baseline justify-between gap-4">
+            <Typography as="dt" variant="body" tone="muted">
+              {line.label}
+            </Typography>
+            <Typography as="dd" variant="mono">
+              {line.value}
+            </Typography>
+          </div>
+        ))}
+      </dl>
+
+      <div className="-mx-6 -mb-6 flex flex-wrap items-baseline justify-between gap-4 border-t border-border bg-muted/40 px-6 py-4">
+        <div>
+          <Typography as="p" variant="body" weight="semibold">
+            Total
+          </Typography>
+          <Typography as="p" variant="caption">
+            {paymentLine}
+          </Typography>
+        </div>
+        <Typography as="p" variant="mono" className="text-lg font-semibold">
+          {money(reservation.total_amount)}
+        </Typography>
+      </div>
     </Section>
   )
 }

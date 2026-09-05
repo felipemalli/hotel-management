@@ -1,8 +1,9 @@
+import { ArrowLeftIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { Alert, EmptyState, ErrorState } from '@/components/common'
-import { Button, Typography } from '@/components/ui'
+import { Alert, EmptyState, ErrorState, PageHeader } from '@/components/common'
+import { Button, buttonVariants, Typography } from '@/components/ui'
 import { useGuest } from '@/features/guests/hooks'
 import { CancelReservationDialog } from '@/features/reservations/components/CancelReservationDialog'
 import { CheckoutStatementDialog } from '@/features/reservations/components/CheckoutStatementDialog'
@@ -55,17 +56,24 @@ export function ReservationDetailPage() {
 
   return (
     <article className="flex flex-col gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Typography as="h2" variant="pageTitle">
-            Reserva #{current.id}
-          </Typography>
-          <ReservationStatusBadge status={current.status} />
-        </div>
-        <Link to={ROUTES.reservations} className="text-sm text-slate-600 underline">
-          Voltar às reservas
-        </Link>
-      </header>
+      <PageHeader
+        title={`Reserva #${current.id}`}
+        breadcrumb={
+          <>
+            Hotel Vila Marés{' '}
+            <Link to={ROUTES.reservations} className="underline decoration-border">
+              Reservas
+            </Link>
+          </>
+        }
+        badge={<ReservationStatusBadge status={current.status} />}
+        actions={
+          <Link to={ROUTES.reservations} className={buttonVariants({ variant: 'outline' })}>
+            <ArrowLeftIcon className="size-4 opacity-60" aria-hidden="true" />
+            Voltar às reservas
+          </Link>
+        }
+      />
 
       <ReservationStaySection reservation={current} />
       <ReservationPeopleSection reservation={current} guest={guest} />
@@ -127,7 +135,7 @@ function NotFound() {
   return (
     <div className="flex flex-col items-start gap-3">
       <EmptyState message="Reserva não encontrada" />
-      <Link to={ROUTES.reservations} className="text-sm text-slate-600 underline">
+      <Link to={ROUTES.reservations} className="text-sm text-muted-foreground underline">
         Voltar às reservas
       </Link>
     </div>

@@ -15,12 +15,12 @@ paths: frontend/src/**/*.test.{ts,tsx}, frontend/src/test/**, frontend/vite.conf
 
 ## Qual teste para quê
 
-| O que você quer provar | Onde | Como |
-| --- | --- | --- |
-| Função pura, sem UI (dinheiro, data, PII, schema com regra) | `lib/**/*.test.ts`, `features/*/schemas.test.ts` | `vitest` direto, sem montar nada |
-| Componente ou feature isolado | `Componente.test.tsx` ao lado do componente | `renderWithProviders` (`@/test/renderWithProviders`) |
-| Página inteira, ou um fluxo que atravessa páginas | `pages/<Página>/*.test.tsx` (flows ficam ao lado da página que exercitam, não da feature) | `renderPage` (`@/test/renderPage`) — monta dentro do `AppLayout` real |
-| Fluxo real contra o backend rodando | `frontend/e2e/*.spec.ts` | Playwright — único lugar onde a interação de `Select`/`DropdownMenu` é provada (ver gotcha abaixo) |
+| O que você quer provar                                      | Onde                                                                                      | Como                                                                                               |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Função pura, sem UI (dinheiro, data, PII, schema com regra) | `lib/**/*.test.ts`, `features/*/schemas.test.ts`                                          | `vitest` direto, sem montar nada                                                                   |
+| Componente ou feature isolado                               | `Componente.test.tsx` ao lado do componente                                               | `renderWithProviders` (`@/test/renderWithProviders`)                                               |
+| Página inteira, ou um fluxo que atravessa páginas           | `pages/<Página>/*.test.tsx` (flows ficam ao lado da página que exercitam, não da feature) | `renderPage` (`@/test/renderPage`) — monta dentro do `AppLayout` real                              |
+| Fluxo real contra o backend rodando                         | `frontend/e2e/*.spec.ts`                                                                  | Playwright — único lugar onde a interação de `Select`/`DropdownMenu` é provada (ver gotcha abaixo) |
 
 ## Esqueleto real
 
@@ -41,7 +41,9 @@ describe('RoomDeactivateDialog', () => {
   it('desativa apos confirmar e avisa por toast', async () => {
     const user = userEvent.setup()
     vi.mocked(updateRoom).mockResolvedValue({ ...ROOM_101, is_active: false })
-    renderWithProviders(<RoomDeactivateDialog room={ROOM_101} onClose={vi.fn()} onDeactivated={vi.fn()} />)
+    renderWithProviders(
+      <RoomDeactivateDialog room={ROOM_101} onClose={vi.fn()} onDeactivated={vi.fn()} />,
+    )
 
     await user.click(screen.getByRole('button', { name: 'Desativar' }))
 

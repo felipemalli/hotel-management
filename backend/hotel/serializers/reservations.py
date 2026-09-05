@@ -132,6 +132,11 @@ class ReservationListQuerySerializer(serializers.Serializer):
         default=None,
         help_text="`true` só contas pagas, `false` só em aberto.",
     )
+    search = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Nº da reserva (com ou sem '#'), titular ou quarto, por fragmento.",
+    )
 
 
 class CheckInRequestSerializer(serializers.Serializer):

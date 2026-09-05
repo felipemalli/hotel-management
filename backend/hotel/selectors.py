@@ -13,12 +13,7 @@ ACTIVE_COMPANION_RESERVATIONS_ATTR = "active_companion_reservations"
 PENDING_COMPANION_RESERVATIONS_ATTR = "pending_companion_reservations"
 
 
-def search_guests(term: str | None = None) -> QuerySet[Guest]:
-    queryset = Guest.objects.all()
-    term = (term or "").strip()
-    if not term:
-        return queryset
-
+def _guest_search_predicate(term: str) -> Q:
     predicate = Q(full_name__icontains=term)
 
     document = normalize_document(term)
@@ -29,39 +24,56 @@ def search_guests(term: str | None = None) -> QuerySet[Guest]:
     if phone:
         predicate |= Q(phone__icontains=phone)
 
-    return queryset.filter(predicate)
+    return predicate
 
 
-def _by_status(status: str, *, attr_own: str, attr_companion: str) -> QuerySet[Guest]:
+def search_guests(term: str | None = None) -> QuerySet[Guest]:
+    queryset = Guest.objects.all()
+    term = (term or "").strip()
+    if not term:
+        return queryset
+
+    return queryset.filter(_guest_search_predicate(term))
+
+
+def _by_status(
+    status: str, *, attr_own: str, attr_companion: str, search: str | None = None
+) -> QuerySet[Guest]:
     # Raiz em Guest para a paginacao contar pessoas. distinct(): OR sobre duas
     # relacoes multivaloradas duplica a linha. Dois Prefetches: os nomes do ORM
     # (reservations / companion_reservations) nao se unificam.
     reservations = Reservation.objects.filter(status=status).select_related("room")
-    return (
-        Guest.objects.filter(
-            Q(reservations__status=status) | Q(companion_reservations__status=status)
-        )
-        .prefetch_related(
-            Prefetch("reservations", queryset=reservations, to_attr=attr_own),
-            Prefetch("companion_reservations", queryset=reservations, to_attr=attr_companion),
-        )
-        .distinct()
+    queryset = Guest.objects.filter(
+        Q(reservations__status=status) | Q(companion_reservations__status=status)
     )
 
+    # O termo casa a pessoa da linha, nao o titular: acompanhante achado pelo
+    # proprio nome continua na lista da aba.
+    term = (search or "").strip()
+    if term:
+        queryset = queryset.filter(_guest_search_predicate(term))
 
-def guests_in_hotel() -> QuerySet[Guest]:
+    return queryset.prefetch_related(
+        Prefetch("reservations", queryset=reservations, to_attr=attr_own),
+        Prefetch("companion_reservations", queryset=reservations, to_attr=attr_companion),
+    ).distinct()
+
+
+def guests_in_hotel(search: str | None = None) -> QuerySet[Guest]:
     return _by_status(
         ReservationStatus.CHECKED_IN,
         attr_own=ACTIVE_RESERVATIONS_ATTR,
         attr_companion=ACTIVE_COMPANION_RESERVATIONS_ATTR,
+        search=search,
     )
 
 
-def guests_pending_checkin() -> QuerySet[Guest]:
+def guests_pending_checkin(search: str | None = None) -> QuerySet[Guest]:
     return _by_status(
         ReservationStatus.PENDING,
         attr_own=PENDING_RESERVATIONS_ATTR,
         attr_companion=PENDING_COMPANION_RESERVATIONS_ATTR,
+        search=search,
     )
 
 
@@ -88,6 +100,7 @@ def list_reservations(
     status: str | None = None,
     guest_id: int | None = None,
     paid: bool | None = None,
+    search: str | None = None,
 ):
     queryset = reservation_queryset()
     if status:
@@ -96,7 +109,20 @@ def list_reservations(
         queryset = queryset.filter(guest_id=guest_id)
     if paid is not None:
         queryset = queryset.filter(paid_at__isnull=not paid)
+    if search:
+        queryset = queryset.filter(_reservation_search_predicate(search))
     return queryset
+
+
+def _reservation_search_predicate(term: str) -> Q:
+    # Nº da reserva (com ou sem "#"), titular ou quarto — nunca acompanhante:
+    # a tela lista por reserva, e o papel de acompanhante não é um campo aqui.
+    term = term.strip()
+    predicate = Q(guest__full_name__icontains=term) | Q(room__number__icontains=term)
+    numeric = term.removeprefix("#")
+    if numeric.isdigit():
+        predicate |= Q(pk=int(numeric))
+    return predicate
 
 
 def policy_in_force(at: datetime) -> PricingPolicy:
@@ -121,10 +147,13 @@ def list_policies() -> QuerySet[PricingPolicy]:
 OCCUPYING_STATUSES = (ReservationStatus.PENDING, ReservationStatus.CHECKED_IN)
 
 
-def list_rooms(*, active_only: bool = True) -> QuerySet[Room]:
+def list_rooms(*, active_only: bool = True, search: str | None = None) -> QuerySet[Room]:
     queryset = Room.objects.all()
     if active_only:
         queryset = queryset.filter(is_active=True)
+    search = (search or "").strip()
+    if search:
+        queryset = queryset.filter(number__icontains=search)
     return queryset
 
 

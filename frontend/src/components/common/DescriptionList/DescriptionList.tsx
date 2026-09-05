@@ -13,7 +13,7 @@ export interface DescriptionListProps {
 
 export function DescriptionList({ items }: DescriptionListProps) {
   return (
-    <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+    <dl className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-x-8 gap-y-4">
       {items.map((item) => (
         <div key={item.label}>
           <Typography as="dt" variant="overline">

@@ -3,8 +3,8 @@ import type { RowData } from '@tanstack/react-table'
 import { type ReactNode, useMemo, useState } from 'react'
 
 import type { DataTableColumns } from '@/components/common'
-import { DataTable, ErrorState, FormField, PageHeader, Pagination } from '@/components/common'
-import { Input, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
+import { DataTable, ErrorState, PageHeader, SearchField } from '@/components/common'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui'
 import { useGuests, useGuestsInHotel, useGuestsPendingCheckin } from '@/features/guests/hooks'
 import { errorMessage } from '@/lib/errors/errors'
 import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
@@ -13,9 +13,9 @@ import { allColumns, inHotelColumns, pendingColumns } from './columns'
 import {
   allRowId,
   GUEST_TAB_CAPTIONS,
-  GUEST_TAB_EMPTY_MESSAGES,
   GUEST_TAB_ITEMS,
   type GuestAllRow,
+  guestEmptyMessage,
   type GuestInHotelRow,
   type GuestPendingRow,
   type GuestTab,
@@ -75,25 +75,19 @@ function GuestTabPanel<Row extends RowData>({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <DataTable
-        columns={columns}
-        data={rows}
-        caption={caption}
-        getRowId={getRowId}
-        isLoading={query.isPending}
-        emptyMessage={emptyMessage}
-      />
-      {query.isSuccess && rows.length > 0 ? (
-        <Pagination
-          page={page}
-          count={count}
-          hasNext={hasNext}
-          hasPrevious={hasPrevious}
-          onPageChange={onPageChange}
-        />
-      ) : null}
-    </div>
+    <DataTable
+      columns={columns}
+      data={rows}
+      caption={caption}
+      getRowId={getRowId}
+      isLoading={query.isPending}
+      emptyMessage={emptyMessage}
+      pagination={
+        query.isSuccess && rows.length > 0
+          ? { page, count, hasNext, hasPrevious, onPageChange }
+          : undefined
+      }
+    />
   )
 }
 
@@ -104,8 +98,10 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
   const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS)
 
   const all = useGuests(debouncedSearch, page, { enabled: tab === 'all' })
-  const inHotel = useGuestsInHotel(page, { enabled: tab === 'in-hotel' })
-  const pending = useGuestsPendingCheckin(page, { enabled: tab === 'pending-checkin' })
+  const inHotel = useGuestsInHotel(debouncedSearch, page, { enabled: tab === 'in-hotel' })
+  const pending = useGuestsPendingCheckin(debouncedSearch, page, {
+    enabled: tab === 'pending-checkin',
+  })
 
   const allRows = toAllRows(all.data)
   const inHotelRows = toInHotelRows(inHotel.data)
@@ -133,45 +129,36 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
   }
 
   return (
-    <Tabs value={tab} onValueChange={changeTab}>
+    <Tabs value={tab} onValueChange={changeTab} className="flex flex-col gap-4">
       <PageHeader
-        title="Recepção"
+        title="Hóspedes"
         titleId="recepcao-titulo"
+        breadcrumb="Hotel Vila Marés"
+        description="Hóspedes cadastrados, quem está no hotel agora e os check-ins previstos."
         actions={headerActions}
         updating={query.isFetching && !query.isPending}
-      >
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <TabsList aria-label="Listagens de hóspedes">
-            {GUEST_TAB_ITEMS.map((item) => (
-              <TabsTrigger key={item.id} value={item.id}>
-                {item.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      />
 
-          {tab === 'all' ? (
-            <div className="w-full sm:w-80">
-              <FormField
-                label="Buscar hóspede"
-                hint="Nome, documento ou telefone — busca por fragmento."
-              >
-                {(control) => (
-                  <Input
-                    type="search"
-                    placeholder="Nome, documento ou telefone"
-                    value={search}
-                    onChange={(event) => {
-                      setSearch(event.target.value)
-                      setPage(1)
-                    }}
-                    {...control}
-                  />
-                )}
-              </FormField>
-            </div>
-          ) : null}
-        </div>
-      </PageHeader>
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchField
+          label="Buscar hóspede"
+          placeholder="Nome, documento ou telefone"
+          value={search}
+          onChange={(value) => {
+            setSearch(value)
+            setPage(1)
+          }}
+          className="w-full sm:w-72"
+        />
+
+        <TabsList aria-label="Listagens de hóspedes">
+          {GUEST_TAB_ITEMS.map((item) => (
+            <TabsTrigger key={item.id} value={item.id}>
+              {item.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
 
       <p aria-live="polite" className="sr-only">
         {query.isSuccess && !query.isPlaceholderData ? resultAnnouncement(rowCount) : ''}
@@ -183,7 +170,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
           rows={allRows}
           columns={allTableColumns}
           caption={GUEST_TAB_CAPTIONS.all}
-          emptyMessage={GUEST_TAB_EMPTY_MESSAGES.all}
+          emptyMessage={guestEmptyMessage('all', debouncedSearch)}
           getRowId={allRowId}
           page={page}
           count={all.data?.count ?? 0}
@@ -199,7 +186,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
           rows={inHotelRows}
           columns={inHotelTableColumns}
           caption={GUEST_TAB_CAPTIONS['in-hotel']}
-          emptyMessage={GUEST_TAB_EMPTY_MESSAGES['in-hotel']}
+          emptyMessage={guestEmptyMessage('in-hotel', debouncedSearch)}
           getRowId={partyRowId}
           page={page}
           count={inHotel.data?.count ?? 0}
@@ -215,7 +202,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
           rows={pendingRows}
           columns={pendingTableColumns}
           caption={GUEST_TAB_CAPTIONS['pending-checkin']}
-          emptyMessage={GUEST_TAB_EMPTY_MESSAGES['pending-checkin']}
+          emptyMessage={guestEmptyMessage('pending-checkin', debouncedSearch)}
           getRowId={partyRowId}
           page={page}
           count={pending.data?.count ?? 0}

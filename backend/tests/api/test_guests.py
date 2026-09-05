@@ -205,6 +205,25 @@ def test_pending_checkin_endpoint_shape(auth_client):
     assert [item["id"] for item in row["pending_reservations"]] == [overdue.pk, upcoming.pk]
 
 
+def test_tab_endpoints_accept_search(auth_client):
+    """A busca da tela vale nas tres abas: `?search=` compoe com o status."""
+    ana = GuestFactory(full_name="Ana Souza", document="123.456.789-01")
+    ReservationFactory(guest=ana, checked_in=True)
+    ReservationFactory(guest=GuestFactory(full_name="Bruno Lima"), checked_in=True)
+    ReservationFactory(guest=GuestFactory(full_name="Ana Prado"))  # PENDING
+
+    in_hotel = auth_client.get("/api/guests/in-hotel/", {"search": "ana"})
+    assert [row["full_name"] for row in in_hotel.data["results"]] == ["Ana Souza"]
+
+    by_document = auth_client.get("/api/guests/in-hotel/", {"search": "789"})
+    assert [row["full_name"] for row in by_document.data["results"]] == ["Ana Souza"]
+
+    pending = auth_client.get("/api/guests/pending-checkin/", {"search": "ana"})
+    assert [row["full_name"] for row in pending.data["results"]] == ["Ana Prado"]
+
+    assert auth_client.get("/api/guests/in-hotel/", {"search": "davi"}).data["count"] == 0
+
+
 def test_guest_status_reflects_reservation_states(auth_client):
     """Sanidade das abas: cancelada nao esta em nenhuma delas (D8)."""
     guest = GuestFactory(full_name="Ana Souza")

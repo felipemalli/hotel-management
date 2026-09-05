@@ -34,7 +34,6 @@ export function AppRoutes() {
       <Routes>
         <Route path={ROUTES.login} element={<LoginPage />} />
 
-        {/* Layout: header/menu sobrevivem à troca de página. */}
         <Route
           element={
             <ProtectedRoute>

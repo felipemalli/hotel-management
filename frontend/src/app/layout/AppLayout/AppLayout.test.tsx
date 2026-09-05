@@ -59,17 +59,17 @@ describe('AppLayout', () => {
     renderLayout()
 
     const nav = screen.getByRole('navigation', { name: 'Principal' })
-    expect(screen.getByRole('link', { name: 'Recepção' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Hóspedes' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Reservas' })).not.toHaveAttribute('aria-current')
     expect(nav).toBeInTheDocument()
   })
 
-  // `end` só na Recepção: `/reservas/7` ainda é "Reservas".
+  // `end` só na Hóspedes: `/reservas/7` ainda é "Reservas".
   it('mantem Reservas ativo no detalhe e desmarca a recepcao', () => {
     renderLayout(ROUTES.reservation(7))
 
     expect(screen.getByRole('link', { name: 'Reservas' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: 'Recepção' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: 'Hóspedes' })).not.toHaveAttribute('aria-current')
   })
 
   it('mostra o atendente que o servidor identificou e oferece o menu para encerrar', async () => {
@@ -104,7 +104,7 @@ describe('AppLayout', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('quebrou a página')
     expect(screen.getByRole('navigation', { name: 'Principal' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Gestão de Hóspedes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Aurelia' })).toBeInTheDocument()
   })
 
   it('oferece o atalho para o conteudo, que e o alvo do foco apos os dialogos', () => {

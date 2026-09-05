@@ -31,31 +31,35 @@ export function buildPolicyColumns(currentId?: number): DataTableColumns<Pricing
       id: 'daily_rates',
       header: 'Diárias (útil / fds)',
       cell: ({ row }) => (
-        <span className="whitespace-nowrap">
+        <Typography as="span" variant="mono" className="whitespace-nowrap">
           {formatBRL(row.original.weekday_rate)} / {formatBRL(row.original.weekend_rate)}
-        </span>
+        </Typography>
       ),
     }),
     helper.display({
       id: 'parking_rates',
       header: 'Vagas (útil / fds)',
       cell: ({ row }) => (
-        <span className="whitespace-nowrap">
+        <Typography as="span" variant="mono" className="whitespace-nowrap">
           {formatBRL(row.original.weekday_park)} / {formatBRL(row.original.weekend_park)}
-        </span>
+        </Typography>
       ),
     }),
     helper.accessor('late_fee_factor', {
       header: 'Fator da multa',
-      cell: ({ getValue }) => formatDecimalBR(getValue()),
+      cell: ({ getValue }) => (
+        <Typography as="span" variant="mono">
+          {formatDecimalBR(getValue())}
+        </Typography>
+      ),
     }),
     helper.display({
       id: 'hours',
       header: 'Check-in / checkout',
       cell: ({ row }) => (
-        <span className="whitespace-nowrap">
+        <Typography as="span" variant="mono" className="whitespace-nowrap">
           {row.original.checkin_opens} / {row.original.checkout_limit}
-        </span>
+        </Typography>
       ),
     }),
     helper.display({

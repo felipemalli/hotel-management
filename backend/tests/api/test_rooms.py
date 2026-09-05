@@ -96,6 +96,17 @@ def test_list_hides_inactive_rooms_by_default(auth_client):
     assert {row["number"] for row in including} == {"401", "402"}
 
 
+def test_rooms_search_filters_by_number(auth_client):
+    """Feature nova (sem SPEC): `?search=` por fragmento do número."""
+    RoomFactory(number="101")
+    RoomFactory(number="301")
+
+    found = auth_client.get(ROOMS_URL, {"search": "10"}).data["results"]
+
+    assert {row["number"] for row in found} == {"101"}
+    assert auth_client.get(ROOMS_URL, {"search": "999"}).data["results"] == []
+
+
 def test_available_rooms_endpoint(auth_client):
     today = timezone.localdate()
     free = RoomFactory(number="501", capacity=2)

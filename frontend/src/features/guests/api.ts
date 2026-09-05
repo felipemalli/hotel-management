@@ -19,14 +19,22 @@ export async function fetchGuests(search: string, page = 1): Promise<Paginated<G
   return parseResponse(guestPageSchema, response)
 }
 
-export async function fetchGuestsInHotel(page = 1): Promise<Paginated<GuestInHotel>> {
-  const response = await apiClient.get<unknown>('/guests/in-hotel/', { params: pageParam(page) })
+export async function fetchGuestsInHotel(
+  search: string,
+  page = 1,
+): Promise<Paginated<GuestInHotel>> {
+  const response = await apiClient.get<unknown>('/guests/in-hotel/', {
+    params: { ...(search ? { search } : {}), ...pageParam(page) },
+  })
   return parseResponse(guestInHotelPageSchema, response)
 }
 
-export async function fetchGuestsPendingCheckin(page = 1): Promise<Paginated<GuestPendingCheckin>> {
+export async function fetchGuestsPendingCheckin(
+  search: string,
+  page = 1,
+): Promise<Paginated<GuestPendingCheckin>> {
   const response = await apiClient.get<unknown>('/guests/pending-checkin/', {
-    params: pageParam(page),
+    params: { ...(search ? { search } : {}), ...pageParam(page) },
   })
   return parseResponse(guestPendingCheckinPageSchema, response)
 }

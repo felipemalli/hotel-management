@@ -1,3 +1,4 @@
+import { PlusIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
@@ -35,10 +36,14 @@ export function PricingPage() {
       <PageHeader
         title="Tarifas"
         titleId="tarifas-titulo"
+        breadcrumb="Hotel Vila Marés"
         description="A tarifa é amarrada à estadia no check-in: publicar uma nova muda o futuro e nunca o extrato de quem já entrou."
         actions={
           isAdmin && current.data ? (
-            <Button onClick={() => setPublishing(true)}>Publicar nova tarifa</Button>
+            <Button onClick={() => setPublishing(true)}>
+              <PlusIcon className="size-4" aria-hidden="true" />
+              Publicar nova tarifa
+            </Button>
           ) : null
         }
       />

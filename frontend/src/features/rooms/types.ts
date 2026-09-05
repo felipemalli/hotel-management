@@ -9,6 +9,8 @@ export type Room = z.infer<typeof roomSchema>
 export interface RoomListParams {
   includeInactive?: boolean
   page?: number
+  // Fragmento do número, no servidor — nunca só a página já carregada.
+  search?: string
 }
 
 // people = titular + acompanhantes; o servidor filtra capacidade com ele.

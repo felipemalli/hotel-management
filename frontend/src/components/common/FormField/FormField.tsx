@@ -14,11 +14,14 @@ export interface FormFieldProps {
   hint?: string
   error?: string
   htmlFor?: string
+  // Rótulo continua o nome acessível (via `<label>`), só não aparece na tela —
+  // uso: campo de busca/filtro cujo design não mostra rótulo, ex. o mockup Aurelia.
+  hideLabel?: boolean
   children: (control: FormFieldControl) => ReactNode
 }
 
 // O field vendorizado não liga aria-describedby/aria-invalid sozinho.
-export function FormField({ label, hint, error, htmlFor, children }: FormFieldProps) {
+export function FormField({ label, hint, error, htmlFor, hideLabel, children }: FormFieldProps) {
   const generatedId = useId()
   const id = htmlFor ?? generatedId
   const hintId = `${id}-hint`
@@ -33,9 +36,15 @@ export function FormField({ label, hint, error, htmlFor, children }: FormFieldPr
 
   return (
     <UiField data-invalid={error ? true : undefined}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldLabel htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
+        {label}
+      </FieldLabel>
       {children(control)}
-      {hint ? <FieldDescription id={hintId}>{hint}</FieldDescription> : null}
+      {hint ? (
+        <FieldDescription id={hintId} className={hideLabel ? 'sr-only' : undefined}>
+          {hint}
+        </FieldDescription>
+      ) : null}
       {error ? <FieldError id={errorId}>{error}</FieldError> : null}
     </UiField>
   )

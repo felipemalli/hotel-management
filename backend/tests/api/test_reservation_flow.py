@@ -386,6 +386,22 @@ def test_list_reservations_filters_by_status_and_guest(auth_client):
     assert ids({"status": "CANCELLED", "guest": guest.pk}) == {cancelled.pk}
 
 
+def test_list_reservations_filters_by_search(auth_client):
+    """Nº (com/sem '#'), titular ou quarto por fragmento (feature nova, sem SPEC)."""
+    ana = ReservationFactory(guest__full_name="Ana Souza", room__number="103")
+    bruno = ReservationFactory(guest__full_name="Bruno Lima", room__number="102")
+
+    def ids(params: dict) -> set[int]:
+        results = auth_client.get("/api/reservations/", params).data["results"]
+        return {item["id"] for item in results}
+
+    assert ids({"search": "ana"}) == {ana.pk}
+    assert ids({"search": "103"}) == {ana.pk}
+    assert ids({"search": f"#{ana.pk}"}) == {ana.pk}
+    assert ids({"search": "lima"}) == {bruno.pk}
+    assert ids({"search": "inexistente"}) == set()
+
+
 @pytest.mark.parametrize(
     ("params", "field"),
     [({"status": "SLEEPING"}, "status"), ({"guest": "abc"}, "guest")],

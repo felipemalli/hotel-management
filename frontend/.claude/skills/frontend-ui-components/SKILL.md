@@ -17,28 +17,30 @@ Se o que você precisa já existe num desses dois lugares, use — não escreva 
 
 ## Tabela de decisão
 
-| Você precisa de | Use | Onde mora |
-| --- | --- | --- |
-| Qualquer texto (título, rótulo, corpo, legenda) | `Typography` (`components/ui`) | prop `as` obrigatória; nunca `text-*`/`font-*` solto em `features/`/`pages/` |
-| Uma listagem tabular | `DataTable` (`components/common`) + `columns.tsx`/`rows.ts` na própria feature | `caption` é obrigatório (nome acessível da tabela) |
-| Topo de uma página (título, ação, filtro) | `PageHeader` (`components/common`) | `titleId` vira o `aria-labelledby` da `<section>` da página |
-| Um campo de formulário | `FormField` (`components/common`) por cima de `Input`/`Select`/`Checkbox` | liga `aria-describedby`/`aria-invalid` sozinho — o `field.tsx` vendorizado não liga |
-| Um rótulo de status | `Badge` (`components/ui`) | variantes: `success`/`warning`/`info`/`destructive`/`secondary` |
-| Estado de carregamento | `<Componente>Skeleton` ao lado do componente (ou `DataTableSkeleton` para tabela) | `role="status" aria-live="polite" aria-busy="true"` + texto `sr-only` |
-| Lista vazia ou erro de leitura | `EmptyState` / `ErrorState` (`components/common`) | `ErrorState` sempre com `onRetry` |
-| Ação secundária numa linha, ou o menu da sessão | `DropdownMenu` (`components/ui`) | ver gotcha de jsdom abaixo antes de escrever o teste |
-| Confirmação de ação destrutiva (desativar, cancelar) | `AlertDialog` + `finalFocus` (`components/ui` + `@/lib/a11y/focus`) | ver padrão `open`/`confirmed` abaixo |
+| Você precisa de                                      | Use                                                                               | Onde mora                                                                           |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Qualquer texto (título, rótulo, corpo, legenda)      | `Typography` (`components/ui`)                                                    | prop `as` obrigatória; nunca `text-*`/`font-*` solto em `features/`/`pages/`        |
+| Uma listagem tabular                                 | `DataTable` (`components/common`) + `columns.tsx`/`rows.ts` na própria feature    | `caption` é obrigatório (nome acessível da tabela)                                  |
+| Topo de uma página (título, ação, filtro)            | `PageHeader` (`components/common`)                                                | `titleId` vira o `aria-labelledby` da `<section>` da página                         |
+| Um campo de formulário                               | `FormField` (`components/common`) por cima de `Input`/`Select`/`Checkbox`         | liga `aria-describedby`/`aria-invalid` sozinho — o `field.tsx` vendorizado não liga |
+| Um rótulo de status                                  | `Badge` (`components/ui`)                                                         | variantes: `success`/`warning`/`info`/`destructive`/`secondary`                     |
+| Estado de carregamento                               | `<Componente>Skeleton` ao lado do componente (ou `DataTableSkeleton` para tabela) | `role="status" aria-live="polite" aria-busy="true"` + texto `sr-only`               |
+| Lista vazia ou erro de leitura                       | `EmptyState` / `ErrorState` (`components/common`)                                 | `ErrorState` sempre com `onRetry`                                                   |
+| Ação secundária numa linha, ou o menu da sessão      | `DropdownMenu` (`components/ui`)                                                  | ver gotcha de jsdom abaixo antes de escrever o teste                                |
+| Confirmação de ação destrutiva (desativar, cancelar) | `AlertDialog` + `finalFocus` (`components/ui` + `@/lib/a11y/focus`)               | ver padrão `open`/`confirmed` abaixo                                                |
 
 ## Exemplos
 
 ```tsx
 // ❌ — classe solta, sem Typography, sem alias
 import { Button } from '../../../components/ui/button'
-<p className="text-sm font-medium">Nenhum quarto em operação</p>
+;<p className="text-sm font-medium">Nenhum quarto em operação</p>
 
 // ✅
 import { Typography } from '@/components/ui'
-<Typography as="p" variant="body" weight="medium">Nenhum quarto em operação</Typography>
+;<Typography as="p" variant="body" weight="medium">
+  Nenhum quarto em operação
+</Typography>
 ```
 
 ```tsx

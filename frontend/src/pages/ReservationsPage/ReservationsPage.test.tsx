@@ -1,5 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { act } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ATTENDANT } from '@/features/auth/__fixtures__/users'
@@ -11,6 +12,7 @@ import {
 import { fetchReservations } from '@/features/reservations/api'
 import { RESERVATION_STATUS_LABELS } from '@/features/reservations/status'
 import { ApiError } from '@/lib/errors/errors'
+import { SEARCH_DEBOUNCE_MS } from '@/lib/hooks/useDebouncedValue'
 import { ROUTES } from '@/lib/routing/routes'
 import { page } from '@/test/fixtures'
 import { renderPage } from '@/test/renderPage'
@@ -107,4 +109,30 @@ describe('ReservationsPage', () => {
     expect(within(table).getByText('R$ 425,00')).toBeInTheDocument()
     expect(within(table).getByText('Em aberto')).toBeInTheDocument()
   })
+
+  it('busca por reserva, hospede ou quarto no servidor, com debounce', async () => {
+    vi.useFakeTimers()
+    try {
+      renderReservations()
+      await advanceTimersAndFlush(0)
+      expect(fetchReservations).toHaveBeenLastCalledWith({})
+
+      fireEvent.change(screen.getByLabelText('Buscar reserva'), { target: { value: '#8' } })
+      await advanceTimersAndFlush(SEARCH_DEBOUNCE_MS - 1)
+      expect(fetchReservations).toHaveBeenCalledTimes(1)
+
+      await advanceTimersAndFlush(1)
+      expect(fetchReservations).toHaveBeenLastCalledWith({ search: '#8' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
+
+// `waitFor` do RTL não reconhece fake timers do vitest (procura o global `jest`).
+// `advanceTimersByTimeAsync` resolve o `queryFn`; `act` entrega o re-render.
+async function advanceTimersAndFlush(ms: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(ms)
+  })
+}

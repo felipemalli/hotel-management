@@ -58,5 +58,7 @@ export interface CheckInPayload {
 export interface ReservationListParams {
   status?: ReservationStatus
   paid?: boolean
+  // Nº da reserva (com ou sem '#'), titular ou quarto, por fragmento — no servidor.
+  search?: string
   page?: number
 }

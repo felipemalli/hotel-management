@@ -1,7 +1,8 @@
+import { PlusIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import { ErrorState, PageHeader } from '@/components/common'
+import { ErrorState, PageHeader, SearchField } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import {
   Button,
@@ -21,8 +22,10 @@ import { RoomsTable } from '@/features/rooms/components/RoomsTable'
 import { RoomForm } from '@/features/rooms/RoomForm'
 import type { Room } from '@/features/rooms/types'
 import { errorMessage } from '@/lib/errors/errors'
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 import { notifySuccess } from '@/lib/notify/toast'
 import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
+import { cn } from '@/lib/utils'
 
 type RoomsDialog =
   { kind: 'create' } | { kind: 'capacity'; room: Room } | { kind: 'deactivate'; room: Room } | null
@@ -34,6 +37,8 @@ export function RoomsPage() {
   const isAdmin = useIsAdmin()
   const [searchParams, setSearchParams] = useSearchParams()
   const [dialog, setDialog] = useState<RoomsDialog>(null)
+  const [roomQuery, setRoomQuery] = useState('')
+  const debouncedRoomQuery = useDebouncedValue(roomQuery, SEARCH_DEBOUNCE_MS)
 
   const includeInactive = searchParams.get(INACTIVE_PARAM) === 'false'
   const page = pageFromSearchParams(searchParams)
@@ -50,6 +55,11 @@ export function RoomsPage() {
       // Filtro novo volta à página 1: a página 3 do recorte anterior não vale.
       return withPage(next, 1)
     })
+  }
+
+  function changeRoomQuery(value: string) {
+    setRoomQuery(value)
+    setSearchParams((previous) => withPage(previous, 1))
   }
 
   // Referência estável: senão a linha remonta debaixo do diálogo e perde o foco.
@@ -69,21 +79,53 @@ export function RoomsPage() {
       <PageHeader
         title="Quartos"
         titleId="quartos-titulo"
+        breadcrumb="Hotel Vila Marés"
+        description="Cadastro de unidades, capacidade e disponibilidade operacional."
         actions={
           isAdmin ? (
-            <Button onClick={() => setDialog({ kind: 'create' })}>Novo quarto</Button>
+            <Button onClick={() => setDialog({ kind: 'create' })}>
+              <PlusIcon className="size-4" aria-hidden="true" />
+              Novo quarto
+            </Button>
           ) : null
         }
-      >
-        <FieldLabel htmlFor="rooms-include-inactive" className="flex-row items-center">
-          <Checkbox
-            id="rooms-include-inactive"
-            checked={includeInactive}
-            onCheckedChange={toggleInactive}
-          />
+      />
+
+      <div className="flex flex-wrap items-center gap-4">
+        <SearchField
+          label="Buscar quarto"
+          placeholder="Número do quarto"
+          value={roomQuery}
+          onChange={changeRoomQuery}
+          className="w-full sm:w-72"
+        />
+
+        <FieldLabel htmlFor="rooms-include-inactive" className="flex-row items-center gap-2.5">
+          <span className="relative inline-flex h-[22px] w-[38px] flex-none items-center">
+            <Checkbox
+              id="rooms-include-inactive"
+              checked={includeInactive}
+              onCheckedChange={toggleInactive}
+              className="absolute inset-0 z-10 size-full rounded-full opacity-0"
+            />
+            <span
+              aria-hidden="true"
+              className={cn(
+                'pointer-events-none absolute inset-0 rounded-full transition-colors',
+                includeInactive ? 'bg-primary' : 'bg-muted',
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 size-4.5 rounded-full bg-card shadow transition-transform',
+                  includeInactive ? 'left-4.5' : 'left-0.5',
+                )}
+              />
+            </span>
+          </span>
           Mostrar desativados
         </FieldLabel>
-      </PageHeader>
+      </div>
 
       <ErrorBoundary
         scope="rooms-table"
@@ -94,6 +136,7 @@ export function RoomsPage() {
         <RoomsTable
           includeInactive={includeInactive}
           page={page}
+          search={debouncedRoomQuery}
           onPageChange={(next) => setSearchParams((previous) => withPage(previous, next))}
           renderActions={isAdmin ? renderRoomActions : undefined}
         />

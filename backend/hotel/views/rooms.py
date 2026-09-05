@@ -36,7 +36,13 @@ from hotel.views.openapi import PERMISSION_DENIED_RESPONSE, ROOMS_TAG
                 description="`false` inclui os fora de operação. Sem o parâmetro, só os ativos.",
                 required=False,
                 type=bool,
-            )
+            ),
+            OpenApiParameter(
+                name="search",
+                description="Número do quarto, por fragmento.",
+                required=False,
+                type=str,
+            ),
         ],
         responses={200: RoomSerializer(many=True)},
     ),
@@ -96,7 +102,10 @@ class RoomViewSet(
         if self.action != "list":
             return Room.objects.all()
         raw = self.request.query_params.get("is_active")
-        return selectors.list_rooms(active_only=raw is None or raw.lower() != "false")
+        return selectors.list_rooms(
+            active_only=raw is None or raw.lower() != "false",
+            search=self.request.query_params.get("search"),
+        )
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         serializer = RoomCreateSerializer(data=request.data)

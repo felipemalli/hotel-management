@@ -24,6 +24,14 @@ from hotel.services import guests as guests_service
 from hotel.views.openapi import DUPLICATE_DOCUMENT_RESPONSE, GUESTS_TAG
 
 
+GUEST_SEARCH_PARAMETER = OpenApiParameter(
+    name="search",
+    description="Nome, documento ou telefone, por fragmento.",
+    required=False,
+    type=str,
+)
+
+
 @extend_schema(tags=[GUESTS_TAG])
 @extend_schema_view(
     list=extend_schema(
@@ -32,14 +40,7 @@ from hotel.views.openapi import DUPLICATE_DOCUMENT_RESPONSE, GUESTS_TAG
             "`search` acha nome, documento e telefone por fragmento (trigram, D5). "
             "Documento e telefone aceitam máscara no termo (D9)."
         ),
-        parameters=[
-            OpenApiParameter(
-                name="search",
-                description="Nome, documento ou telefone, por fragmento.",
-                required=False,
-                type=str,
-            )
-        ],
+        parameters=[GUEST_SEARCH_PARAMETER],
         responses={200: GuestSerializer(many=True)},
     ),
     retrieve=extend_schema(
@@ -105,24 +106,36 @@ class GuestViewSet(
 
     @extend_schema(
         summary="Hóspedes que ainda estão no hotel",
-        description="Reserva `CHECKED_IN` (RF4). `active_reservation` é único (SPEC 1.5).",
+        description=(
+            "Reserva `CHECKED_IN` (RF4). `active_reservation` é único (SPEC 1.5). "
+            "`search` compõe com a aba: mesmo termo de `GET /guests/`, sobre quem está no hotel."
+        ),
+        parameters=[GUEST_SEARCH_PARAMETER],
         responses={200: GuestInHotelSerializer(many=True)},
     )
     @action(detail=False, methods=["get"], url_path="in-hotel")
     def in_hotel(self, request: Request) -> Response:
-        return self._paginated(selectors.guests_in_hotel(), GuestInHotelSerializer)
+        return self._paginated(
+            selectors.guests_in_hotel(request.query_params.get("search")),
+            GuestInHotelSerializer,
+        )
 
     @extend_schema(
         summary="Hóspedes com reserva sem check-in",
         description=(
             "Reservas `PENDING` (RF5). Pendência vencida continua listada até "
-            "ação do atendente (D14)."
+            "ação do atendente (D14). `search` compõe com a aba: mesmo termo de "
+            "`GET /guests/`, sobre quem tem check-in pendente."
         ),
+        parameters=[GUEST_SEARCH_PARAMETER],
         responses={200: GuestPendingCheckinSerializer(many=True)},
     )
     @action(detail=False, methods=["get"], url_path="pending-checkin")
     def pending_checkin(self, request: Request) -> Response:
-        return self._paginated(selectors.guests_pending_checkin(), GuestPendingCheckinSerializer)
+        return self._paginated(
+            selectors.guests_pending_checkin(request.query_params.get("search")),
+            GuestPendingCheckinSerializer,
+        )
 
     def _paginated(self, queryset, serializer_class) -> Response:
         page = self.paginate_queryset(queryset)

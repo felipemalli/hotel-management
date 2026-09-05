@@ -11,7 +11,7 @@ export function DataTableSkeleton({ columns, rows = 4 }: DataTableSkeletonProps)
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className="overflow-hidden rounded-lg border border-border bg-card"
+      className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
     >
       <span className="sr-only">Carregando…</span>
       {Array.from({ length: rows }).map((_, rowIndex) => (

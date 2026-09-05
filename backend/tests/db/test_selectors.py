@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from hotel import selectors
 from hotel.models import ReservationStatus
-from tests.factories import GuestFactory, ReservationFactory
+from tests.factories import GuestFactory, ReservationFactory, RoomFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -131,6 +131,28 @@ def test_pending_checkin_lists_pending():
     assert {reservation.pk for reservation in pending} == {overdue.pk, future.pk}
 
 
+def test_in_hotel_composes_with_search():
+    """A busca da tela vale nas abas: filtra dentro de quem esta no hotel."""
+    ana = GuestFactory(full_name="Ana Souza", document="123.456.789-01")
+    ReservationFactory(guest=ana, checked_in=True)
+    ReservationFactory(guest=GuestFactory(full_name="Bruno Lima"), checked_in=True)
+    GuestFactory(full_name="Ana Prado")  # mesmo nome, sem reserva: a aba manda
+
+    assert list(selectors.guests_in_hotel("ana")) == [ana]
+    assert list(selectors.guests_in_hotel("789")) == [ana]
+    assert list(selectors.guests_in_hotel("  ")) == list(selectors.guests_in_hotel())
+
+
+def test_pending_checkin_composes_with_search():
+    ana = GuestFactory(full_name="Ana Souza")
+    bruno = GuestFactory(full_name="Bruno Lima")
+    ReservationFactory(guest=ana)
+    ReservationFactory(guest=bruno)
+
+    assert list(selectors.guests_pending_checkin("ana")) == [ana]
+    assert list(selectors.guests_pending_checkin("bruno")) == [bruno]
+
+
 def test_list_reservations_filters_by_status_and_guest():
     checked_in = ReservationFactory(checked_in=True)
     pending = ReservationFactory(guest=checked_in.guest)
@@ -144,3 +166,27 @@ def test_list_reservations_filters_by_status_and_guest():
             status=ReservationStatus.CHECKED_IN, guest_id=checked_in.guest_id
         )
     ) == {checked_in}
+
+
+def test_list_reservations_filters_by_search():
+    """Nº (com/sem '#'), titular ou quarto por fragmento — nunca acompanhante."""
+    ana = ReservationFactory(guest__full_name="Ana Souza", room__number="103")
+    bruno = ReservationFactory(guest__full_name="Bruno Lima", room__number="102")
+
+    assert set(selectors.list_reservations(search="ana")) == {ana}
+    assert set(selectors.list_reservations(search="103")) == {ana}
+    assert set(selectors.list_reservations(search=f"#{ana.pk}")) == {ana}
+    assert set(selectors.list_reservations(search=str(ana.pk))) == {ana}
+    assert set(selectors.list_reservations(search="lima")) == {bruno}
+    assert set(selectors.list_reservations(search="inexistente")) == set()
+
+
+def test_list_rooms_filters_by_search():
+    """RF novo: busca por fragmento do número do quarto."""
+    room_101 = RoomFactory(number="101")
+    room_301 = RoomFactory(number="301")
+
+    assert set(selectors.list_rooms(search="101")) == {room_101}
+    assert set(selectors.list_rooms(search="30")) == {room_301}
+    assert set(selectors.list_rooms(search="inexistente")) == set()
+    assert set(selectors.list_rooms()) == {room_101, room_301}

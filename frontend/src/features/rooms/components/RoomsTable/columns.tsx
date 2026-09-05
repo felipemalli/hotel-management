@@ -14,7 +14,7 @@ export function roomColumns(renderActions?: (room: Room) => ReactNode): DataTabl
     helper.accessor('number', {
       header: 'Número',
       cell: ({ getValue }) => (
-        <Typography as="span" variant="mono" weight="medium">
+        <Typography as="span" variant="mono" weight="medium" className="text-sm">
           {getValue()}
         </Typography>
       ),

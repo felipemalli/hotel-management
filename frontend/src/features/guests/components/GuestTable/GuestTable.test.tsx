@@ -104,7 +104,7 @@ describe('GuestTable · RF3 · RF4 · RF5', () => {
     expect(within(row).getByText('31/08/2026 → 02/09/2026')).toBeInTheDocument()
     expect(within(row).getByText('31/08/2026 15:00')).toBeInTheDocument()
 
-    expect(screen.queryByLabelText('Buscar hóspede')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Buscar hóspede')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /No hotel/ })).toHaveAttribute('aria-selected', 'true')
   })
 
@@ -164,6 +164,26 @@ describe('GuestTable · RF3 · RF4 · RF5', () => {
     expect(within(row).getByText('01/09/2026 → 03/09/2026')).toBeInTheDocument()
     expect(within(row).getByText('Sim')).toBeInTheDocument()
     expect(screen.queryByText('Bruno Lima')).not.toBeInTheDocument()
+  })
+
+  it('busca compoe com a aba e some com quem nao casa', async () => {
+    const user = userEvent.setup()
+    vi.mocked(fetchGuestsInHotel).mockImplementation(async (search: string) =>
+      page(search ? [] : [BRUNO_IN_HOTEL]),
+    )
+    renderWithProviders(<GuestTable />)
+    await screen.findByText('Ana Souza')
+
+    await user.click(screen.getByRole('tab', { name: /No hotel/ }))
+    await screen.findByText('Bruno Lima')
+
+    fireEvent.change(screen.getByLabelText('Buscar hóspede'), { target: { value: 'ana' } })
+
+    await waitFor(() => expect(fetchGuestsInHotel).toHaveBeenLastCalledWith('ana', 1))
+    expect(await screen.findByText('Nenhum hóspede encontrado para a busca')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('tab', { name: /Check-in pendente/ }))
+    await waitFor(() => expect(fetchGuestsPendingCheckin).toHaveBeenLastCalledWith('ana', 1))
   })
 
   it('mostra o estado vazio quando a busca nao acha ninguem', async () => {
@@ -271,7 +291,7 @@ describe('GuestTable · RF3 · RF4 · RF5', () => {
     await waitFor(() => expect(fetchGuests).toHaveBeenLastCalledWith('', 2))
 
     await user.click(screen.getByRole('tab', { name: /No hotel/ }))
-    await waitFor(() => expect(fetchGuestsInHotel).toHaveBeenLastCalledWith(1))
+    await waitFor(() => expect(fetchGuestsInHotel).toHaveBeenLastCalledWith('', 1))
   })
 })
 

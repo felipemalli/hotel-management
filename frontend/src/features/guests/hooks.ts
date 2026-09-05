@@ -15,8 +15,10 @@ import type { CreateGuestPayload, Guest } from './types'
 
 export const guestKeys = {
   list: (search: string, page: number) => [...GUESTS_ROOT, { search, page }] as const,
-  inHotel: (page: number) => [...GUESTS_ROOT, 'in-hotel', { page }] as const,
-  pendingCheckin: (page: number) => [...GUESTS_ROOT, 'pending-checkin', { page }] as const,
+  inHotel: (search: string, page: number) =>
+    [...GUESTS_ROOT, 'in-hotel', { search, page }] as const,
+  pendingCheckin: (search: string, page: number) =>
+    [...GUESTS_ROOT, 'pending-checkin', { search, page }] as const,
   detail: (id: number) => [...GUESTS_ROOT, id] as const,
 }
 
@@ -34,20 +36,20 @@ export function useGuests(search: string, page = 1, options?: QueryOptions) {
   })
 }
 
-export function useGuestsInHotel(page = 1, options?: QueryOptions) {
+export function useGuestsInHotel(search: string, page = 1, options?: QueryOptions) {
   return useQuery({
-    queryKey: guestKeys.inHotel(page),
-    queryFn: () => fetchGuestsInHotel(page),
+    queryKey: guestKeys.inHotel(search, page),
+    queryFn: () => fetchGuestsInHotel(search, page),
     staleTime: DEFAULT_STALE_TIME_MS,
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
   })
 }
 
-export function useGuestsPendingCheckin(page = 1, options?: QueryOptions) {
+export function useGuestsPendingCheckin(search: string, page = 1, options?: QueryOptions) {
   return useQuery({
-    queryKey: guestKeys.pendingCheckin(page),
-    queryFn: () => fetchGuestsPendingCheckin(page),
+    queryKey: guestKeys.pendingCheckin(search, page),
+    queryFn: () => fetchGuestsPendingCheckin(search, page),
     staleTime: DEFAULT_STALE_TIME_MS,
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,

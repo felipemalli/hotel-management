@@ -8,6 +8,7 @@ export interface ReservationFiltersHandle {
   filters: ReservationFilters
   setStatus: (status: ReservationStatus | null) => void
   setPaid: (paid: boolean | null) => void
+  setSearch: (search: string) => void
   setPage: (page: number) => void
 }
 
@@ -24,6 +25,7 @@ export function useReservationFilters(): ReservationFiltersHandle {
     filters,
     setStatus: (status) => update({ status, paid: null, page: 1 }),
     setPaid: (paid) => update({ paid, page: 1 }),
+    setSearch: (search) => update({ search, page: 1 }),
     setPage: (page) => update({ page }),
   }
 }

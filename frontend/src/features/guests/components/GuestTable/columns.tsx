@@ -36,7 +36,22 @@ export function allColumns(
       header: 'Nacionalidade',
       cell: ({ getValue }) => {
         const code = getValue()
-        return <Mono title={countryName(code)}>{code}</Mono>
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            <Typography
+              as="span"
+              variant="mono"
+              weight="medium"
+              title={countryName(code)}
+              className="rounded border border-border bg-muted px-1.5 py-0.5 text-[11px]"
+            >
+              {code}
+            </Typography>
+            <Typography as="span" variant="body">
+              {countryName(code)}
+            </Typography>
+          </span>
+        )
       },
     }),
     allHelper.accessor((row) => row.guest.created_at, {

@@ -1,14 +1,16 @@
 import { createColumnHelper } from '@tanstack/react-table'
+import { ChevronRightIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { type DataTableColumns, type dataTableFeatures } from '@/components/common'
-import { Typography } from '@/components/ui'
+import { buttonVariants, Typography } from '@/components/ui'
 import { ReservationStatusBadge } from '@/features/reservations/components/ReservationStatusBadge'
 import { paymentLabel, peopleCount } from '@/features/reservations/status'
 import type { Reservation } from '@/features/reservations/types'
 import { formatISODate } from '@/lib/format/dates'
 import { formatBRL } from '@/lib/format/money'
 import { ROUTES } from '@/lib/routing/routes'
+import { cn } from '@/lib/utils'
 
 const helper = createColumnHelper<typeof dataTableFeatures, Reservation>()
 
@@ -23,7 +25,12 @@ export const reservationColumns: DataTableColumns<Reservation> = helper.columns(
     id: 'room',
     header: 'Quarto',
     cell: ({ getValue }) => (
-      <Typography as="span" variant="mono">
+      <Typography
+        as="span"
+        variant="mono"
+        weight="medium"
+        className="rounded-md border border-border bg-muted px-1.5 py-0.5"
+      >
         {getValue()}
       </Typography>
     ),
@@ -56,9 +63,15 @@ export const reservationColumns: DataTableColumns<Reservation> = helper.columns(
     id: 'total',
     header: 'Total',
     cell: ({ row }) => (
-      <span className="whitespace-nowrap">
+      <Typography
+        as="span"
+        variant="mono"
+        weight="medium"
+        tone={row.original.total_amount === null ? 'muted' : 'default'}
+        className="whitespace-nowrap"
+      >
         {row.original.total_amount === null ? '—' : formatBRL(row.original.total_amount)}
-      </span>
+      </Typography>
     ),
   }),
   helper.display({
@@ -72,9 +85,10 @@ export const reservationColumns: DataTableColumns<Reservation> = helper.columns(
     cell: ({ row }) => (
       <Link
         to={ROUTES.reservation(row.original.id)}
-        className="text-sm font-medium text-foreground underline"
+        className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'gap-1')}
       >
         Detalhes
+        <ChevronRightIcon className="size-3.5 opacity-60" aria-hidden="true" />
         <span className="sr-only"> da reserva #{row.original.id}</span>
       </Link>
     ),

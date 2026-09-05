@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils'
 const typographyVariants = cva('', {
   variants: {
     variant: {
-      pageTitle: 'text-xl font-semibold text-foreground',
-      title: 'text-lg font-semibold text-foreground',
-      sectionTitle: 'text-base font-semibold text-foreground',
-      cardTitle: 'text-sm font-semibold text-foreground',
+      pageTitle: 'font-display text-xl font-semibold tracking-tight text-foreground',
+      title: 'font-display text-lg font-semibold tracking-tight text-foreground',
+      sectionTitle: 'font-display text-base font-semibold text-foreground',
+      cardTitle: 'font-display text-sm font-semibold text-foreground',
       body: 'text-sm text-foreground',
       label: 'text-sm font-medium text-foreground',
       caption: 'text-xs text-muted-foreground',

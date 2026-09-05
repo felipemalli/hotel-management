@@ -74,6 +74,19 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    # O container roda o servidor de desenvolvimento do Vite: sem estes volumes
+    # ele serviria a copia congelada no `COPY` da imagem, e editar o fonte no
+    # host nao mudaria nada na tela ate um rebuild.
+    #   - o bind monta o fonte do host por cima de /app (HMR ve cada save);
+    #   - o volume anonimo preserva o node_modules instalado na imagem, que o
+    #     bind esconderia -- o layout de symlinks do pnpm e os binarios nativos
+    #     sao da plataforma da imagem, nao do host.
+    # Mexeu no pnpm-lock.yaml? `docker compose up -d --build -V frontend`: sem
+    # `-V` o compose reaproveita o volume anonimo antigo e o node_modules novo
+    # da imagem nunca aparece no container.
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     ports:
       - "5173:5173"
 

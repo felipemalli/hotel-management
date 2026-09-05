@@ -15,11 +15,14 @@ import type {
 export async function fetchRooms({
   includeInactive = false,
   page = 1,
+  search = '',
 }: RoomListParams = {}): Promise<Paginated<Room>> {
+  const trimmedSearch = search.trim()
   const response = await apiClient.get<unknown>('/rooms/', {
     params: {
       ...(includeInactive ? { is_active: 'false' } : {}),
       ...(page > 1 ? { page } : {}),
+      ...(trimmedSearch ? { search: trimmedSearch } : {}),
     },
   })
   return parseResponse(roomPageSchema, response)

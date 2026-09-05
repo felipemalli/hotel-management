@@ -1,7 +1,7 @@
 ---
 name: adding-shadcn-component
 description: Vendoriza um novo primitivo shadcn/Base UI (estilo base-nova) neste projeto — sem a CLI do shadcn, direto do registro HTTP — e faz os ajustes mecânicos que o paste sempre exige (cn, ícones, strings em português, barrel). Use quando pedirem um componente shadcn novo (ex. "adiciona o Select", "preciso do Popover") ou quando `frontend/src/components/ui/` ou `frontend/components.json` estiverem sendo tocados.
-argument-hint: "[component-name]"
+argument-hint: '[component-name]'
 paths: frontend/src/components/ui/**, frontend/components.json
 ---
 
@@ -34,11 +34,11 @@ Este projeto **não usa a CLI do shadcn** (não há Node instalado nela nesta im
 
 ## Tabela de reescrita de imports mais comuns
 
-| No registro | Vira |
-| --- | --- |
-| `import { cn } from 'cn'` | `import { cn } from '@/lib/utils'` |
+| No registro                             | Vira                                        |
+| --------------------------------------- | ------------------------------------------- |
+| `import { cn } from 'cn'`               | `import { cn } from '@/lib/utils'`          |
 | `import { IconPlaceholder } from '...'` | `import { <IconReal> } from 'lucide-react'` |
-| `"use client"` | (removido) |
+| `"use client"`                          | (removido)                                  |
 
 ## Gotchas
 

@@ -37,6 +37,11 @@ describe('parseReservationFilters', () => {
   it('repassa a pagina para pageFromSearchParams', () => {
     expect(parse('page=2').page).toBe(2)
   })
+
+  it('le o termo de busca, com o parametro q', () => {
+    expect(parse('q=ana').search).toBe('ana')
+    expect(parse('').search).toBe('')
+  })
 })
 
 describe('toSearchParams', () => {
@@ -45,21 +50,25 @@ describe('toSearchParams', () => {
   })
 
   it('escreve o que foge do padrao', () => {
-    expect(toSearchParams({ status: 'CHECKED_OUT', paid: false, page: 3 }).toString()).toBe(
-      'status=CHECKED_OUT&paid=false&page=3',
-    )
+    expect(
+      toSearchParams({ status: 'CHECKED_OUT', paid: false, search: '', page: 3 }).toString(),
+    ).toBe('status=CHECKED_OUT&paid=false&page=3')
+    expect(toSearchParams({ ...DEFAULT_FILTERS, search: 'ana' }).toString()).toBe('q=ana')
   })
 })
 
 describe('toListParams', () => {
   it('manda ao servidor so o que foi escolhido', () => {
     expect(toListParams(DEFAULT_FILTERS)).toEqual({})
-    expect(toListParams({ status: 'PENDING', paid: null, page: 1 })).toEqual({ status: 'PENDING' })
-    expect(toListParams({ status: 'CHECKED_OUT', paid: true, page: 2 })).toEqual({
+    expect(toListParams({ status: 'PENDING', paid: null, search: '', page: 1 })).toEqual({
+      status: 'PENDING',
+    })
+    expect(toListParams({ status: 'CHECKED_OUT', paid: true, search: '', page: 2 })).toEqual({
       status: 'CHECKED_OUT',
       paid: true,
       page: 2,
     })
+    expect(toListParams({ ...DEFAULT_FILTERS, search: '  ana  ' })).toEqual({ search: 'ana' })
   })
 })
 

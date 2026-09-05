@@ -37,9 +37,12 @@ export const GUEST_TAB_EMPTY_MESSAGES: Record<GuestTab, string> = {
   'pending-checkin': 'Nenhuma reserva aguardando check-in',
 }
 
+export function guestEmptyMessage(tab: GuestTab, search: string): string {
+  return search ? 'Nenhum hóspede encontrado para a busca' : GUEST_TAB_EMPTY_MESSAGES[tab]
+}
+
 export type PartyRole = 'holder' | 'companion'
 
-// Sem campo de papel: acompanhante é quem tem guest_id de outra pessoa.
 export function roleOf(guest: Guest, reservation: ReservationSummary): PartyRole {
   return reservation.guest_id === guest.id ? 'holder' : 'companion'
 }
@@ -86,7 +89,6 @@ export function allRowId(row: GuestAllRow): string {
   return `guest-${row.guest.id}`
 }
 
-// Titular e acompanhante da mesma reserva: a chave precisa dos dois ids.
 export function partyRowId(row: GuestInHotelRow | GuestPendingRow): string {
   return `reservation-${row.reservation.id}-guest-${row.guest.id}`
 }

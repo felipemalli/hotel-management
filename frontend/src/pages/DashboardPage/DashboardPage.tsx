@@ -1,3 +1,4 @@
+import { PlusIcon } from 'lucide-react'
 import { useCallback, useMemo } from 'react'
 
 import { ErrorState } from '@/components/common'
@@ -92,13 +93,17 @@ export function DashboardPage() {
   )
 
   const headerActions = useMemo(
-    () => <Button onClick={() => open({ kind: 'guest' })}>Novo hóspede</Button>,
+    () => (
+      <Button onClick={() => open({ kind: 'guest' })}>
+        <PlusIcon className="size-4" aria-hidden="true" />
+        Novo hóspede
+      </Button>
+    ),
     [open],
   )
 
   return (
     <>
-      {/* Uma quebra na tabela não derruba o header, o "Novo hóspede" nem os dialogs. */}
       <ErrorBoundary
         scope="guest-table"
         fallback={({ error, resetErrorBoundary }) => (

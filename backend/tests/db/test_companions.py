@@ -187,6 +187,16 @@ def test_in_hotel_lists_person_once(actor):
     assert selectors.guests_in_hotel().count() == 2
 
 
+def test_search_in_hotel_matches_companion_by_own_name(actor):
+    """O termo casa a pessoa da linha; achar a acompanhante nao exige o titular."""
+    eva = GuestFactory(full_name="Eva Lima")
+    holder = GuestFactory(full_name="Bruno Lima")
+    reservation = book(actor=actor, guest=holder, companions=[eva])
+    service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
+
+    assert [g.full_name for g in selectors.guests_in_hotel("eva")] == ["Eva Lima"]
+
+
 def test_pending_includes_own_and_companion_reservations(actor):
     """Simetria com RF4: se conta como hospedado depois, conta como esperado antes."""
     eva = GuestFactory(full_name="Eva Lima")

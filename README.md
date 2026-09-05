@@ -634,8 +634,8 @@ Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 | `POST /api/pricing-policies/` | **admin** | Publica tarifa (append-only; vigência = agora) |
 | `GET/POST /api/guests/` | ✔ | Lista + busca (`?search=`) / cadastro |
 | `GET /api/guests/{id}/` | ✔ | Detalhe (PII completa) |
-| `GET /api/guests/in-hotel/` | ✔ | Hóspedes com reserva `CHECKED_IN` |
-| `GET /api/guests/pending-checkin/` | ✔ | Hóspedes com reservas `PENDING` |
+| `GET /api/guests/in-hotel/` | ✔ | Hóspedes com reserva `CHECKED_IN` (`?search=` compõe) |
+| `GET /api/guests/pending-checkin/` | ✔ | Hóspedes com reservas `PENDING` (`?search=` compõe) |
 | `GET/POST /api/reservations/` | ✔ | Lista (`?status=&guest=&paid=`) / criação (`room_id`, `companion_ids`) |
 | `GET /api/reservations/{id}/` | ✔ | Detalhe da reserva |
 | `GET /api/reservations/{id}/statement/` | ✔ | 2ª via do extrato (após o checkout) |
