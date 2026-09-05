@@ -165,7 +165,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
           className="w-full sm:w-72"
         />
 
-        <TabsList aria-label="Listagens de hóspedes">
+        <TabsList aria-label="Listagens de hóspedes" className='-my-2'>
           {GUEST_TAB_ITEMS.map((item) => (
             <TabsTrigger key={item.id} value={item.id}>
               {item.label}

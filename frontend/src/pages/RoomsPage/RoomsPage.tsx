@@ -6,13 +6,13 @@ import { ErrorState, PageHeader, SearchField } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import {
   Button,
-  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   FieldLabel,
+  Switch,
 } from '@/components/ui'
 import { useIsAdmin } from '@/features/auth/hooks'
 import { RoomActions } from '@/features/rooms/components/RoomActions'
@@ -25,7 +25,6 @@ import { errorMessage } from '@/lib/errors/errors'
 import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 import { notifySuccess } from '@/lib/notify/toast'
 import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
-import { cn } from '@/lib/utils'
 
 type RoomsDialog =
   { kind: 'create' } | { kind: 'capacity'; room: Room } | { kind: 'deactivate'; room: Room } | null
@@ -101,28 +100,11 @@ export function RoomsPage() {
         />
 
         <FieldLabel htmlFor="rooms-include-inactive" className="flex-row items-center gap-2.5">
-          <span className="relative inline-flex h-[22px] w-[38px] flex-none items-center">
-            <Checkbox
-              id="rooms-include-inactive"
-              checked={includeInactive}
-              onCheckedChange={toggleInactive}
-              className="absolute inset-0 z-10 size-full rounded-full opacity-0"
-            />
-            <span
-              aria-hidden="true"
-              className={cn(
-                'pointer-events-none absolute inset-0 rounded-full transition-colors',
-                includeInactive ? 'bg-primary' : 'bg-muted',
-              )}
-            >
-              <span
-                className={cn(
-                  'absolute top-0.5 size-4.5 rounded-full bg-card shadow transition-transform',
-                  includeInactive ? 'left-4.5' : 'left-0.5',
-                )}
-              />
-            </span>
-          </span>
+          <Switch
+            id="rooms-include-inactive"
+            checked={includeInactive}
+            onCheckedChange={toggleInactive}
+          />
           Mostrar desativados
         </FieldLabel>
       </div>

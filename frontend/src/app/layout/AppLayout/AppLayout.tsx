@@ -97,7 +97,8 @@ export function AppLayout() {
               <Typography
                 as="p"
                 variant="mono"
-                className="px-2.5 pt-1.5 pb-2 tracking-widest text-muted-foreground/70"
+                tone="mutedLight"
+                className="px-2.5 pt-1.5 pb-2 tracking-widest"
               >
                 {group.label}
               </Typography>
