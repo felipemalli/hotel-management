@@ -58,7 +58,7 @@ export function AppLayout() {
   const displayName = user?.username ?? 'atendente'
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-[#FAFAFA]">
       <a
         href={`#${MAIN_CONTENT_ID}`}
         className="sr-only rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
