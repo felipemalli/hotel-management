@@ -95,12 +95,17 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
   const [tab, setTab] = useState<GuestTab>('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [keepRows, setKeepRows] = useState(true)
   const debouncedSearch = useDebouncedValue(search, SEARCH_DEBOUNCE_MS)
 
-  const all = useGuests(debouncedSearch, page, { enabled: tab === 'all' })
-  const inHotel = useGuestsInHotel(debouncedSearch, page, { enabled: tab === 'in-hotel' })
+  const all = useGuests(debouncedSearch, page, { enabled: tab === 'all', keepPrevious: keepRows })
+  const inHotel = useGuestsInHotel(debouncedSearch, page, {
+    enabled: tab === 'in-hotel',
+    keepPrevious: keepRows,
+  })
   const pending = useGuestsPendingCheckin(debouncedSearch, page, {
     enabled: tab === 'pending-checkin',
+    keepPrevious: keepRows,
   })
 
   const allRows = toAllRows(all.data)
@@ -126,6 +131,18 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
     if (!isGuestTab(next)) return
     setTab(next)
     setPage(1)
+    setKeepRows(false)
+  }
+
+  function changeSearch(value: string) {
+    setSearch(value)
+    setPage(1)
+    setKeepRows(true)
+  }
+
+  function changePage(next: number) {
+    setPage(next)
+    setKeepRows(true)
   }
 
   return (
@@ -144,10 +161,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
           label="Buscar hóspede"
           placeholder="Nome, documento ou telefone"
           value={search}
-          onChange={(value) => {
-            setSearch(value)
-            setPage(1)
-          }}
+          onChange={changeSearch}
           className="w-full sm:w-72"
         />
 
@@ -176,7 +190,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
           count={all.data?.count ?? 0}
           hasNext={all.data?.next != null}
           hasPrevious={all.data?.previous != null}
-          onPageChange={setPage}
+          onPageChange={changePage}
         />
       </TabsContent>
 
@@ -192,7 +206,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
           count={inHotel.data?.count ?? 0}
           hasNext={inHotel.data?.next != null}
           hasPrevious={inHotel.data?.previous != null}
-          onPageChange={setPage}
+          onPageChange={changePage}
         />
       </TabsContent>
 
@@ -208,7 +222,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
           count={pending.data?.count ?? 0}
           hasNext={pending.data?.next != null}
           hasPrevious={pending.data?.previous != null}
-          onPageChange={setPage}
+          onPageChange={changePage}
         />
       </TabsContent>
     </Tabs>

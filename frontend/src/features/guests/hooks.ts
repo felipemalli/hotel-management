@@ -24,6 +24,11 @@ export const guestKeys = {
 
 export interface QueryOptions {
   enabled?: boolean
+  keepPrevious?: boolean
+}
+
+function placeholderFor(options?: QueryOptions) {
+  return options?.keepPrevious === false ? undefined : keepPreviousData
 }
 
 export function useGuests(search: string, page = 1, options?: QueryOptions) {
@@ -31,7 +36,7 @@ export function useGuests(search: string, page = 1, options?: QueryOptions) {
     queryKey: guestKeys.list(search, page),
     queryFn: () => fetchGuests(search, page),
     staleTime: DEFAULT_STALE_TIME_MS,
-    placeholderData: keepPreviousData,
+    placeholderData: placeholderFor(options),
     enabled: options?.enabled ?? true,
   })
 }
@@ -41,7 +46,7 @@ export function useGuestsInHotel(search: string, page = 1, options?: QueryOption
     queryKey: guestKeys.inHotel(search, page),
     queryFn: () => fetchGuestsInHotel(search, page),
     staleTime: DEFAULT_STALE_TIME_MS,
-    placeholderData: keepPreviousData,
+    placeholderData: placeholderFor(options),
     enabled: options?.enabled ?? true,
   })
 }
@@ -51,7 +56,7 @@ export function useGuestsPendingCheckin(search: string, page = 1, options?: Quer
     queryKey: guestKeys.pendingCheckin(search, page),
     queryFn: () => fetchGuestsPendingCheckin(search, page),
     staleTime: DEFAULT_STALE_TIME_MS,
-    placeholderData: keepPreviousData,
+    placeholderData: placeholderFor(options),
     enabled: options?.enabled ?? true,
   })
 }

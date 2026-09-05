@@ -12,7 +12,7 @@ import {
   pendingCheckin,
 } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
-import type { Guest } from '@/features/guests/types'
+import type { Guest, GuestInHotel } from '@/features/guests/types'
 import type { Paginated } from '@/lib/api/apiClient'
 import { ApiError } from '@/lib/errors/errors'
 import { SEARCH_DEBOUNCE_MS } from '@/lib/hooks/useDebouncedValue'
@@ -184,6 +184,40 @@ describe('GuestTable · RF3 · RF4 · RF5', () => {
 
     await user.click(screen.getByRole('tab', { name: /Check-in pendente/ }))
     await waitFor(() => expect(fetchGuestsPendingCheckin).toHaveBeenLastCalledWith('ana', 1))
+  })
+
+  it('nao pisca a lista inteira da aba antes da filtrada', async () => {
+    const user = userEvent.setup()
+    let releaseInHotel: (value: Paginated<GuestInHotel>) => void = vi.fn()
+    vi.mocked(fetchGuestsInHotel).mockImplementation((search: string) =>
+      search === ''
+        ? Promise.resolve(page([BRUNO_IN_HOTEL, EVA_AS_COMPANION]))
+        : new Promise<Paginated<GuestInHotel>>((resolve) => {
+            releaseInHotel = resolve
+          }),
+    )
+    vi.mocked(fetchGuests).mockImplementation(async (search: string) =>
+      page(search ? [] : [ANA, DAVI]),
+    )
+
+    renderWithProviders(<GuestTable />)
+    await user.click(screen.getByRole('tab', { name: /No hotel/ }))
+    await screen.findByText('Bruno Lima')
+    await user.click(screen.getByRole('tab', { name: /Todos/ }))
+
+    fireEvent.change(screen.getByLabelText('Buscar hóspede'), { target: { value: 'eva' } })
+    await waitFor(() => expect(fetchGuests).toHaveBeenLastCalledWith('eva', 1))
+
+    await user.click(screen.getByRole('tab', { name: /No hotel/ }))
+
+    await waitFor(() => expect(fetchGuestsInHotel).toHaveBeenLastCalledWith('eva', 1))
+    expect(screen.queryByText('Bruno Lima')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Carregando…')
+
+    releaseInHotel(page([EVA_AS_COMPANION]))
+
+    expect(await screen.findByText('Eva Lima')).toBeInTheDocument()
+    expect(screen.queryByText('Bruno Lima')).not.toBeInTheDocument()
   })
 
   it('mostra o estado vazio quando a busca nao acha ninguem', async () => {
