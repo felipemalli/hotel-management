@@ -11,10 +11,10 @@ export {
   AlertDialogPortal,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from './alert-dialog'
-export { Badge, badgeVariants } from './badge'
-export { Button, buttonVariants } from './button'
-export { Checkbox } from './checkbox'
+} from './AlertDialog'
+export { Badge, badgeVariants } from './Badge'
+export { Button, buttonVariants } from './Button'
+export { Checkbox } from './Checkbox'
 export {
   Dialog,
   DialogClose,
@@ -26,7 +26,7 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
-} from './dialog'
+} from './Dialog'
 export {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -43,7 +43,7 @@ export {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from './dropdown-menu'
+} from './DropdownMenu'
 export {
   Field,
   FieldContent,
@@ -54,9 +54,9 @@ export {
   FieldLegend,
   FieldSet,
   FieldTitle,
-} from './field'
-export { Input } from './input'
-export { Label } from './label'
+} from './Field'
+export { Input } from './Input'
+export { Label } from './Label'
 export {
   Select,
   SelectContent,
@@ -68,9 +68,9 @@ export {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from './select'
-export { Skeleton } from './skeleton'
-export { Switch } from './switch'
-export { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'
-export { Textarea } from './textarea'
-export { Typography, type TypographyProps, typographyVariants } from './typography'
+} from './Select'
+export { Skeleton } from './Skeleton'
+export { Switch } from './Switch'
+export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
+export { Textarea } from './Textarea'
+export { Typography, type TypographyProps, typographyVariants } from './Typography'

@@ -22,7 +22,7 @@ Se o que você precisa já existe num desses dois lugares, use — não escreva 
 | Qualquer texto (título, rótulo, corpo, legenda)      | `Typography` (`components/ui`)                                                    | prop `as` obrigatória; nunca `text-*`/`font-*` solto em `features/`/`pages/`        |
 | Uma listagem tabular                                 | `DataTable` (`components/common`) + `columns.tsx`/`rows.ts` na própria feature    | `caption` é obrigatório (nome acessível da tabela)                                  |
 | Topo de uma página (título, ação, filtro)            | `PageHeader` (`components/common`)                                                | `titleId` vira o `aria-labelledby` da `<section>` da página                         |
-| Um campo de formulário                               | `FormField` (`components/common`) por cima de `Input`/`Select`/`Checkbox`         | liga `aria-describedby`/`aria-invalid` sozinho — o `field.tsx` vendorizado não liga |
+| Um campo de formulário                               | `FormField` (`components/common`) por cima de `Input`/`Select`/`Checkbox`         | liga `aria-describedby`/`aria-invalid` sozinho — o `Field.tsx` vendorizado não liga |
 | Um rótulo de status                                  | `Badge` (`components/ui`)                                                         | variantes: `success`/`warning`/`info`/`destructive`/`secondary`                     |
 | Estado de carregamento                               | `<Componente>Skeleton` ao lado do componente (ou `DataTableSkeleton` para tabela) | `role="status" aria-live="polite" aria-busy="true"` + texto `sr-only`               |
 | Lista vazia ou erro de leitura                       | `EmptyState` / `ErrorState` (`components/common`)                                 | `ErrorState` sempre com `onRetry`                                                   |
@@ -33,7 +33,7 @@ Se o que você precisa já existe num desses dois lugares, use — não escreva 
 
 ```tsx
 // ❌ — classe solta, sem Typography, sem alias
-import { Button } from '../../../components/ui/button'
+import { Button } from '../../../components/ui/Button'
 ;<p className="text-sm font-medium">Nenhum quarto em operação</p>
 
 // ✅

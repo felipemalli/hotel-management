@@ -4,7 +4,7 @@ import type * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-import { Button } from './button'
+import { Button } from './Button'
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />

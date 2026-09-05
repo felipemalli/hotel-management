@@ -13,11 +13,11 @@ Este projeto **não usa a CLI do shadcn** (não há Node instalado nela nesta im
 
 ## Procedimento
 
-1. Baixe o componente do registro (troque `<nome>` pelo nome do arquivo no registro, ex. `select`, `dropdown-menu`, `alert-dialog`):
+1. Baixe o componente do registro (troque `<nome>` pelo nome do arquivo no registro, ex. `select`, `dropdown-menu`, `alert-dialog`; troque `<Nome>` pelo mesmo nome em PascalCase, ex. `Select`, `DropdownMenu`, `AlertDialog` — arquivos em `components/ui/` seguem PascalCase, nunca kebab-case, como o resto dos componentes React do projeto):
 
    ```bash
    curl -s https://ui.shadcn.com/r/styles/base-nova/<nome>.json | jq -r '.files[].content' \
-     > frontend/src/components/ui/<nome>.tsx
+     > frontend/src/components/ui/<Nome>.tsx
    ```
 
 2. Ajuste o arquivo colado, sempre, nesta ordem:
