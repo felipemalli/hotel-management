@@ -1,6 +1,5 @@
 # --- Orquestracao: processo fora do historico (SPEC 8.5) ---
 .env
-CLAUDE.md
 /ai-plans
 
 # --- Python / backend ---
