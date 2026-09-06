@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from accounts.models import Role
 from hotel.billing import engine as pricing
-from hotel.billing.models import PricingPolicy
+from hotel.billing.models import Account, PricingPolicy
 from hotel.guests.models import Guest
 from hotel.reservations.models import Reservation, ReservationStatus, StatementLine
 from hotel.rooms.models import Room
@@ -61,6 +61,13 @@ class PricingPolicyFactory(factory.django.DjangoModelFactory):
     checkin_opens = time(14, 0)
     checkout_limit = time(12, 0)
     effective_from = factory.LazyFunction(timezone.now)
+
+
+class AccountFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Account
+
+    opened_at = factory.LazyFunction(timezone.now)
 
 
 class GuestFactory(factory.django.DjangoModelFactory):
