@@ -58,10 +58,34 @@ def test_check_in_opens_an_account_in_the_same_transaction(actor):
     assert reservation.account is None
 
 
+def test_early_checkout_bills_every_booked_daily_and_no_late_fee(actor):
+    """BUSINESS_RULE: saida antecipada mantem as diarias e nao e atraso.
+
+    Contratado sex 07 -> dom 09; saiu no sabado 08 as 19:00. Cobra sex + sab,
+    e o livro nao ganha linha de multa.
+    """
+    reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
+    service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
+
+    statement = service.check_out(reservation, now=local(MARCH_8, 19), actor=actor)
+
+    assert [line.service_date.day for line in lines_by_kind(reservation, LineKind.DAILY)] == [7, 8]
+    assert lines_by_kind(reservation, LineKind.LATE_FEE) == []
+    assert statement.late_fee_applied is False
+    assert statement.total == Decimal("300.00")
+
+    reservation.refresh_from_db()
+    assert reservation.account.total_amount == Decimal("300.00")
+
+
 def test_checkout_persists_statement_lines_equal_to_bill(actor):
     reservation = t7_checked_in(actor)
     bill = pricing.calculate_bill(
-        checkin_day=MARCH_7, checkout_day=MARCH_9, checkout_time=time(12, 1), has_vehicle=True
+        checkin_day=MARCH_7,
+        checkout_day=MARCH_9,
+        checkout_time=time(12, 1),
+        booked_checkout_day=MARCH_9,
+        has_vehicle=True,
     )
 
     service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)

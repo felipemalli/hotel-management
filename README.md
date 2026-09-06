@@ -416,16 +416,18 @@ carrega um identificador `Dx` para ser citável em revisão.
 
 ### 4.1 Decisões que resolvem ambiguidades do briefing
 
-Estas decisões são **normativas**. Todo código e teste deriva delas.
+As regras de negócio ficam em [`backend/docs/BUSINESS_RULE.md`](backend/docs/BUSINESS_RULE.md) —
+é ele a fonte da verdade. A tabela abaixo é a **leitura** dessas regras onde o texto admitia mais
+de uma; divergiu, o arquivo vence e esta tabela é que se corrige.
 
 | ID | Ambiguidade | Decisão |
 |----|-------------|---------|
-| D1 | Como contar diárias? | Uma diária por **data** no intervalo `[data(check-in), data(checkout))`. Se o intervalo for vazio (day-use), cobra-se **mínimo de 1 diária** (a do dia do check-in). |
+| D1 | Como contar diárias? | Uma diária por **data** no intervalo `[data(check-in real), max(data(checkout real), data(checkout contratado)))`. **Saída antecipada não devolve diária** — o hóspede paga o período que reservou. Se o intervalo for vazio (day-use), cobra-se **mínimo de 1 diária** (a do dia do check-in). |
 | D2 | Qual tarifa aplica em cada diária? | A do dia da semana **da própria data da diária**. Sex→Seg = sex 120 + sáb 180 + dom 180. |
-| D3 | Multa de checkout tardio | Incide se `hora local do checkout > 12:00:00`. **Exatamente 12:00:00 é isento.** Base = 50% da tarifa da diária correspondente ao **dia da saída** (útil 60,00 / fds 90,00). Independe de vaga. |
+| D3 | Multa de checkout tardio | Exige **as duas** condições: a saída não é antecipada (`data(checkout real) >= data(checkout contratado)`) **e** `hora local do checkout > 12:00:00`. **Exatamente 12:00:00 é isento.** Base = 50% da tarifa da diária correspondente ao **dia da saída real** (útil 60,00 / fds 90,00). Independe de vaga. Quem sai antes do prazo nunca atrasa; quem estende uma noite e vai embora antes do meio-dia já pagou a diária extra, e não é multado por cima dela. |
 | D4 | Check-in antes das 14h | Permitido se `hora local >= 14:00:00`. Antes disso a API responde `409 EARLY_CHECKIN` (alerta). O atendente pode **confirmar mesmo assim** reenviando com `allow_early: true` — o briefing pede *alerta*, não bloqueio. |
 | D5 | Busca parcial em documento/telefone | `documento` e `telefone` em claro, **já normalizados** (D9). Busca **parcial** (trigram/`icontains`) nos três campos: nome, documento e telefone. Cifra em repouso foi rejeitada — custa o `LIKE` e o negócio não a usa. |
-| D6 | Cobrança usa datas agendadas ou reais? | **Reais** (`checked_in_at` / `checked_out_at`). Datas agendadas servem à reserva e às listagens; o dinheiro segue o fato. |
+| D6 | Cobrança usa datas agendadas ou reais? | **As duas.** A entrada segue o fato (`checked_in_at`). A saída cobra o **maior** entre o fato (`checked_out_at`) e o contratado (`checkout_date`): estender custa mais, antecipar não desconta. |
 | D7 | Check-in fora da data agendada | Não validamos correspondência com a data agendada (fora de escopo). D6 garante que a cobrança permanece correta. |
 | D8 | Cancelamento | Enum inclui `CANCELLED`; transição `PENDING → CANCELLED` exposta via endpoint. Nenhum outro estado cancela. |
 | D9 | Documento sem dígito / passaporte / telefone internacional | Normalização de **armazenamento** é **por tipo**: documento = alfanumérico maiúsculo (`re.sub(r"[^A-Z0-9]", "", v.upper())`), telefone = dígitos **E.164 sem o `+`** (`5521988887777`). A coluna guarda o valor normalizado; a máscara digitada não persiste. Validação: documento ≥ 4 alfanuméricos; telefone **exige o `+` e o código do país na entrada**, validado por `phonenumberslite` (`is_valid_number`). A presença do DDI é garantida na **entrada** — o `+` não persiste e o banco não distingue. Nacionalidade obrigatória em ISO 3166-1 alpha-2. |

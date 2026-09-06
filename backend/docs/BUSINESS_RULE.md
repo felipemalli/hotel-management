@@ -18,6 +18,5 @@
 - Uma reserva possui no mínimo 1 títular;
 - Uma reserva pode possuir acompanhantes.
 - Um hóspede não pode realizar outro check-in enquanto outro seu está ativo
+- Caso o checkout ocorra antes, o valor de todas as diárias se mantém.
 
-
-- Somente o títular pode realizar o check-in!???

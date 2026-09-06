@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import datetime, time
+from datetime import date, datetime, time
 from decimal import Decimal
 
 import pytest
@@ -131,12 +131,28 @@ TRUTH_TABLE = [
 ]
 
 
-def bill_of(checkin, checkout, has_vehicle, rates=pricing.DEFAULT_RATES) -> pricing.Bill:
-    """A tabela-verdade e escrita em datetimes locais; o motor so aceita date/time."""
+def late_on(checkout, rates=pricing.DEFAULT_RATES, booked_checkout=None) -> bool:
+    """Saida no proprio dia contratado, salvo indicacao: isola o limite de hora."""
+    return pricing.late_checkout(
+        checkout_day=checkout.date(),
+        checkout_time=checkout.time(),
+        booked_checkout_day=booked_checkout or checkout.date(),
+        rates=rates,
+    )
+
+
+def bill_of(
+    checkin, checkout, has_vehicle, rates=pricing.DEFAULT_RATES, booked_checkout=None
+) -> pricing.Bill:
+    """A tabela-verdade e escrita em datetimes locais; o motor so aceita date/time.
+
+    Sem `booked_checkout`, a saida contratada e a real: e o caso dos nove T.
+    """
     return pricing.calculate_bill(
         checkin_day=checkin.date(),
         checkout_day=checkout.date(),
         checkout_time=checkout.time(),
+        booked_checkout_day=booked_checkout or checkout.date(),
         has_vehicle=has_vehicle,
         rates=rates,
     )
@@ -217,7 +233,62 @@ def test_early_checkin_boundaries(now, expected):
 )
 def test_late_checkout_boundaries(now, expected):
     """`ate as 12h00min` inclui o limite: 12:00:00 e isento (SPEC 3.3/T8/D3)."""
-    assert pricing.late_checkout(now.time()) is expected
+    assert late_on(now) is expected
+
+
+def test_early_checkout_costs_the_same_as_staying_to_the_booked_end():
+    """BUSINESS_RULE: `caso o checkout ocorra antes, o valor de todas as diarias se mantem`.
+
+    Mesma reserva do T1 (seg 03 15:00 -> qua 05), com saida real na terca 04 as
+    18:00: as duas diarias contratadas continuam sendo cobradas.
+    """
+    early = bill_of(dt(3, 15), dt(4, 18), False, booked_checkout=date(2025, 3, 5))
+
+    assert [line.date.day for line in early.lines] == [3, 4]
+    assert early.subtotal_daily == D("240.00")
+    assert early.total == bill_of(dt(3, 15), dt(5, 11), False).total == D("240.00")
+
+
+def test_leaving_early_after_noon_is_not_a_late_checkout():
+    """O limite das 12:00 vale para o ultimo dia contratado, nao para todo dia.
+
+    Quem sai um dia antes as 18:00 nao atrasou nada -- antes esta reserva
+    levava multa de 50%.
+    """
+    early = bill_of(dt(3, 15), dt(4, 18), False, booked_checkout=date(2025, 3, 5))
+
+    assert early.late_fee_applied is False
+    assert early.late_fee == D("0.00")
+
+
+def test_overstay_charges_the_extra_night_and_then_the_late_fee():
+    """Contratado ate qua 05; saiu qui 06 as 14:00.
+
+    A noite extra (05->06) e diaria cheia; a tarde do dia 06 e a multa de 50%
+    da diaria daquele dia (quinta, 120,00).
+    """
+    over = bill_of(dt(3, 15), dt(6, 14), False, booked_checkout=date(2025, 3, 5))
+
+    assert [line.date.day for line in over.lines] == [3, 4, 5]
+    assert over.subtotal_daily == D("360.00")
+    assert over.late_fee_base == D("120.00")
+    assert over.late_fee == D("60.00")
+    assert over.total == D("420.00")
+
+
+@pytest.mark.parametrize(
+    ("checkout", "booked_day", "expected"),
+    [
+        (dt(5, 11, 59), 5, False),
+        (dt(5, 12, 0, 0), 5, False),
+        (dt(5, 12, 0, 1), 5, True),
+        (dt(4, 23, 59, 59), 5, False),
+        (dt(6, 0, 0, 1), 5, False),
+        (dt(6, 12, 0, 1), 5, True),
+    ],
+)
+def test_late_checkout_is_measured_against_the_booked_last_day(checkout, booked_day, expected):
+    assert late_on(checkout, booked_checkout=date(2025, 3, booked_day)) is expected
 
 
 def test_stay_dates_is_semi_open_interval():
@@ -326,11 +397,11 @@ def test_rate_table_times_are_parameters():
 def test_checkout_limit_is_a_parameter_and_the_exact_minute_is_exempt():
     generous = replace(pricing.DEFAULT_RATES, checkout_limit=time(13, 0))
 
-    assert pricing.late_checkout(dt(3, 12, 30).time()) is True
-    assert pricing.late_checkout(dt(3, 12, 30).time(), generous) is False
+    assert late_on(dt(3, 12, 30)) is True
+    assert late_on(dt(3, 12, 30), generous) is False
     # O limite em ponto continua isento, seja ele qual for.
-    assert pricing.late_checkout(dt(3, 13, 0, 0).time(), generous) is False
-    assert pricing.late_checkout(dt(3, 13, 0, 1).time(), generous) is True
+    assert late_on(dt(3, 13, 0, 0), generous) is False
+    assert late_on(dt(3, 13, 0, 1), generous) is True
 
 
 def test_calculate_bill_uses_the_checkout_limit_from_the_rates():
