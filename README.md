@@ -342,8 +342,9 @@ Duas garantias que valem mencionar porque são incomuns:
   fronteiras 11:59 / 12:00:00 / 12:01 e o day-use) e em
   `frontend/src/features/reservations/__fixtures__/bills.ts` (render do
   extrato). Divergência entre backend, frontend e tabela quebra a suíte.
-- **Nenhum teste toca a rede.** A feature de IA da seção 5.4 é testada com o
-  cliente HTTP dublado; o caminho sem chave é testado de verdade.
+- **Nenhum teste toca a rede.** A Íris (seção 5.4) é testada com o transporte
+  HTTP dublado: a fila de respostas do teste encena o laço de *tool use* rodada
+  por rodada, e o caminho sem chave é exercitado de verdade.
 
 ### 3.1 Matriz de rastreabilidade (RF/RN → prova)
 
@@ -483,7 +484,7 @@ A exceção é o horário de **abertura** do check-in: ele decide se o check-in 
 
 **Valores configuráveis não quebram o briefing.** Os números do desafio (120/180/15/20, multa de 50%, 14h/12h) passam a ser o **estado inicial** do sistema, em três camadas redundantes: (1) `engine.DEFAULT_RATES` segue a constante, agora com os horários como campos com default — `tests/unit/test_pricing.py` não passa `rates`, e T1–T9 não mudam um byte; (2) uma data migration insere a mesma linha com os **mesmos literais** (migração é registro histórico e não importa constante de código), e `test_default_policy_row_matches_default_rates` amarra as duas fontes campo a campo; (3) `effective_from` é o instante da publicação e a política é amarrada por FK no check-in, então **mudar a política é mudar o futuro, nunca o passado**. Isto é *mais* fiel ao briefing que antes: antes da política versionada, mudar `DEFAULT_RATES` reescreveria silenciosamente a 2ª via de um extrato já emitido. Sem uma ação deliberada de um `ADMIN`, cada número e cada mensagem do sistema é idêntico ao de hoje.
 
-**D9 (emenda) — o telefone exige `+` e código do país na entrada.** Alternativa: "aceitar o número como vier e inferir o país." Divergência: `11933334444` é um celular de São Paulo; sem o `+`, `phonenumbers` o lê como `+1 193…` (EUA) — e `31…` vira Holanda, `41…` vira Suíça. Adotada: `400` no campo `phone`, e o atendente completa o DDI. Alternativa: o número entra no banco com o país errado, passa a busca e a unicidade sem levantar nada, e nunca mais volta ao dono. Por isso a checagem é `is_valid_number` (plano de numeração do país) e não `is_possible_number` (só comprimento) — a segunda aceitaria os três casos acima. A regra mora em `hotel.guests.services.create_guest`, não no serializer, pelo mesmo motivo de D11/D13: tem de valer para o seed e para o shell. Consequência declarada: a IA de preenchimento **não** infere DDI — inferir país a partir de um número solto é regra de negócio dentro de um prompt, acertaria o Brasil na maioria dos casos e erraria calado no hóspede estrangeiro.
+**D9 (emenda) — o telefone exige `+` e código do país na entrada.** Alternativa: "aceitar o número como vier e inferir o país." Divergência: `11933334444` é um celular de São Paulo; sem o `+`, `phonenumbers` o lê como `+1 193…` (EUA) — e `31…` vira Holanda, `41…` vira Suíça. Adotada: `400` no campo `phone`, e o atendente completa o DDI. Alternativa: o número entra no banco com o país errado, passa a busca e a unicidade sem levantar nada, e nunca mais volta ao dono. Por isso a checagem é `is_valid_number` (plano de numeração do país) e não `is_possible_number` (só comprimento) — a segunda aceitaria os três casos acima. A regra mora em `hotel.guests.services.create_guest`, não no serializer, pelo mesmo motivo de D11/D13: tem de valer para o seed e para o shell.
 
 **D9 (emenda) — nacionalidade obrigatória, ISO 3166-1 alpha-2.** Alternativa: `django-countries`/`pycountry`. Divergência: o que o sistema precisa é recusar `ZZ`, não traduzir nomes de país para 40 idiomas nem servir um `<select>` — isso é do frontend, que já tem a lista. Adotada: um `frozenset` de 249 strings estáveis em `hotel/guests/normalization.py`, zero dependência. O model **não** tem `default`: default silencioso faria todo hóspede estrangeiro nascer brasileiro no primeiro caminho de escrita que esquecesse o campo (o `"BR"` da migração é one-off, `preserve_default=False`).
 
@@ -531,8 +532,10 @@ fora dele, exporte com `set -a && . ../.env && set +a`, como na seção 2.
 | `THROTTLE_LOGIN` | não | `10/min` | Limite do login, por IP. |
 | `THROTTLE_REFRESH` | não | `60/min` | Limite da renovação, por IP. Escopo próprio: o boot do frontend renova a cada carga de página, e o balcão divide um IP atrás do NAT. |
 | `SECURE_HSTS_SECONDS` | não | `31536000` | HSTS; só tem efeito atrás de TLS. |
-| `ANTHROPIC_API_KEY` | não | vazio | **Liga** o diferencial de IA da seção 5.4. Vazio = feature desligada. |
-| `ANTHROPIC_MODEL` | não | `claude-haiku-4-5` | Modelo usado pela extração, quando a IA está ligada. Não consta do `.env.example` por ser opcional; se você a adicionar ao `.env`, o Compose a entrega ao backend como qualquer outra. |
+| `THROTTLE_AI` | não | `20/min` | Limite da Íris, por usuário autenticado. Cada pergunta gasta uma unidade aqui e de 2 a 4 chamadas no provedor. |
+| `GEMINI_API_KEY` | não | vazio | **Liga** a Íris (seção 5.4). Chave de um projeto **sem** billing = tier gratuito. Vazio (e sem a paga) = feature desligada. |
+| `GEMINI_API_KEY_PAID` | não | vazio | Opcional, de um projeto **com** billing. No `429` da gratuita o cliente repete a chamada com esta e segue com ela até o fim daquele request. |
+| `GEMINI_MODEL` | não | `gemini-3.8-flash` | Modelo usado pela Íris. Não consta do `.env.example` por ser opcional; se você a adicionar ao `.env`, o Compose a entrega ao backend como qualquer outra. |
 
 ### 5.3 PII e busca
 
@@ -549,61 +552,123 @@ formatação de exibição no frontend (`formatDocument` / `formatPhone`). Logs
 jamais contêm PII: nenhum `print`/log de payload de hóspede, e o exception
 handler não ecoa o body.
 
-### 5.4 Diferencial opcional: preenchimento por IA
+### 5.4 Diferencial opcional: Íris, copiloto do hotel
 
-Feature única e pontual: o atendente cola um texto livre (a linha lida do
-documento, o recado da reserva por telefone) e o formulário de cadastro é
-preenchido com nome, documento e telefone. **Nada é persistido pela IA** — o
-resultado só preenche os campos, e o atendente revisa e submete
-(*human-in-the-loop*).
+A Íris tem uma página própria (`/iris`, primeiro item de OPERAÇÃO). O atendente
+pergunta em linguagem natural — "a Ana Souza chegou", "alguém passou do horário
+de checkout?", "quanto faturamos até agora?" — e recebe um texto curto e, quando
+há uma ação clara, **um** botão.
 
-> ⚠️ **Aviso de envio a provedor externo.** Com `ANTHROPIC_API_KEY`
-> configurada, o texto livre digitado nesse campo é enviado à API da Anthropic
-> (`https://api.anthropic.com/v1/messages`) para extração dos campos. É a única
-> saída de dados do sistema para fora da sua infraestrutura, e ela só existe se
-> você configurar a chave. O payload não é registrado em log, nem o texto
-> enviado, nem a resposta recebida. Se essa transmissão não for aceitável no
-> seu contexto, **deixe a variável vazia**: a aplicação inteira continua
-> funcionando e o botão simplesmente não aparece.
+O que a torna diferente de um chat colado no produto é quem faz as consultas. O
+modelo não recebe o banco: ele **pede** uma consulta por vez, e o Django a
+executa pelos mesmos selectors e serviços que as telas usam. São quatro
+leituras, e nenhuma escrita:
+
+| Ferramenta          | O que devolve                                                                    |
+| ------------------- | -------------------------------------------------------------------------------- |
+| `find_reservations` | Reservas de um status, achadas por titular, **acompanhante**, quarto ou nº        |
+| `preview_checkout`  | O extrato que sairia agora — diárias, vaga, multa, total — sem gravar nada        |
+| `available_rooms`   | Quartos livres num período, com a capacidade de cada um                          |
+| `revenue_summary`   | Faturamento das estadias encerradas: fechado, recebido, multas (hoje / mês / tudo)|
+
+A resposta termina numa função `answer`, então a saída é **estruturada por
+construção** — nenhum JSON é garimpado de dentro de prosa. Se a pergunta tem uma
+ação, ela vem em `proposed_action` e o clique passa pelos endpoints de check-in e
+de checkout de sempre: o `409 EARLY_CHECKIN` ainda abre o diálogo de confirmação,
+e o checkout ainda mostra o extrato com os mesmos números. **A IA não grava
+nada** (*human-in-the-loop*).
+
+> ⚠️ **Aviso de envio a provedor externo.** Com a chave configurada, saem para
+> o Google Gemini (`https://generativelanguage.googleapis.com/v1beta/interactions`)
+> os **nomes** (titular e acompanhantes), quartos, datas, o extrato projetado e
+> os agregados de faturamento. **Documento e telefone nunca saem** — o recorte
+> que vai para o provedor não tem esses campos. Nada do conteúdo é registrado em
+> log. Esta é a única saída de dados do sistema para fora da sua infraestrutura,
+> e ela só existe se você configurar a chave.
+>
+> No **tier gratuito** o Google declara que pode usar as entradas e as saídas
+> para treinar os modelos, que revisores humanos podem lê-las, e pede que não
+> se enviem informações pessoais. Isto é aceitável aqui porque a demonstração
+> roda sobre o seed, com hóspedes fictícios. **Para dados reais, use uma chave
+> de projeto com billing** (`GEMINI_API_KEY_PAID`), cujo conteúdo não entra em
+> treino. Se nenhuma das duas for aceitável no seu contexto, deixe as variáveis
+> vazias: a aplicação inteira continua funcionando e a página diz que a Íris
+> está desligada.
 
 Como ligar:
 
 ```bash
-# no .env
-ANTHROPIC_API_KEY=sk-ant-...
+# 1. crie a chave em aistudio.google.com, num projeto SEM billing (tier gratuito)
+# 2. confira os limites reais em aistudio.google.com/rate-limit — o Google não os
+#    publica na documentação, e uma pergunta gasta de 2 a 4 chamadas
+# 3. no .env
+GEMINI_API_KEY=...
+# opcional: segundo projeto, COM billing (pré-pago mínimo de US$ 5)
+GEMINI_API_KEY_PAID=...
 # opcional
-ANTHROPIC_MODEL=claude-haiku-4-5
+GEMINI_MODEL=gemini-3.8-flash
 
 docker compose up -d --build backend
 ```
 
+A chave herda o tier do projeto que a emitiu, e num projeto com billing **tudo**
+é pago: "grátis até acabar, depois cobra" só existe com as duas chaves. No `429`
+da gratuita o cliente repete a mesma chamada com a paga e segue com ela até o
+fim daquele request.
+
 Portão de fallback (a parte que interessa em revisão):
 
-| Estado | `GET /api/ai/status/` | `POST /api/ai/parse-guest/` | Frontend |
+| Estado | `GET /api/ai/status/` | `POST /api/ai/copilot/` | Frontend |
 |---|---|---|---|
-| Sem chave | `{"enabled": false}` | `503 AI_DISABLED` | botão "Preencher com IA" não é renderizado |
-| Com chave | `{"enabled": true}` | `200` com os três campos | botão aparece no formulário de cadastro |
-| Com chave, provedor falhando | `{"enabled": true}` | `502 AI_UPSTREAM_ERROR` | aviso em toast; o formulário segue preenchível à mão |
+| Sem chave | `{"enabled": false}` | `503 AI_DISABLED` | a página diz que a Íris está desligada |
+| Com chave | `{"enabled": true}` | `200 {reply, proposed_action}` | resposta e, quando houver, o botão da ação |
+| Com chave, provedor falhando | `{"enabled": true}` | `502 AI_UPSTREAM_ERROR` | aviso em toast; o resto do produto intacto |
 
-Saída de modelo é **input não confiável**: a resposta passa por um serializer
-antes de chegar ao formulário, e qualquer desvio (timeout, HTTP diferente de
-200, JSON inválido, chave faltante, tipo errado) vira `502 AI_UPSTREAM_ERROR`
-em vez de campo estranho no cadastro.
+Saída de modelo é **input não confiável**, e em três frentes:
+
+- **argumentos**: cada chamada de ferramenta passa por um serializer antes de
+  virar consulta. Onde o modelo costuma omitir um campo, o serializer é
+  tolerante — um argumento faltante custa uma rodada com `{"error": …}`, que o
+  modelo lê e corrige, nunca um `502`;
+- **identidade**: um botão só aparece se a reserva **apareceu** num resultado e
+  foi **isolada** nele. Um id que já apareceu ao lado de outro fica travado pelo
+  resto da requisição, mesmo que o modelo afunile sozinho depois — nesse caso
+  quem escolheu foi ele, não o atendente. Id inventado derruba o botão, não a
+  resposta: o texto foi construído com dados reais e continua valendo;
+- **status**: antes de devolver a ação, o servidor relê a reserva. Um check-in
+  concorrente entre a busca e a resposta zera a ação em vez de oferecer um botão
+  que já falharia.
+
+Tudo isso dentro de um orçamento de **15 s** para o laço inteiro (no máximo 4
+rodadas de ferramentas), com folga sobre o timeout de 30 s do worker: no pior
+caso o atendente vê um toast, nunca um worker morto.
 
 O app é **removível por construção** — o núcleo do sistema não sabe que ele
-existe. `ai/` importa só `core/`, nenhum app de `hotel/` importa `ai/`, o pacote
-não entra em `INSTALLED_APPS` (não tem models nem migrações) e nada no frontend importa
-`features/ai/` além do formulário de cadastro. A feature inteira cabe em:
+existe. `ai/` importa só `hotel.reservations` e `core/` (e o import-linter cobra
+isso: `ai` não pode tocar `billing`, `rooms` ou `guests` direto), nenhum app de
+`hotel/` importa `ai/`, o pacote não entra em `INSTALLED_APPS` (não tem models
+nem migrações) e nada no resto do frontend importa `features/ai/`. A feature
+inteira cabe em:
 
 - `backend/ai/` e `backend/tests/api/test_ai.py`;
-- uma linha de rota em `backend/config/urls.py`;
-- `frontend/src/features/ai/` (com seu teste);
-- um elemento no `frontend/src/features/guests/GuestForm.tsx` e o `vi.mock`
-  correspondente em `GuestForm.test.tsx`;
+- uma linha de rota em `backend/config/urls.py` e o quarto contrato em
+  `backend/pyproject.toml`;
+- `frontend/src/features/ai/` e `frontend/src/pages/IrisPage/` (com seus testes);
+- a rota `iris` em `lib/routing/routes.ts`, a linha do lazy em `app/router.tsx`
+  e o item de menu em `AppLayout.tsx`;
 - a dependência `httpx` no `backend/pyproject.toml`.
 
-Apagar esses itens desliga o diferencial sem deixar um único órfão — e sem
-tocar em nada que o briefing pede.
+O `useCheckInFlow` fica: ele é refatoração da recepção, não da Íris, e a página
+de reservas o usa.
+
+**Roteiro da demonstração** (com o seed, `docker compose down -v` antes):
+"a Ana Souza chegou" → o texto cita o horário de abertura e oferece o check-in;
+"o Bruno quer sair agora" → os valores do extrato projetado e o botão de
+checkout; "quem ainda está no hotel?" → a lista, sem botão; "a Eva chegou" → a
+estadia do Bruno, achada pelo nome da acompanhante; "quais quartos estão
+livres?"; "quanto faturamos até agora?". Aqueça com uma pergunta antes de
+apresentar: a primeira chamada do dia é mais lenta.
+
 
 ---
 
@@ -645,7 +710,7 @@ Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 | `POST /api/reservations/{id}/cancel/` | ✔ | `PENDING → CANCELLED` |
 | `GET /api/reservations/{id}/statement/` | ✔ | 2ª via do extrato (só `CHECKED_OUT`) |
 | `POST /api/reservations/{id}/pay/` | ✔ | Registra o pagamento único (D18) → extrato com `payment {paid_at, method, received_by}` |
-| `GET /api/ai/status/` · `POST /api/ai/parse-guest/` | ✔ | Diferencial opcional (5.4) |
+| `GET /api/ai/status/` · `POST /api/ai/copilot/` | ✔ | Diferencial opcional: a Íris (5.4) |
 | `GET /api/schema/` · `/api/docs/` | — | OpenAPI 3 + Swagger UI |
 
 Todo erro sai no **mesmo envelope**, para o cliente ramificar por código e
@@ -687,7 +752,7 @@ hotel-management/
 │   │   ├── rooms/              # onde: inventário, capacidade, operação
 │   │   ├── billing/            # quanto: PricingPolicy · engine.py (motor PURO) · Account/AccountLine/Payment
 │   │   └── reservations/       # quando: agenda, transições, extrato, seed_demo
-│   ├── ai/                     # diferencial opcional (5.4), importa só core/
+│   ├── ai/                     # a Íris (5.4): importa só hotel.reservations e core/
 │   └── tests/{unit,db,api}/
 └── frontend/
     ├── e2e/                    # Playwright: support · auth.setup · 4 specs contra o backend real
@@ -696,7 +761,7 @@ hotel-management/
         ├── app/                # casca: App, providers, router (rota de layout)
         │                       #   e app/layout/: AppLayout (menu), SessionMenu, PageFallback
         ├── pages/              # uma pasta por rota (Página.tsx + testes + index.ts);
-        │                       #   não conhece `app/`
+        │                       #   não conhece `app/`; inclui IrisPage (5.4)
         ├── lib/                # sem UI: api (apiClient, Bearer + refresh-once pelo cookie),
         │                       #   auth (session em memória, csrf),
         │                       #   errors, format (money, dates, pii, countries),

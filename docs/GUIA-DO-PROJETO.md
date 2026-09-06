@@ -216,8 +216,9 @@ hotel/               # pacote namespace: um app por domínio, nenhum model aqui
 **`__init__.py`.** Cada pasta que é um pacote Python tem um arquivo
 `__init__.py`, muitas vezes vazio (`hotel/__init__.py` tem 0 bytes) — ele é o
 que faz `from hotel.models import Guest` funcionar. É o `index.js` de uma pasta,
-sem os re-exports. Quando tem conteúdo, vale ler: `ai/__init__.py:1-16` é a
-documentação do isolamento daquele app.
+sem os re-exports. Neste repositório todos eles estão vazios: o isolamento do
+app `ai/`, que já foi documentado num deles, está descrito abaixo e no
+`README.md` §5.4.
 
 **`hotel/migrations/`.** Uma migração é um arquivo Python versionado que descreve
 uma mudança de esquema do banco. Você não escreve migrações à mão: você muda o
@@ -227,14 +228,17 @@ pelas migrações existentes e **gera** o arquivo. `migrate` aplica.
 e uma escrita à mão que vale ver: `:20` habilita a extensão `pg_trgm` do PostgreSQL
 **antes** de criar os índices que dependem dela.
 
-**`ai/`** é uma feature opcional: preenche o formulário de cadastro a partir de
-texto livre, chamando um modelo de linguagem. O isolamento é deliberado e
-documentado em `ai/__init__.py:1-16`: `hotel/` não importa nada de `ai/`, e o app
-nem entra em `INSTALLED_APPS` — ele é alcançado apenas pela rota de
-`config/urls.py:33`. Sem a chave `ANTHROPIC_API_KEY`, `ai/config.py:32-34`
-desliga a feature inteira, `/api/ai/status/` responde `enabled: false` e o
-frontend nem renderiza o botão (`frontend/src/features/ai/AiFillGuest.tsx:25`).
-O sistema é 100% funcional nesse estado.
+**`ai/`** é uma feature opcional: a **Íris**, um copiloto a quem o atendente
+pergunta em linguagem natural ("a Ana Souza chegou", "quanto faturamos até
+agora?"). O caso de uso interessante é que o modelo **não** recebe o banco: ele
+pede uma consulta por vez e o Django a executa pelos mesmos selectors e serviços
+que as telas usam (`ai/tools.py`), num laço que `ai/client.py` conduz. O
+isolamento é deliberado: `hotel/` não importa nada de `ai/`, `ai/` só alcança o
+domínio por `hotel.reservations` (e o import-linter cobra isso), e o app nem
+entra em `INSTALLED_APPS` — ele é alcançado apenas pela rota de
+`config/urls.py:27`. Sem chave, `ai/config.py:29-31` desliga a feature inteira,
+`/api/ai/status/` responde `enabled: false` e a página `IrisPage` diz que a Íris
+está desligada. O sistema é 100% funcional nesse estado.
 
 ### 3.2 `frontend/src/` — organizado por feature
 
@@ -251,6 +255,7 @@ frontend/src/
 │   ├── DashboardPage/    # recepção: GuestTable + ações + os quatro diálogos
 │   │                     #   (+ useDashboardDialog.ts, + 3 flows de teste)
 │   ├── LoginPage/        # veio de features/auth: é rota, não feature
+│   ├── IrisPage/         # a Íris (+ IrisAction.tsx, o botão da ação proposta)
 │   ├── ReservationsPage/       # lista com filtros na URL
 │   ├── ReservationDetailPage/  # ficha, histórico com ator, conta e ações (+ skeleton)
 │   ├── RoomsPage/        # inventário; escrita só para o admin
@@ -282,7 +287,8 @@ frontend/src/
 │   │                     #   (status, history, filters, payment), __fixtures__
 │   ├── rooms/            # RoomForm, RoomActions e os diálogos (components/), __fixtures__
 │   ├── pricing/          # PolicyForm, CurrentPolicyCard, PolicyHistoryTable (components/)
-│   └── ai/               # AiFillGuest, api, hooks, schemas, types
+│   └── ai/               # a Íris: os três componentes dela, api, hooks,
+│                         #   schemas, types, suggestions
 └── test/                 # renderWithProviders, renderPage, fixtures, setup
 ```
 
@@ -341,11 +347,11 @@ escrito no código:
   `["reservations"]` (`frontend/src/lib/useInvalidateServerState.ts:8-15`).
   Invalidar só a raiz "óbvia" deixava a outra aba mentindo até o `staleTime`
   vencer.
-- **O portão da IA é um `return null`.** `AiFillGuest` consulta
-  `/api/ai/status/` e não renderiza nada quando a feature está desligada
-  (`frontend/src/features/ai/AiFillGuest.tsx:25`), em vez de a página de
-  cadastro conhecer a existência da chave. É o que faz o diferencial ser
-  removível apagando a pasta (`README.md` §5.4).
+- **O portão da IA mora na página da IA.** `IrisPage` consulta
+  `/api/ai/status/` e, sem chave, troca o card de pergunta por um aviso de que a
+  Íris está desligada — o item de menu continua lá, e nenhuma outra tela conhece
+  a existência da chave. É o que faz o diferencial ser removível apagando as
+  pastas (`README.md` §5.4).
 - **A validação do cliente espelha o servidor; o servidor decide.** Os schemas
   de `features/<x>/schemas.ts` repetem as regras de D9, D11 e D13 para o erro
   aparecer antes da rede — e o `400 VALIDATION_ERROR` continua sendo remapeado

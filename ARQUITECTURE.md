@@ -18,7 +18,7 @@ Autenticação e papéis (`ADMIN`/atendente) ficam em `accounts/`, fora do domí
 | `hotel.rooms`        | **onde**: inventário, capacidade, operação.                              |
 | `hotel.billing`      | **quanto**: tarifa versionada, motor de cálculo e o livro da conta.       |
 | `hotel.reservations` | **quando**: agenda, estadia, transições e extrato.                       |
-| `ai/`                | extração opcional de campos de cadastro. Importa só `core`.              |
+| `ai/`                | a Íris, copiloto opcional: laço de *tool use* sobre leituras do domínio. Importa só `hotel.reservations` e `core`. |
 | `tests/{unit,db,api}` | motor puro · PostgreSQL real · API ponta a ponta.                        |
 
 Dentro de cada app: `models` → `selectors` → `services` (recebem `now`/`today` por parâmetro) →
@@ -34,7 +34,10 @@ ai  ->  hotel.reservations  ->  hotel.guests | hotel.rooms | hotel.billing  ->  
         hotel.rooms.services --+ (única exceção: guardas de leitura da agenda)
 ```
 
-Irmãos na mesma faixa não se importam. Nada em `hotel.*` importa `ai` nem `config`. `billing` não
+Irmãos na mesma faixa não se importam. Nada em `hotel.*` importa `ai` nem `config`. Um quarto
+contrato (`forbidden`) fecha o outro lado: `ai` não pode importar `hotel.billing`, `hotel.rooms` nem
+`hotel.guests` direto — só `hotel.reservations`, que já é a fachada das leituras cruzadas. É
+`allow_indirect_imports`, porque `reservations` importa as folhas e a cadeia é legítima. `billing` não
 conhece nenhum irmão — a conta não sabe que existe reserva. A exceção é
 `hotel.rooms.services → hotel.reservations.selectors`: desativar um quarto e reduzir capacidade
 precisam ler a agenda, e o selector encapsula os status para que `rooms` não conheça o ciclo de vida
@@ -69,7 +72,7 @@ A tarifa do briefing (120/180/15/20, multa 50%, 14:00/12:00) tem três fontes qu
 | durante         | `billing.post_line(kind=EXTRA, …)` — o livro aceita lançamento avulso; sem endpoint hoje      |
 | checkout        | `post_lines` (diárias, vaga, multa) + `close_account` na mesma transação do flip             |
 | pagamento       | `register_payment` — `Payment` 1:1, conta vai a PAID; a reserva segue CHECKED_OUT             |
-| a qualquer hora | `preview_checkout(reservation, now=…)` calcula sem lock e sem escrita                        |
+| a qualquer hora | `preview_checkout(reservation, now=…)` calcula sem lock e sem escrita — é a costura que a Íris consome |
 
 `statement()` hidrata das linhas gravadas e **nunca** chama o motor: o recibo de uma estadia
 encerrada é um fato, não uma função. Ordem de lock: **Guest (pk asc) → Room → Reservation → Account**.
@@ -77,10 +80,11 @@ encerrada é um fato, não uma função. Ordem de lock: **Guest (pk asc) → Roo
 
 ## 6. Dinheiro e tempo
 
-`Decimal` sempre, `float` nunca — o CI recusa `float(` em `backend/hotel`, `backend/accounts` e
-`backend/core`. `core.money.quantize_money` é o único ponto de arredondamento (meia unidade para
-cima). A API troca dinheiro como string decimal (`"120.00"`). `USE_TZ` ligado, `America/Sao_Paulo`;
-as regras de horário (check-in às 14h, checkout às 12h) são avaliadas em hora local.
+`Decimal` sempre, `float` nunca — o CI recusa `float(` em `backend/hotel`, `backend/accounts`,
+`backend/core` e `backend/ai`. `core.money.quantize_money` é o único ponto de arredondamento (meia
+unidade para cima). A API troca dinheiro como string decimal (`"120.00"`). `USE_TZ` ligado,
+`America/Sao_Paulo`; as regras de horário (check-in às 14h, checkout às 12h) são avaliadas em hora
+local.
 
 ## 7. Contrato HTTP
 
@@ -94,16 +98,34 @@ complemento, e inclui reserva sem conta.
 
 ## 8. IA
 
-`ai/` importa apenas `core` e nenhum app de domínio importa `ai` — desligar a chave remove a feature
-sem tocar em regra de negócio. O copiloto de checkout está adiado; o ponto de costura já existe e é
-`hotel.reservations.services.preview_checkout`, que devolve o extrato projetado sem efeito colateral.
+`ai/` hospeda a Íris: `POST /api/ai/copilot/` roda um laço de *tool use* contra a Interactions API do
+Gemini (httpx cru, sem SDK) em que o modelo **pede** uma consulta e o Django a executa pelos mesmos
+selectors e serviços das telas. Quatro leituras (`find_reservations`, `preview_checkout`,
+`available_rooms`, `revenue_summary`) e uma função terminal `answer`, de onde sai a resposta
+estruturada — nenhum JSON é extraído de prosa. Escrita, nenhuma: a ação proposta volta ao frontend
+como um botão que chama os endpoints de check-in e de checkout de sempre.
+
+Nenhum app de domínio importa `ai`, e `ai` só alcança o domínio por `hotel.reservations` (§3):
+desligar a chave, ou apagar o pacote, remove a feature sem tocar em regra de negócio.
+
+Saída de modelo é input não confiável em três frentes: **argumentos** passam por serializer (e são
+tolerantes onde o modelo omite, para que a falta de um campo custe uma rodada com `{"error"}` e não
+um 502); **identidade** exige que a reserva tenha aparecido num resultado e tenha sido isolada nele
+(um id visto ao lado de outro fica travado pelo resto da requisição, mesmo que o modelo afunile
+depois); **status** é relido antes de a ação sair, então um check-in concorrente a zera. O laço tem
+orçamento de 15 s e no máximo quatro rodadas, com folga sobre o timeout do worker.
+
+Duas chaves e um fallback: `GEMINI_API_KEY` (projeto sem billing, tier gratuito) e, opcional,
+`GEMINI_API_KEY_PAID`; no `429` da primeira o cliente repete a chamada com a segunda e segue com ela
+até o fim daquele request. O que sai para o provedor: nomes, quartos, datas, o extrato projetado e
+agregados de faturamento. **Documento e telefone nunca saem**, e nada do conteúdo entra em log.
 
 ## 9. Testes e CI
 
 `tests/unit` prova o motor puro sem banco; `tests/db` prova constraints, services e selectors contra
 PostgreSQL real; `tests/api` prova o contrato HTTP ponta a ponta. Os ids normativos da matriz RF/RN
 são imutáveis. O job de backend roda, nesta ordem: guard de `float(`, `ruff check`, `lint-imports`,
-`makemigrations --check --dry-run` e `pytest` com piso de 85% sobre `hotel`, `accounts` e `core`. O
+`makemigrations --check --dry-run` e `pytest` com piso de 85% sobre `hotel`, `accounts`, `core` e `ai`. O
 job de frontend roda `pnpm run check`; o de e2e sobe o backend real com o seed.
 
 ## 10. Gatilhos de evolução
@@ -113,5 +135,4 @@ job de frontend roda `pnpm run check`; o de e2e sobe o backend real com o seed.
 | lançamento avulso vira feature                 | endpoint em `billing` + render de `extras` no extrato; `reservations` não muda  |
 | uma estadia precisar de mais de uma conta      | `Reservation.account` OneToOne → FK                                            |
 | pagamento parcial ou estorno                   | `Payment.account` OneToOne → FK, status da conta derivado da soma              |
-| copiloto de checkout                           | consome `preview_checkout`                                                     |
 | multi-hotel                                    | `UniqueConstraint(hotel, document)` em `guests`                                 |
