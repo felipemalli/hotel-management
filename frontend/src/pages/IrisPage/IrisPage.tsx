@@ -16,7 +16,7 @@ const TITLE_ID = 'iris-title'
 const DESCRIPTION =
   'Copiloto de dados do hotel. Pergunte em linguagem natural — a Íris consulta reservas, quartos, hóspedes e a tarifa vigente, e devolve a ação quando houver uma.'
 
-const DISABLED = 'A Íris está desligada neste servidor: configure GEMINI_API_KEY para ativá-la.'
+const DISABLED = 'A Íris está desligada neste servidor: configure OPENAI_API_KEY para ativá-la.'
 
 export function IrisPage() {
   const status = useAiStatus()
@@ -28,7 +28,6 @@ export function IrisPage() {
 
   const enabled = status.data?.enabled === true
   const answer = ask.data
-  // Executada a ação, o rodapé "concluído" toma o lugar do botão.
   const action = done === null ? (answer?.proposed_action ?? null) : null
 
   function send(question: string) {
@@ -67,7 +66,6 @@ export function IrisPage() {
         </div>
       ) : null}
 
-      {/* Enquanto o portão não respondeu não se afirma nada: nem card, nem "desligada". */}
       {!enabled && !status.isPending ? <EmptyState message={DISABLED} /> : null}
 
       {statement === null ? null : (

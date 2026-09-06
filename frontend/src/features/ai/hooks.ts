@@ -17,7 +17,6 @@ export function useAiStatus() {
 }
 
 export function useCopilot() {
-  // Sem invalidação: perguntar não muda estado no servidor. O wrapper de um
-  // argumento existe porque o v5 passa um contexto no segundo.
+  // O wrapper de um argumento existe porque o v5 passa um contexto no segundo.
   return useMutation({ mutationFn: (message: string) => askCopilot(message) })
 }

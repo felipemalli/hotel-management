@@ -7,7 +7,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
-from ai.config import ai_enabled, ai_throttle_rate
+from ai.config import ai_enabled
 from ai.copilot import answer
 from ai.exceptions import AiDisabledError
 from ai.serializers import AiStatusSerializer, CopilotReplySerializer, CopilotRequestSerializer
@@ -17,7 +17,7 @@ AI_TAG = "ai"
 
 AI_DISABLED_RESPONSE = OpenApiResponse(
     response=ErrorEnvelopeSerializer,
-    description="Nenhuma chave `GEMINI_*` configurada — a feature está desligada.",
+    description="Nenhuma `OPENAI_API_KEY` configurada — a feature está desligada.",
     examples=[
         OpenApiExample(
             "AI_DISABLED",
@@ -53,7 +53,6 @@ AI_UPSTREAM_RESPONSE = OpenApiResponse(
 
 class AiRateThrottle(UserRateThrottle):
     scope = "ai"
-    rate = ai_throttle_rate()
 
 
 @extend_schema(
@@ -84,12 +83,11 @@ def ai_status(_request: Request) -> Response:
         "check-in ou de checkout de sempre (human-in-the-loop). A ação só vem "
         "quando a reserva foi identificada de forma única e o status confere; "
         "caso contrário é `null`, e o texto ainda é útil.\n\n"
-        "Privacidade: com a chave configurada saem para o Google Gemini os "
-        "nomes (titular e acompanhantes), quartos, datas, o extrato projetado e "
-        "os agregados de faturamento. **Documento e telefone nunca saem.** O "
-        "conteúdo não é registrado em log. No tier gratuito o Google pode usar "
-        "as entradas e saídas para treinar os modelos e revisores humanos podem "
-        "lê-las: para dados reais, use uma chave de projeto com billing."
+        "Privacidade: com a chave configurada saem para a OpenAI os nomes "
+        "(titular e acompanhantes), quartos, datas, o extrato projetado e os "
+        "agregados de faturamento. **Documento e telefone nunca saem.** O "
+        "conteúdo não é registrado em log, e o request pede `store: false` — "
+        "a conversa não fica retida do lado do provedor."
     ),
     request=CopilotRequestSerializer,
     responses={

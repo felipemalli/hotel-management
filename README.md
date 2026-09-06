@@ -342,9 +342,13 @@ Duas garantias que valem mencionar porque são incomuns:
   fronteiras 11:59 / 12:00:00 / 12:01 e o day-use) e em
   `frontend/src/features/reservations/__fixtures__/bills.ts` (render do
   extrato). Divergência entre backend, frontend e tabela quebra a suíte.
-- **Nenhum teste toca a rede.** A Íris (seção 5.4) é testada com o transporte
-  HTTP dublado: a fila de respostas do teste encena o laço de *tool use* rodada
-  por rodada, e o caminho sem chave é exercitado de verdade.
+- **Nenhum teste toca a rede** — e isso não é convenção, é fiscalizado. Dois
+  fixtures `autouse` no `conftest.py` zeram a `OPENAI_API_KEY` e bloqueiam o
+  `httpx.post` na suíte inteira, então um teste novo que esquecesse de dublar o
+  transporte falha alto em vez de gastar crédito do provedor. A Íris (seção 5.4)
+  é testada com o transporte HTTP dublado: a fila de respostas do teste encena o
+  laço de *tool use* rodada por rodada, e o caminho sem chave é exercitado de
+  verdade.
 
 ### 3.1 Matriz de rastreabilidade (RF/RN → prova)
 
@@ -532,10 +536,9 @@ fora dele, exporte com `set -a && . ../.env && set +a`, como na seção 2.
 | `THROTTLE_LOGIN` | não | `10/min` | Limite do login, por IP. |
 | `THROTTLE_REFRESH` | não | `60/min` | Limite da renovação, por IP. Escopo próprio: o boot do frontend renova a cada carga de página, e o balcão divide um IP atrás do NAT. |
 | `SECURE_HSTS_SECONDS` | não | `31536000` | HSTS; só tem efeito atrás de TLS. |
-| `THROTTLE_AI` | não | `20/min` | Limite da Íris, por usuário autenticado. Cada pergunta gasta uma unidade aqui e de 2 a 4 chamadas no provedor. |
-| `GEMINI_API_KEY` | não | vazio | **Liga** a Íris (seção 5.4). Chave de um projeto **sem** billing = tier gratuito. Vazio (e sem a paga) = feature desligada. |
-| `GEMINI_API_KEY_PAID` | não | vazio | Opcional, de um projeto **com** billing. No `429` da gratuita o cliente repete a chamada com esta e segue com ela até o fim daquele request. |
-| `GEMINI_MODEL` | não | `gemini-3.8-flash` | Modelo usado pela Íris. Não consta do `.env.example` por ser opcional; se você a adicionar ao `.env`, o Compose a entrega ao backend como qualquer outra. |
+| `THROTTLE_AI` | não | `20/min` | Limite da Íris, por usuário autenticado. Cada pergunta gasta uma unidade aqui e de 2 a 7 chamadas no provedor. |
+| `OPENAI_API_KEY` | não | vazio | **Liga** a Íris (seção 5.4). Vazio = feature desligada. |
+| `OPENAI_MODEL` | não | `gpt-4.1-nano` | Modelo usado pela Íris. Opcional; troque sem tocar no código se quiser o degrau seguinte (`gpt-4.1-mini`). Se você a adicionar ao `.env`, o Compose a entrega ao backend como qualquer outra. |
 
 ### 5.3 PII e busca
 
@@ -579,42 +582,38 @@ e o checkout ainda mostra o extrato com os mesmos números. **A IA não grava
 nada** (*human-in-the-loop*).
 
 > ⚠️ **Aviso de envio a provedor externo.** Com a chave configurada, saem para
-> o Google Gemini (`https://generativelanguage.googleapis.com/v1beta/interactions`)
-> os **nomes** (titular e acompanhantes), quartos, datas, o extrato projetado e
-> os agregados de faturamento. **Documento e telefone nunca saem** — o recorte
-> que vai para o provedor não tem esses campos. Nada do conteúdo é registrado em
-> log. Esta é a única saída de dados do sistema para fora da sua infraestrutura,
-> e ela só existe se você configurar a chave.
->
-> No **tier gratuito** o Google declara que pode usar as entradas e as saídas
-> para treinar os modelos, que revisores humanos podem lê-las, e pede que não
-> se enviem informações pessoais. Isto é aceitável aqui porque a demonstração
-> roda sobre o seed, com hóspedes fictícios. **Para dados reais, use uma chave
-> de projeto com billing** (`GEMINI_API_KEY_PAID`), cujo conteúdo não entra em
-> treino. Se nenhuma das duas for aceitável no seu contexto, deixe as variáveis
-> vazias: a aplicação inteira continua funcionando e a página diz que a Íris
-> está desligada.
+> a OpenAI (`https://api.openai.com/v1/responses`) os **nomes** (titular e
+> acompanhantes), quartos, datas, o extrato projetado e os agregados de
+> faturamento. **Documento e telefone nunca saem** — o recorte que vai para o
+> provedor não tem esses campos. Nada do conteúdo é registrado em log, e o
+> request pede `store: false`: a conversa não fica retida do lado do provedor.
+> Esta é a única saída de dados do sistema para fora da sua infraestrutura, e
+> ela só existe se você configurar a chave. Se isso não for aceitável no seu
+> contexto, deixe a variável vazia: a aplicação inteira continua funcionando e
+> a página diz que a Íris está desligada.
 
 Como ligar:
 
 ```bash
-# 1. crie a chave em aistudio.google.com, num projeto SEM billing (tier gratuito)
-# 2. confira os limites reais em aistudio.google.com/rate-limit — o Google não os
-#    publica na documentação, e uma pergunta gasta de 2 a 4 chamadas
+# 1. crie a chave em platform.openai.com (a conta precisa de crédito)
+# 2. confira os limites de taxa da sua conta antes de uma demonstração ao vivo:
+#    uma pergunta gasta de 2 a 7 chamadas
 # 3. no .env
-GEMINI_API_KEY=...
-# opcional: segundo projeto, COM billing (pré-pago mínimo de US$ 5)
-GEMINI_API_KEY_PAID=...
+OPENAI_API_KEY=...
 # opcional
-GEMINI_MODEL=gemini-3.8-flash
+OPENAI_MODEL=gpt-4.1-nano
 
 docker compose up -d --build backend
 ```
 
-A chave herda o tier do projeto que a emitiu, e num projeto com billing **tudo**
-é pago: "grátis até acabar, depois cobra" só existe com as duas chaves. No `429`
-da gratuita o cliente repete a mesma chamada com a paga e segue com ela até o
-fim daquele request.
+Para conferir que a chave pegou, sem abrir o navegador (é a única forma de exercitar
+o provedor — **nenhum teste automatizado chama a API**, seção 3):
+
+```bash
+docker compose exec -T backend uv run python manage.py shell -c "
+from django.utils import timezone; from ai.copilot import answer
+print(answer('Quem ainda está no hotel?', now=timezone.now()))"
+```
 
 Portão de fallback (a parte que interessa em revisão):
 

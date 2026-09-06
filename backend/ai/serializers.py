@@ -20,8 +20,6 @@ class CopilotRequestSerializer(serializers.Serializer):
 class ProposedActionSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=["check_in", "checkout"])
     reservation_id = serializers.IntegerField()
-    # Do banco, nao do modelo: o botao, o toast e o dialog do check-in
-    # antecipado nomeiam o hospede.
     guest_name = serializers.CharField()
 
 

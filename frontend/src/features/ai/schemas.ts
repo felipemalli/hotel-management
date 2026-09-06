@@ -5,7 +5,6 @@ export const aiStatusSchema = z.object({ enabled: z.boolean() })
 export const proposedActionSchema = z.object({
   type: z.enum(['check_in', 'checkout']),
   reservation_id: z.number().int(),
-  // Do banco, não do modelo: o botão e o diálogo nomeiam o hóspede.
   guest_name: z.string(),
 })
 

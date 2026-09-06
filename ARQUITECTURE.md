@@ -98,27 +98,38 @@ complemento, e inclui reserva sem conta.
 
 ## 8. IA
 
-`ai/` hospeda a Íris: `POST /api/ai/copilot/` roda um laço de *tool use* contra a Interactions API do
-Gemini (httpx cru, sem SDK) em que o modelo **pede** uma consulta e o Django a executa pelos mesmos
+`ai/` hospeda a Íris: `POST /api/ai/copilot/` roda um laço de *tool use* contra a Responses API da
+OpenAI (httpx cru, sem SDK) em que o modelo **pede** uma consulta e o Django a executa pelos mesmos
 selectors e serviços das telas. Quatro leituras (`find_reservations`, `preview_checkout`,
 `available_rooms`, `revenue_summary`) e uma função terminal `answer`, de onde sai a resposta
 estruturada — nenhum JSON é extraído de prosa. Escrita, nenhuma: a ação proposta volta ao frontend
 como um botão que chama os endpoints de check-in e de checkout de sempre.
 
-Nenhum app de domínio importa `ai`, e `ai` só alcança o domínio por `hotel.reservations` (§3):
-desligar a chave, ou apagar o pacote, remove a feature sem tocar em regra de negócio.
+Nenhum app de domínio importa `ai`, e `ai` importa **um único** app de domínio: `hotel.reservations`
+(§3). Isso é sobre a direção do import, não sobre o alcance dos dados — quarto, hóspede,
+acompanhante e a conta continuam todos legíveis, mas sempre **através** dele: `available_rooms` é um
+selector de `reservations` que consulta `Room`; `revenue_summary` soma `account__total_amount` e as
+linhas de multa do `billing`; `preview_checkout` roda o motor de cobrança pelo serviço de sempre. Uma
+porta em vez de quatro, e o contrato do import-linter usa `allow_indirect_imports` justamente para
+proibir o atalho sem proibir a cadeia. O ganho prático: a Íris não pode inventar regra de tarifa nem
+de disponibilidade, porque lê pelos mesmos selectors e serviços das telas — ela e a tela de reservas
+nunca discordam. Desligar a chave, ou apagar o pacote, remove a feature sem tocar em regra de
+negócio.
 
-Saída de modelo é input não confiável em três frentes: **argumentos** passam por serializer (e são
-tolerantes onde o modelo omite, para que a falta de um campo custe uma rodada com `{"error"}` e não
-um 502); **identidade** exige que a reserva tenha aparecido num resultado e tenha sido isolada nele
-(um id visto ao lado de outro fica travado pelo resto da requisição, mesmo que o modelo afunile
-depois); **status** é relido antes de a ação sair, então um check-in concorrente a zera. O laço tem
-orçamento de 15 s e no máximo quatro rodadas, com folga sobre o timeout do worker.
+As ferramentas são declaradas no **modo estrito** da OpenAI (todo argumento no `required`,
+`additionalProperties: false`), então o modelo não escolhe o formato — mas a saída dele segue sendo
+input não confiável em três frentes: **argumentos** passam por serializer, que cobre o que o JSON
+Schema não expressa (data real, saída depois da entrada, mínimos) e devolve `{"error"}` ao modelo em
+vez de derrubar a requisição; **identidade** exige que a reserva tenha aparecido num resultado e
+tenha sido isolada nele (um id visto ao lado de outro fica travado pelo resto da requisição, mesmo
+que o modelo afunile depois); **status** é relido antes de a ação sair, então um check-in concorrente
+a zera. O laço tem orçamento de 15 s e no máximo sete rodadas, com folga sobre o timeout do worker;
+na última o `tool_choice` força `answer`, para que um modelo que ficou repetindo consultas termine em
+resposta e não em 502.
 
-Duas chaves e um fallback: `GEMINI_API_KEY` (projeto sem billing, tier gratuito) e, opcional,
-`GEMINI_API_KEY_PAID`; no `429` da primeira o cliente repete a chamada com a segunda e segue com ela
-até o fim daquele request. O que sai para o provedor: nomes, quartos, datas, o extrato projetado e
-agregados de faturamento. **Documento e telefone nunca saem**, e nada do conteúdo entra em log.
+Uma chave liga a feature: `OPENAI_API_KEY`. O que sai para o provedor: nomes, quartos, datas, o
+extrato projetado e agregados de faturamento. **Documento e telefone nunca saem**, nada do conteúdo
+entra em log, e o request pede `store: false`.
 
 ## 9. Testes e CI
 

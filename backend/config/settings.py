@@ -153,6 +153,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "login": env("THROTTLE_LOGIN", "10/min"),
         "refresh": env("THROTTLE_REFRESH", "60/min"),
+        "ai": env("THROTTLE_AI", "20/min"),
     },
     # Default do DRF (None) usa X-Forwarded-For. Gunicorn atende direto, entao
     # o cliente inventa o IP e zera o throttle. 0 = REMOTE_ADDR, ignora o header.
@@ -201,7 +202,5 @@ CONTENT_SECURITY_POLICY = {
     }
 }
 
-# Duas chaves: a gratuita (projeto sem billing) e, opcional, a paga. O 429
-# da primeira faz o client repetir na segunda -- ver ai/config.py.
-GEMINI_API_KEY = env("GEMINI_API_KEY")
-GEMINI_API_KEY_PAID = env("GEMINI_API_KEY_PAID")
+OPENAI_API_KEY = env("OPENAI_API_KEY")
+OPENAI_MODEL = env("OPENAI_MODEL")

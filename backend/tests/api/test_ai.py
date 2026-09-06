@@ -10,7 +10,8 @@ import pytest
 from freezegun import freeze_time
 
 from ai import client as ai_client
-from ai.config import DEFAULT_MODEL, TIMEOUT_SECONDS
+from ai import config as ai_config
+from ai.config import DEFAULT_MODEL, MAX_ROUNDS, TIMEOUT_SECONDS
 from hotel.reservations import services as service
 from hotel.reservations.models import Reservation, ReservationStatus
 from tests.api.conftest import local
@@ -26,14 +27,12 @@ pytestmark = pytest.mark.django_db
 STATUS_URL = "/api/ai/status/"
 COPILOT_URL = "/api/ai/copilot/"
 
-FAKE_KEY = "chave-gratuita-de-teste"
-PAID_KEY = "chave-paga-de-teste"
+FAKE_KEY = "chave-de-teste"
 
 QUESTION = "A Ana Souza chegou, tem reserva hoje."
 
-# Calendario de referencia da tabela-verdade: marco/2025.
-MARCH_7 = date(2025, 3, 7)  # sexta
-MARCH_9 = date(2025, 3, 9)  # domingo
+MARCH_7 = date(2025, 3, 7)
+MARCH_9 = date(2025, 3, 9)
 
 UPSTREAM_ENVELOPE = {
     "code": "AI_UPSTREAM_ERROR",
@@ -42,45 +41,26 @@ UPSTREAM_ENVELOPE = {
 }
 
 
-class FakeResponse:
-    """Minimo de `httpx.Response` que `ai/client.py` consome."""
-
-    def __init__(self, status_code: int, body: Any, *, valid_json: bool = True) -> None:
-        self.status_code = status_code
-        self._body = body
-        self._valid_json = valid_json
-
-    def json(self) -> Any:
-        if not self._valid_json:
-            raise ValueError("corpo nao e JSON")
-        return self._body
-
-
 class CallLog(list):
-    """Chamadas registradas, a fila de respostas e um relogio de mentira."""
-
     def __init__(self) -> None:
         super().__init__()
         self.queue: list[Any] = []
-        self.now = 0.0  # o que `time.monotonic` devolve quando o caso o patcheia
-        self.tick = 0.0  # quanto cada chamada consome do orcamento
+        self.now = 0.0
+        self.tick = 0.0
 
 
 @pytest.fixture
 def calls(monkeypatch) -> CallLog:
-    """Duble do transporte: registra a chamada e devolve o que o caso pediu.
+    """Dublê do transporte: registra a chamada e devolve o que o caso enfileirou.
 
-    A fila e estrita -- chamada sem resposta enfileirada e erro de teste, nao
-    uma rodada extra silenciosa. Sem `raising=False`: se `ai/client.py` deixar
-    de usar `httpx.post`, o fixture falha alto em vez de liberar a rede.
+    A fila é estrita — chamada sem resposta enfileirada é erro de teste, não uma
+    rodada extra silenciosa.
     """
     log = CallLog()
 
-    def fake_post(url: str, **kwargs: Any) -> FakeResponse:
-        # Snapshot do body: `input` e a mesma lista, mutada a cada rodada, e sem
-        # a copia toda chamada mostraria o historico final. O json.dumps tambem
-        # reproduz o encoder do httpx -- um Decimal que vazasse quebra aqui,
-        # como quebraria em producao.
+    def fake_post(url: str, **kwargs: Any) -> httpx.Response:
+        # Snapshot: `input` é a mesma lista, mutada a cada rodada. O json.dumps
+        # também reproduz o encoder do httpx — um Decimal que vazasse quebra aqui.
         log.append({"url": url, **kwargs, "json": json.loads(json.dumps(kwargs["json"]))})
         assert log.queue, "chamada upstream inesperada"
         log.now += log.tick
@@ -95,35 +75,40 @@ def calls(monkeypatch) -> CallLog:
 
 @pytest.fixture
 def ai_on(settings):
-    settings.GEMINI_API_KEY = FAKE_KEY
-    # A chave paga real do dev nunca entra num teste.
-    settings.GEMINI_API_KEY_PAID = ""
+    settings.OPENAI_API_KEY = FAKE_KEY
     return settings
-
-
-@pytest.fixture
-def ai_on_with_paid(ai_on):
-    ai_on.GEMINI_API_KEY_PAID = PAID_KEY
-    return ai_on
 
 
 @pytest.fixture
 def ai_off(settings):
-    settings.GEMINI_API_KEY = ""
-    settings.GEMINI_API_KEY_PAID = ""
+    settings.OPENAI_API_KEY = ""
     return settings
 
 
-# --- builders da Interactions API --------------------------------------------
+def upstream(status_code: int, **kwargs: Any) -> httpx.Response:
+    request = httpx.Request("POST", ai_client.RESPONSES_URL)
+    return httpx.Response(status_code, request=request, **kwargs)
 
 
-def interaction_body(*steps: dict, status: str = "requires_action") -> dict[str, Any]:
-    """Resposta da API: o status e apenas os steps gerados nesta rodada."""
-    return {"id": "interaction-de-teste", "status": status, "steps": list(steps), "usage": {}}
+def responds(*output: dict) -> httpx.Response:
+    return upstream(
+        200, json={"id": "resp-de-teste", "status": "completed", "output": list(output)}
+    )
 
 
 def function_call(name: str, arguments: dict, call_id: str = "call_1") -> dict[str, Any]:
-    return {"type": "function_call", "id": call_id, "name": name, "arguments": arguments}
+    return {
+        "id": f"fc_{call_id}",
+        "type": "function_call",
+        "status": "completed",
+        "call_id": call_id,
+        "name": name,
+        "arguments": json.dumps(arguments),
+    }
+
+
+def find_call(status: str, query: str = "", call_id: str = "call_find") -> dict[str, Any]:
+    return function_call("find_reservations", {"status": status, "query": query}, call_id=call_id)
 
 
 def answer_call(
@@ -139,75 +124,39 @@ def answer_call(
     )
 
 
-def thought_step() -> dict[str, Any]:
-    """Step de raciocinio, na forma real: so `type` e a assinatura opaca.
-
-    O conteudo nao volta; a assinatura, sim, e reenvia-la mexida e 400.
-    """
-    return {"type": "thought", "signature": "EpoCCpcCARFNMg8_GCT-Xh1Xna39mq03"}
-
-
-def model_output(text: str) -> dict[str, Any]:
-    return {"type": "model_output", "content": [{"type": "text", "text": text}]}
+def message_output(text: str) -> dict[str, Any]:
+    return {
+        "id": "msg_1",
+        "type": "message",
+        "status": "completed",
+        "role": "assistant",
+        "content": [{"type": "output_text", "text": text}],
+    }
 
 
-def requires(*steps: dict) -> FakeResponse:
-    return FakeResponse(200, interaction_body(*steps))
-
-
-def answered(*steps: dict) -> FakeResponse:
-    """A rodada terminal.
-
-    `requires_action` de proposito: a API devolve esse status **mesmo** quando o
-    modelo chama a funcao terminal, entao o laco identifica o fim pelo nome da
-    funcao, nunca pelo status. Exigir `completed` aqui derrubaria toda resposta.
-    """
-    return FakeResponse(200, interaction_body(*steps))
-
-
-def find_call(status: str, query: str = "", call_id: str = "call_find") -> dict[str, Any]:
-    return function_call(
-        "find_reservations", {"status": status, "query": query}, call_id=call_id
-    )
-
-
-def function_results(call: dict) -> list[dict]:
-    """Os steps `function_result` que esta chamada mandou de volta ao modelo."""
-    return [step for step in call["json"]["input"] if step.get("type") == "function_result"]
-
-
-def result_payload(call: dict, index: int = 0) -> Any:
-    return json.loads(function_results(call)[index]["result"][0]["text"])
+def tool_outputs(call: dict) -> list[dict]:
+    return [item for item in call["json"]["input"] if item.get("type") == "function_call_output"]
 
 
 def result_of(call: dict, call_id: str) -> Any:
-    """O resultado de uma chamada especifica.
-
-    Da 3a rodada em diante o `input` carrega os function_result de todas as
-    anteriores: indexar por posicao pegaria o resultado da rodada errada.
-    """
-    for step in function_results(call):
-        if step["call_id"] == call_id:
-            return json.loads(step["result"][0]["text"])
-    raise AssertionError(f"nenhum function_result para {call_id}")
+    """Endereça pelo `call_id`: o `input` acumula os resultados de todas as rodadas."""
+    for item in tool_outputs(call):
+        if item["call_id"] == call_id:
+            return json.loads(item["output"])
+    raise AssertionError(f"nenhum function_call_output para {call_id}")
 
 
 def ask(client, message: str = QUESTION):
     return client.post(COPILOT_URL, {"message": message}, format="json")
 
 
-# --- dados -------------------------------------------------------------------
-
-
 @pytest.fixture
 def ana(db) -> Reservation:
-    """A pendente da demo: reserva de hoje no 101, com vaga."""
     return ReservationFactory(guest__full_name="Ana Souza", room__number="101", has_vehicle=True)
 
 
 @pytest.fixture
 def bruno(db) -> Reservation:
-    """Estadia em curso no 102, com uma acompanhante — Bruno não tem carro."""
     reservation = ReservationFactory(
         guest__full_name="Bruno Lima", room__number="102", checked_in=True
     )
@@ -233,7 +182,15 @@ def t7(db, attendant) -> Reservation:
     return reservation
 
 
-# --- portao e validacao ------------------------------------------------------
+def test_the_suite_cannot_reach_the_network():
+    with pytest.raises(AssertionError, match="chamada HTTP de saida"):
+        httpx.post(ai_client.RESPONSES_URL, json={})
+
+
+def test_a_test_never_sees_the_real_provider_key(settings):
+    assert settings.OPENAI_API_KEY == ""
+    assert ai_config.api_key() == ""
+    assert ai_config.ai_enabled() is False
 
 
 def test_status_reports_disabled_without_key(auth_client, ai_off):
@@ -248,14 +205,6 @@ def test_status_reports_enabled_with_key(auth_client, ai_on):
 
     assert response.status_code == 200
     assert response.data == {"enabled": True}
-
-
-def test_status_reports_enabled_with_only_the_paid_key(auth_client, settings):
-    """Deploy so com a chave paga tambem liga a Iris."""
-    settings.GEMINI_API_KEY = ""
-    settings.GEMINI_API_KEY_PAID = PAID_KEY
-
-    assert auth_client.get(STATUS_URL).data == {"enabled": True}
 
 
 def test_copilot_returns_503_without_key(auth_client, ai_off, calls):
@@ -296,11 +245,8 @@ def test_ai_endpoints_require_authentication(api_client, ai_on, method: str, url
     assert response.data["code"] == "NOT_AUTHENTICATED"
 
 
-# --- contrato do transporte --------------------------------------------------
-
-
-def test_copilot_calls_the_interactions_api_as_contracted(auth_client, ai_on, calls):
-    calls.queue.append(answered(answer_call("Tudo tranquilo por aqui.")))
+def test_copilot_calls_the_responses_api_as_contracted(auth_client, ai_on, calls):
+    calls.queue.append(responds(answer_call("Tudo tranquilo por aqui.")))
 
     with freeze_time(local(MARCH_7, 10, 0)):
         response = ask(auth_client)
@@ -308,14 +254,16 @@ def test_copilot_calls_the_interactions_api_as_contracted(auth_client, ai_on, ca
     assert response.status_code == 200
     assert len(calls) == 1
     call = calls[0]
-    assert call["url"] == "https://generativelanguage.googleapis.com/v1beta/interactions"
+    assert call["url"] == "https://api.openai.com/v1/responses"
     assert call["timeout"] == TIMEOUT_SECONDS
-    assert call["headers"]["x-goog-api-key"] == FAKE_KEY
+    assert call["headers"]["authorization"] == f"Bearer {FAKE_KEY}"
     assert call["headers"]["content-type"] == "application/json"
 
     body = call["json"]
     assert body["model"] == DEFAULT_MODEL
     assert body["store"] is False
+    assert body["tool_choice"] == "required"
+    assert body["max_output_tokens"] == 2048
     assert [tool["name"] for tool in body["tools"]] == [
         "find_reservations",
         "preview_checkout",
@@ -323,39 +271,42 @@ def test_copilot_calls_the_interactions_api_as_contracted(auth_client, ai_on, ca
         "revenue_summary",
         "answer",
     ]
-    assert body["generation_config"] == {
-        "max_output_tokens": 2048,
-        "thinking_level": "low",
-        "tool_choice": "any",
-    }
-    assert body["input"] == [{"type": "user_input", "content": QUESTION}]
-    assert "check-in abre às 14:00" in body["system_instruction"]
+    assert body["input"] == [{"role": "user", "content": QUESTION}]
+    assert "check-in abre às 14:00" in body["instructions"]
 
 
-def test_copilot_honours_the_model_env_override(auth_client, ai_on, calls, monkeypatch):
-    monkeypatch.setenv("GEMINI_MODEL", "gemini-3.8-pro")
-    calls.queue.append(answered(answer_call("Ok.")))
+def test_every_tool_is_declared_in_strict_mode(auth_client, ai_on, calls):
+    """Strict é o default da API: ela reescreve o schema, então declaramos o que ela exige."""
+    calls.queue.append(responds(answer_call("Ok.")))
 
     ask(auth_client)
 
-    assert calls[0]["json"]["model"] == "gemini-3.8-pro"
+    for tool in calls[0]["json"]["tools"]:
+        parameters = tool["parameters"]
+        assert parameters["required"] == list(parameters["properties"]), tool["name"]
+        assert parameters["additionalProperties"] is False, tool["name"]
+
+
+def test_copilot_honours_the_model_override(auth_client, ai_on, calls):
+    ai_on.OPENAI_MODEL = "gpt-4.1-mini"
+    calls.queue.append(responds(answer_call("Ok.")))
+
+    ask(auth_client)
+
+    assert calls[0]["json"]["model"] == "gpt-4.1-mini"
 
 
 def test_copilot_system_instruction_carries_the_policy_clock(auth_client, ai_on, calls):
-    """O relogio e a abertura vem da politica vigente, nao de constante do motor."""
     PricingPolicyFactory(checkin_opens=time(15, 0), effective_from=local(MARCH_7, 0))
-    calls.queue.append(answered(answer_call("Ok.")))
+    calls.queue.append(responds(answer_call("Ok.")))
 
     with freeze_time(local(MARCH_7, 13, 45)):
         ask(auth_client)
 
-    system = calls[0]["json"]["system_instruction"]
-    assert "Agora: 13:45" in system
-    assert "sexta-feira" in system
-    assert "check-in abre às 15:00 (ainda não abriu)" in system
-
-
-# --- lacos felizes -----------------------------------------------------------
+    instructions = calls[0]["json"]["instructions"]
+    assert "Agora: 13:45" in instructions
+    assert "sexta-feira" in instructions
+    assert "check-in abre às 15:00 (ainda não abriu)" in instructions
 
 
 def test_copilot_proposes_check_in_after_finding_one_pending_reservation(
@@ -363,8 +314,8 @@ def test_copilot_proposes_check_in_after_finding_one_pending_reservation(
 ):
     calls.queue.extend(
         [
-            requires(thought_step(), find_call(ReservationStatus.PENDING, "Ana Souza")),
-            answered(answer_call("A Ana Souza tem reserva hoje no 101.", "check_in", ana.pk)),
+            responds(find_call(ReservationStatus.PENDING, "Ana Souza")),
+            responds(answer_call("A Ana Souza tem reserva hoje no 101.", "check_in", ana.pk)),
         ]
     )
 
@@ -380,24 +331,20 @@ def test_copilot_proposes_check_in_after_finding_one_pending_reservation(
         },
     }
 
-    # A 2a chamada reenvia o historico: pergunta, os steps do modelo verbatim
-    # (o `thought` assinado incluido) e o resultado com o `call_id` da chamada.
     second = calls[1]["json"]["input"]
-    assert second[0] == {"type": "user_input", "content": QUESTION}
-    assert second[1] == thought_step()
-    assert second[2] == find_call(ReservationStatus.PENDING, "Ana Souza")
-    assert second[3]["type"] == "function_result"
-    assert second[3]["call_id"] == "call_find"
-    assert second[3]["name"] == "find_reservations"
+    assert second[0] == {"role": "user", "content": QUESTION}
+    # Verbatim: o item do modelo volta como veio, com o `id` que a API carimbou.
+    assert second[1] == find_call(ReservationStatus.PENDING, "Ana Souza")
+    assert second[2]["type"] == "function_call_output"
+    assert second[2]["call_id"] == "call_find"
 
-    payload = result_payload(calls[1])
+    payload = result_of(calls[1], "call_find")
     assert payload["total"] == 1
     row = payload["reservations"][0]
     assert row["guest_name"] == "Ana Souza"
     assert row["room"] == "101"
     assert row["has_vehicle"] is True
     assert row["companions"] == []
-    # O provedor nunca ve documento nem telefone.
     assert "document" not in row
     assert "phone" not in row
 
@@ -406,30 +353,28 @@ def test_copilot_proposes_check_in_after_finding_one_pending_reservation(
 
 
 def test_copilot_finds_a_companion_by_name(auth_client, ai_on, calls, bruno):
-    """"A Eva chegou" acha a estadia do Bruno em vez de "nao encontrei"."""
     calls.queue.extend(
         [
-            requires(find_call(ReservationStatus.CHECKED_IN, "Eva")),
-            answered(answer_call("A Eva Lima está no 102, com o Bruno Lima.")),
+            responds(find_call(ReservationStatus.CHECKED_IN, "Eva")),
+            responds(answer_call("A Eva Lima está no 102, com o Bruno Lima.")),
         ]
     )
 
     response = ask(auth_client, "a Eva chegou")
 
     assert response.status_code == 200
-    payload = result_payload(calls[1])
+    payload = result_of(calls[1], "call_find")
     assert payload["total"] == 1
     assert payload["reservations"][0]["reservation_id"] == bruno.pk
     assert payload["reservations"][0]["companions"] == ["Eva Lima"]
 
 
 def test_copilot_previews_checkout_without_writing(auth_client, ai_on, calls, t7):
-    """O extrato projetado do T7 chega ao modelo sem tocar o livro."""
     calls.queue.extend(
         [
-            requires(find_call(ReservationStatus.CHECKED_IN, "Carla")),
-            requires(function_call("preview_checkout", {"reservation_id": t7.pk}, "call_prev")),
-            answered(answer_call("O total da Carla Nunes é R$ 425,00.", "checkout", t7.pk)),
+            responds(find_call(ReservationStatus.CHECKED_IN, "Carla")),
+            responds(function_call("preview_checkout", {"reservation_id": t7.pk}, "call_prev")),
+            responds(answer_call("O total da Carla Nunes é R$ 425,00.", "checkout", t7.pk)),
         ]
     )
 
@@ -467,11 +412,10 @@ def test_copilot_previews_checkout_without_writing(auth_client, ai_on, calls, t7
 
 
 def test_copilot_lists_available_rooms(auth_client, ai_on, calls, bruno):
-    """O 102 esta ocupado por uma estadia CHECKED_IN; so o livre volta."""
     RoomFactory(number="210", capacity=3)
     calls.queue.extend(
         [
-            requires(
+            responds(
                 function_call(
                     "available_rooms",
                     {
@@ -482,7 +426,7 @@ def test_copilot_lists_available_rooms(auth_client, ai_on, calls, bruno):
                     "call_rooms",
                 )
             ),
-            answered(answer_call("Livre agora: o 210.")),
+            responds(answer_call("Livre agora: o 210.")),
         ]
     )
 
@@ -490,28 +434,28 @@ def test_copilot_lists_available_rooms(auth_client, ai_on, calls, bruno):
         response = ask(auth_client, "Quais quartos estão livres?")
 
     assert response.status_code == 200
-    payload = result_payload(calls[1])
-    assert payload == {"total": 1, "rooms": [{"number": "210", "capacity": 3}]}
+    assert result_of(calls[1], "call_rooms") == {
+        "total": 1,
+        "rooms": [{"number": "210", "capacity": 3}],
+    }
 
 
 def test_copilot_reports_revenue_as_money_strings(auth_client, ai_on, calls, attendant):
-    reservation = ReservationFactory(
-        checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True
-    )
+    reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
     service.check_in(reservation, now=local(MARCH_7, 15), actor=attendant)
     service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=attendant)
 
     calls.queue.extend(
         [
-            requires(function_call("revenue_summary", {"period": "all"}, "call_rev")),
-            answered(answer_call("Faturamos R$ 425,00 no total.")),
+            responds(function_call("revenue_summary", {"period": "all"}, "call_rev")),
+            responds(answer_call("Faturamos R$ 425,00 no total.")),
         ]
     )
 
     response = ask(auth_client, "Quanto faturamos até agora?")
 
     assert response.status_code == 200
-    assert result_payload(calls[1]) == {
+    assert result_of(calls[1], "call_rev") == {
         "period": "all",
         "stays": 1,
         "billed": "425.00",
@@ -521,7 +465,7 @@ def test_copilot_reports_revenue_as_money_strings(auth_client, ai_on, calls, att
 
 
 def test_copilot_answers_without_tools_when_none_is_needed(auth_client, ai_on, calls):
-    calls.queue.append(answered(answer_call("Sou a Íris, copiloto do hotel.")))
+    calls.queue.append(responds(answer_call("Sou a Íris, copiloto do hotel.")))
 
     response = ask(auth_client, "quem é você?")
 
@@ -533,57 +477,39 @@ def test_copilot_answers_without_tools_when_none_is_needed(auth_client, ai_on, c
     assert len(calls) == 1
 
 
-def test_copilot_accepts_a_completed_status_on_the_terminal_round(auth_client, ai_on, calls):
-    """A API devolve `requires_action` na rodada terminal; `completed` tambem serve."""
-    calls.queue.append(
-        FakeResponse(200, interaction_body(answer_call("Tudo tranquilo."), status="completed"))
-    )
-
-    response = auth_client.post(COPILOT_URL, {"message": "como estamos?"}, format="json")
-
-    assert response.status_code == 200
-    assert response.data["reply"] == "Tudo tranquilo."
-
-
-def test_copilot_accepts_a_find_without_query_and_lists_everyone(auth_client, ai_on, calls, ana):
-    """`query` ausente e comum e nao vale uma rodada gasta num erro de argumento."""
+def test_copilot_lists_everyone_when_the_query_is_blank(auth_client, ai_on, calls, ana):
     calls.queue.extend(
         [
-            requires(function_call("find_reservations", {"status": "PENDING"}, "call_find")),
-            answered(answer_call("Uma reserva pendente: Ana Souza, quarto 101.")),
+            responds(find_call(ReservationStatus.PENDING, "")),
+            responds(answer_call("Uma reserva pendente: Ana Souza, quarto 101.")),
         ]
     )
 
     response = ask(auth_client, "Quem tem reserva pendente?")
 
     assert response.status_code == 200
-    assert result_payload(calls[1])["total"] == 1
+    assert result_of(calls[1], "call_find")["total"] == 1
 
 
 def test_copilot_runs_parallel_function_calls_and_returns_every_result(
     auth_client, ai_on, calls, ana, bruno
 ):
-    """Duas chamadas na mesma resposta viram dois function_result, por call_id."""
     calls.queue.extend(
         [
-            requires(
+            responds(
                 find_call(ReservationStatus.PENDING, "", "call_a"),
                 find_call(ReservationStatus.CHECKED_IN, "", "call_b"),
             ),
-            answered(answer_call("Ana Souza tem reserva; Bruno Lima está no 102.")),
+            responds(answer_call("Ana Souza tem reserva; Bruno Lima está no 102.")),
         ]
     )
 
     response = ask(auth_client, "Como está o hotel?")
 
     assert response.status_code == 200
-    results = function_results(calls[1])
-    assert [step["call_id"] for step in results] == ["call_a", "call_b"]
+    assert [item["call_id"] for item in tool_outputs(calls[1])] == ["call_a", "call_b"]
     assert result_of(calls[1], "call_a")["reservations"][0]["guest_name"] == "Ana Souza"
     assert result_of(calls[1], "call_b")["reservations"][0]["guest_name"] == "Bruno Lima"
-
-
-# --- guardas -----------------------------------------------------------------
 
 
 @pytest.fixture
@@ -599,8 +525,8 @@ def test_copilot_nulls_the_action_when_the_search_was_ambiguous(
 ):
     calls.queue.extend(
         [
-            requires(find_call(ReservationStatus.CHECKED_IN, "João")),
-            answered(answer_call("Há dois João: 201 e 202.", "checkout", homonyms[0].pk)),
+            responds(find_call(ReservationStatus.CHECKED_IN, "João")),
+            responds(answer_call("Há dois João: 201 e 202.", "checkout", homonyms[0].pk)),
         ]
     )
 
@@ -614,20 +540,19 @@ def test_copilot_nulls_the_action_when_the_search_was_ambiguous(
 def test_copilot_keeps_an_ambiguous_id_locked_after_the_model_narrows_it(
     auth_client, ai_on, calls, homonyms
 ):
-    """Afunilar sozinho nao destrava: quem escolheu foi o modelo, nao o atendente."""
     target = homonyms[0]
     calls.queue.extend(
         [
-            requires(find_call(ReservationStatus.CHECKED_IN, "João", "call_1")),
-            requires(find_call(ReservationStatus.CHECKED_IN, f"#{target.pk}", "call_2")),
-            answered(answer_call("É o João Silva, no 201.", "checkout", target.pk)),
+            responds(find_call(ReservationStatus.CHECKED_IN, "João", "call_1")),
+            responds(find_call(ReservationStatus.CHECKED_IN, f"#{target.pk}", "call_2")),
+            responds(answer_call("É o João Silva, no 201.", "checkout", target.pk)),
         ]
     )
 
     response = ask(auth_client, "o João está saindo")
 
     assert response.status_code == 200
-    assert result_of(calls[2], "call_2")["total"] == 1  # a 2a busca afunilou de fato
+    assert result_of(calls[2], "call_2")["total"] == 1
     assert response.data["proposed_action"] is None
 
 
@@ -636,11 +561,11 @@ def test_preview_checkout_refuses_an_id_the_search_did_not_single_out(
 ):
     calls.queue.extend(
         [
-            requires(find_call(ReservationStatus.CHECKED_IN, "João")),
-            requires(
+            responds(find_call(ReservationStatus.CHECKED_IN, "João")),
+            responds(
                 function_call("preview_checkout", {"reservation_id": homonyms[0].pk}, "call_p")
             ),
-            answered(answer_call("Qual dos dois João, o do 201 ou o do 202?")),
+            responds(answer_call("Qual dos dois João, o do 201 ou o do 202?")),
         ]
     )
 
@@ -648,9 +573,7 @@ def test_preview_checkout_refuses_an_id_the_search_did_not_single_out(
 
     assert response.status_code == 200
     assert result_of(calls[2], "call_p") == {
-        "error": (
-            "Reserva não identificada de forma única: busque pelo quarto ou nº da reserva."
-        )
+        "error": ("Reserva não identificada de forma única: busque pelo quarto ou nº da reserva.")
     }
 
 
@@ -659,9 +582,9 @@ def test_preview_checkout_reports_a_pending_reservation_as_a_tool_error_not_a_40
 ):
     calls.queue.extend(
         [
-            requires(find_call(ReservationStatus.PENDING, "Ana")),
-            requires(function_call("preview_checkout", {"reservation_id": ana.pk}, "call_p")),
-            answered(answer_call("A Ana ainda não fez check-in.")),
+            responds(find_call(ReservationStatus.PENDING, "Ana")),
+            responds(function_call("preview_checkout", {"reservation_id": ana.pk}, "call_p")),
+            responds(answer_call("A Ana ainda não fez check-in.")),
         ]
     )
 
@@ -683,8 +606,8 @@ def test_copilot_nulls_the_action_when_the_status_does_not_match_the_type(
     status = ReservationStatus.CHECKED_IN if checked_in else ReservationStatus.PENDING
     calls.queue.extend(
         [
-            requires(find_call(status, "Ana")),
-            answered(answer_call("Achei a Ana Souza.", action_type, reservation.pk)),
+            responds(find_call(status, "Ana")),
+            responds(answer_call("Achei a Ana Souza.", action_type, reservation.pk)),
         ]
     )
 
@@ -697,11 +620,10 @@ def test_copilot_nulls_the_action_when_the_status_does_not_match_the_type(
 def test_copilot_nulls_the_action_when_the_model_invents_a_reservation_id(
     auth_client, ai_on, calls, ana
 ):
-    """Id inventado derruba o botao, nao a resposta: o texto e de dados reais."""
     calls.queue.extend(
         [
-            requires(find_call(ReservationStatus.PENDING, "Ana")),
-            answered(answer_call("A Ana Souza tem reserva hoje.", "check_in", 999)),
+            responds(find_call(ReservationStatus.PENDING, "Ana")),
+            responds(answer_call("A Ana Souza tem reserva hoje.", "check_in", 999)),
         ]
     )
 
@@ -715,15 +637,15 @@ def test_copilot_nulls_the_action_when_the_model_invents_a_reservation_id(
 def test_copilot_returns_an_error_result_for_an_unknown_function(auth_client, ai_on, calls):
     calls.queue.extend(
         [
-            requires(function_call("cancel_reservation", {"reservation_id": 1}, "call_x")),
-            answered(answer_call("Não sei fazer isso.")),
+            responds(function_call("cancel_reservation", {"reservation_id": 1}, "call_x")),
+            responds(answer_call("Não sei fazer isso.")),
         ]
     )
 
     response = ask(auth_client)
 
     assert response.status_code == 200
-    assert result_payload(calls[1]) == {"error": "Ferramenta desconhecida."}
+    assert result_of(calls[1], "call_x") == {"error": "Ferramenta desconhecida."}
 
 
 @pytest.mark.parametrize(
@@ -731,6 +653,7 @@ def test_copilot_returns_an_error_result_for_an_unknown_function(auth_client, ai
     [
         ("status fora do enum", function_call("find_reservations", {"status": "CANCELLED"})),
         ("status ausente", function_call("find_reservations", {"query": "Ana"})),
+        ("query ausente", function_call("find_reservations", {"status": "PENDING"})),
         ("id que nao e numero", function_call("preview_checkout", {"reservation_id": "abc"})),
         (
             "zero pessoas",
@@ -743,7 +666,7 @@ def test_copilot_returns_an_error_result_for_an_unknown_function(auth_client, ai
             "saida antes da entrada",
             function_call(
                 "available_rooms",
-                {"checkin_date": "2026-09-07", "checkout_date": "2026-09-06"},
+                {"checkin_date": "2026-09-07", "checkout_date": "2026-09-06", "people": 1},
             ),
         ),
         ("periodo inexistente", function_call("revenue_summary", {"period": "year"})),
@@ -752,84 +675,83 @@ def test_copilot_returns_an_error_result_for_an_unknown_function(auth_client, ai
 def test_copilot_returns_an_error_result_for_an_invalid_function_input(
     auth_client, ai_on, calls, label: str, call: dict
 ):
-    calls.queue.extend([requires(call), answered(answer_call("Deixe-me tentar de novo."))])
+    calls.queue.extend([responds(call), responds(answer_call("Deixe-me tentar de novo."))])
 
     response = ask(auth_client)
 
     assert response.status_code == 200, label
-    assert "error" in result_payload(calls[1]), label
+    assert "error" in result_of(calls[1], "call_1"), label
 
 
-# --- limites e upstream ------------------------------------------------------
+def test_copilot_forces_the_answer_on_the_last_round(auth_client, ai_on, calls, ana):
+    """Modelo que fica repetindo consultas termina em resposta, não em 502."""
+    calls.queue.extend([responds(find_call(ReservationStatus.PENDING, "Ana"))] * (MAX_ROUNDS - 1))
+    calls.queue.append(responds(answer_call("A Ana Souza tem reserva hoje.")))
+
+    response = ask(auth_client)
+
+    assert response.status_code == 200
+    choices = [call["json"]["tool_choice"] for call in calls]
+    assert choices[:-1] == ["required"] * (MAX_ROUNDS - 1)
+    assert choices[-1] == {"type": "function", "name": "answer"}
 
 
 def test_copilot_returns_502_when_the_model_never_calls_answer(auth_client, ai_on, calls, ana):
-    calls.queue.extend([requires(find_call(ReservationStatus.PENDING, "Ana"))] * 5)
+    calls.queue.extend([responds(find_call(ReservationStatus.PENDING, "Ana"))] * MAX_ROUNDS)
 
     response = ask(auth_client)
 
     assert response.status_code == 502
     assert response.data == UPSTREAM_ENVELOPE
-    assert len(calls) == 5  # MAX_TOOL_ROUNDS + 1
-
-
-def test_copilot_returns_502_when_the_model_replies_in_prose(auth_client, ai_on, calls):
-    calls.queue.append(FakeResponse(200, interaction_body(model_output("oi"), status="completed")))
-
-    response = ask(auth_client)
-
-    assert response.status_code == 502
-    assert response.data == UPSTREAM_ENVELOPE
+    assert len(calls) == MAX_ROUNDS
 
 
 @pytest.mark.parametrize(
     ("label", "outcome"),
     [
-        ("corpo que nao e json", FakeResponse(200, None, valid_json=False)),
-        ("resposta sem steps", FakeResponse(200, {"id": "x", "status": "completed"})),
-        ("steps que nao e lista", FakeResponse(200, {"status": "completed", "steps": {}})),
-        ("status failed", FakeResponse(200, interaction_body(status="failed"))),
-        ("status incomplete", FakeResponse(200, interaction_body(status="incomplete"))),
-        ("status in_progress", FakeResponse(200, interaction_body(status="in_progress"))),
-        ("requisicao invalida", FakeResponse(400, {"error": {"message": "bad tool_choice"}})),
-        ("erro do provedor", FakeResponse(500, {"error": {"message": "internal"}})),
-        ("provedor indisponivel", FakeResponse(503, {"error": {"message": "unavailable"}})),
-        ("cota esgotada sem chave paga", FakeResponse(429, {"error": {"status": "EXHAUSTED"}})),
+        ("corpo que nao e json", upstream(200, content=b"<html>erro</html>")),
+        ("resposta sem output", upstream(200, json={"id": "x", "status": "completed"})),
+        ("output que nao e lista", upstream(200, json={"output": {}})),
+        ("status failed sem itens", upstream(200, json={"status": "failed", "output": []})),
+        ("prosa em vez de ferramenta", responds(message_output("oi"))),
+        ("requisicao invalida", upstream(400, json={"error": {"message": "bad tool_choice"}})),
+        ("erro do provedor", upstream(500, json={"error": {"message": "internal"}})),
+        ("provedor indisponivel", upstream(503, json={"error": {"message": "unavailable"}})),
+        ("cota esgotada", upstream(429, json={"error": {"code": "insufficient_quota"}})),
         ("timeout", httpx.ReadTimeout("tempo esgotado")),
         ("rede fora", httpx.ConnectError("dns")),
-        (
-            "acao fora do enum",
-            FakeResponse(200, interaction_body(answer_call("ok", "cancel", 1), status="completed")),
-        ),
-        (
-            "answer sem reply",
-            FakeResponse(
-                200,
-                interaction_body(
-                    function_call("answer", {"action_type": "none"}), status="completed"
-                ),
-            ),
-        ),
+        ("acao fora do enum", responds(answer_call("ok", "cancel", 1))),
+        ("answer sem reply", responds(function_call("answer", {"action_type": "none"}))),
         (
             "reservation_id que nao e numero",
-            FakeResponse(
-                200,
-                interaction_body(
-                    function_call(
-                        "answer",
-                        {"reply": "ok", "action_type": "check_in", "reservation_id": "abc"},
-                    ),
-                    status="completed",
-                ),
+            responds(
+                function_call(
+                    "answer",
+                    {"reply": "ok", "action_type": "check_in", "reservation_id": "abc"},
+                )
             ),
         ),
         (
-            "function_call sem id",
-            FakeResponse(
-                200,
-                interaction_body(
-                    {"type": "function_call", "name": "revenue_summary", "arguments": {}}
-                ),
+            "arguments que nao e json",
+            responds(
+                {
+                    "id": "fc_1",
+                    "type": "function_call",
+                    "call_id": "call_1",
+                    "name": "answer",
+                    "arguments": "{quebrado",
+                }
+            ),
+        ),
+        (
+            "function_call sem call_id",
+            responds(
+                {
+                    "id": "fc_1",
+                    "type": "function_call",
+                    "name": "revenue_summary",
+                    "arguments": "{}",
+                }
             ),
         ),
     ],
@@ -845,99 +767,26 @@ def test_copilot_returns_502_on_upstream_trouble(
     assert response.data == UPSTREAM_ENVELOPE, label
 
 
-def test_copilot_tolerates_an_answer_without_reservation_id(auth_client, ai_on, calls):
-    """Texto bom com argumento faltando vira 200 sem botao, nunca 502."""
-    calls.queue.append(
-        FakeResponse(
-            200,
-            interaction_body(
-                function_call("answer", {"reply": "Está tudo calmo."}), status="completed"
-            ),
-        )
-    )
-
-    response = ask(auth_client)
-
-    assert response.status_code == 200
-    assert response.data == {"reply": "Está tudo calmo.", "proposed_action": None}
-
-
 def test_copilot_shrinks_each_timeout_to_the_remaining_budget(
     auth_client, ai_on, calls, monkeypatch, ana
 ):
-    """Sem freeze_time: o orcamento do laco anda no relogio monotonico."""
+    """Sem freeze_time: o orçamento do laço anda no relógio monotônico."""
     calls.tick = 4.0
     monkeypatch.setattr(ai_client.time, "monotonic", lambda: calls.now)
-    calls.queue.extend([requires(find_call(ReservationStatus.PENDING, "Ana"))] * 4)
+    calls.queue.extend([responds(find_call(ReservationStatus.PENDING, "Ana"))] * 4)
 
     response = ask(auth_client)
 
     assert response.status_code == 502
     assert [call["timeout"] for call in calls] == [10.0, 10.0, 7.0, 3.0]
-    assert len(calls) == 4  # a 5a rodada nao sai: o orcamento acabou
-
-
-# --- fallback de chave -------------------------------------------------------
-
-
-def test_copilot_falls_back_to_the_paid_key_on_quota_exhaustion(
-    auth_client, ai_on_with_paid, calls
-):
-    calls.queue.extend(
-        [
-            FakeResponse(429, {"error": {"status": "RESOURCE_EXHAUSTED"}}),
-            answered(answer_call("Tudo tranquilo.")),
-        ]
-    )
-
-    response = ask(auth_client)
-
-    assert response.status_code == 200
-    assert response.data["reply"] == "Tudo tranquilo."
-    assert calls[0]["headers"]["x-goog-api-key"] == FAKE_KEY
-    assert calls[1]["headers"]["x-goog-api-key"] == PAID_KEY
-    # Mesma chamada, so a chave muda.
-    assert calls[0]["json"] == calls[1]["json"]
-
-
-def test_copilot_keeps_the_paid_key_for_the_rest_of_the_request(
-    auth_client, ai_on_with_paid, calls, ana
-):
-    calls.queue.extend(
-        [
-            FakeResponse(429, {"error": {"status": "RESOURCE_EXHAUSTED"}}),
-            requires(find_call(ReservationStatus.PENDING, "Ana")),
-            answered(answer_call("A Ana Souza tem reserva hoje.")),
-        ]
-    )
-
-    response = ask(auth_client)
-
-    assert response.status_code == 200
-    assert [call["headers"]["x-goog-api-key"] for call in calls] == [
-        FAKE_KEY,
-        PAID_KEY,
-        PAID_KEY,
-    ]
-
-
-def test_copilot_returns_502_on_quota_exhaustion_without_a_paid_key(auth_client, ai_on, calls):
-    calls.queue.append(FakeResponse(429, {"error": {"status": "RESOURCE_EXHAUSTED"}}))
-
-    response = ask(auth_client)
-
-    assert response.status_code == 502
-    assert len(calls) == 1
-
-
-# --- PII e contrato publicado ------------------------------------------------
+    assert len(calls) == 4
 
 
 def test_copilot_never_logs_the_conversation(auth_client, ai_on, calls, caplog, ana):
     calls.queue.extend(
         [
-            requires(find_call(ReservationStatus.PENDING, "Ana Souza")),
-            answered(answer_call("A Ana Souza tem reserva hoje no 101.", "check_in", ana.pk)),
+            responds(find_call(ReservationStatus.PENDING, "Ana Souza")),
+            responds(answer_call("A Ana Souza tem reserva hoje no 101.", "check_in", ana.pk)),
         ]
     )
 

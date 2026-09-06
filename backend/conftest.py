@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, time
 from decimal import Decimal
 
+import httpx
 import pytest
 from django.core.cache import caches
 
@@ -35,6 +36,24 @@ BOOTSTRAP_POLICY = {
     "checkout_limit": time(12, 0),
     "note": "tarifa do briefing (bootstrap)",
 }
+
+
+@pytest.fixture(autouse=True)
+def _ai_key_is_never_the_real_one(settings):
+    """A chave real vem do ambiente do dev; quem liga a feature usa uma falsa (`ai_on`)."""
+    settings.OPENAI_API_KEY = ""
+
+
+@pytest.fixture(autouse=True)
+def _no_outbound_http(monkeypatch):
+    """Autouse roda antes dos fixtures pedidos: quem dubla o transporte (`calls`) sobrescreve."""
+
+    def blocked(*_args, **_kwargs):
+        raise AssertionError(
+            "chamada HTTP de saida num teste: duble `httpx.post` (veja o fixture `calls`)"
+        )
+
+    monkeypatch.setattr(httpx, "post", blocked)
 
 
 @pytest.fixture(autouse=True)
