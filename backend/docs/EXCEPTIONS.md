@@ -115,7 +115,7 @@ Tipo dos erros que nascem na **borda HTTP**: não são regra de negócio (não s
 class AiDisabledError(ApiError):
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     error_code = "AI_DISABLED"
-    default_detail = "Preenchimento por IA indisponível: nenhuma chave configurada."
+    default_detail = "Íris indisponível: nenhuma chave configurada."
 ```
 
 O DRF já usa a palavra `code` no `__init__` para um slug interno (`not_found`). Por isso o nosso atributo é `error_code`: senão `AiUpstreamError(code="X")` parece trocar o envelope e não troca. Serviço, sem herança do DRF, usa `code`.

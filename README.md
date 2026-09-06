@@ -293,7 +293,7 @@ são a verdade; contagem de testes envelhece a cada commit e não vale como prov
 
 ```bash
 # backend — comando canônico, com o piso de cobertura
-docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov=core --cov-fail-under=85 -q
+docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov=core --cov=ai --cov-fail-under=85 -q
 
 # grafo de dependências entre os apps (o mesmo contrato que o CI cobra)
 docker compose exec backend uv run lint-imports
@@ -381,8 +381,8 @@ acima existem de verdade, e os arquivos que os pinos de cobertura apontam
 também existem (glob sem arquivo passa em silêncio: mapa vazio é 100%):
 
 ```bash
-# backend: nada em hotel/ ou accounts/ constrói um float
-! grep -RnE "float\(" backend/hotel backend/accounts
+# backend: nada no domínio, no núcleo ou na Íris constrói um float
+! grep -RnE "float\(" backend/hotel backend/accounts backend/core backend/ai
 
 # frontend: o módulo que formata dinheiro e o extrato não convertem para número
 ! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" \

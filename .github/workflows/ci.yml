@@ -51,7 +51,7 @@ jobs:
 
       - name: "Guard - dinheiro nunca usa float (SPEC 0.3)"
         working-directory: ${{ github.workspace }}
-        run: '! grep -RnE "float\(" backend/hotel backend/accounts backend/core'
+        run: '! grep -RnE "float\(" backend/hotel backend/accounts backend/core backend/ai'
 
       - name: Instalar dependencias travadas
         run: uv sync --frozen
@@ -66,7 +66,7 @@ jobs:
         run: uv run python manage.py makemigrations --check --dry-run
 
       - name: Suite backend com cobertura
-        run: uv run pytest --cov=hotel --cov=accounts --cov=core --cov-fail-under=85 -q
+        run: uv run pytest --cov=hotel --cov=accounts --cov=core --cov=ai --cov-fail-under=85 -q
 
   frontend:
     name: frontend (vitest)

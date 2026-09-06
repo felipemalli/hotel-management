@@ -1,32 +1,29 @@
 from __future__ import annotations
 
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema
 from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 
-from ai.client import extract_guest_fields
 from ai.config import ai_enabled, ai_throttle_rate
-from ai.exceptions import AiDisabledError, AiUpstreamError
-from ai.serializers import (
-    AiStatusSerializer,
-    ParsedGuestSerializer,
-    ParseGuestRequestSerializer,
-)
+from ai.copilot import answer
+from ai.exceptions import AiDisabledError
+from ai.serializers import AiStatusSerializer, CopilotReplySerializer, CopilotRequestSerializer
 from core.serializers import ErrorEnvelopeSerializer
 
 AI_TAG = "ai"
 
 AI_DISABLED_RESPONSE = OpenApiResponse(
     response=ErrorEnvelopeSerializer,
-    description="Nenhuma `ANTHROPIC_API_KEY` configurada — a feature está desligada (SPEC 7.2).",
+    description="Nenhuma chave `GEMINI_*` configurada — a feature está desligada.",
     examples=[
         OpenApiExample(
             "AI_DISABLED",
             value={
                 "code": "AI_DISABLED",
-                "detail": "Preenchimento por IA indisponível: nenhuma chave configurada.",
+                "detail": "Íris indisponível: nenhuma chave configurada.",
                 "extra": {},
             },
             response_only=True,
@@ -36,15 +33,16 @@ AI_DISABLED_RESPONSE = OpenApiResponse(
 
 AI_UPSTREAM_RESPONSE = OpenApiResponse(
     response=ErrorEnvelopeSerializer,
-    description="Timeout, status != 200, JSON inválido ou campo faltante (SPEC 7.2).",
+    description=(
+        "Timeout, orçamento do loop esgotado, status != 200, resposta fora do "
+        "formato ou modelo que nunca chamou `answer`."
+    ),
     examples=[
         OpenApiExample(
             "AI_UPSTREAM_ERROR",
             value={
                 "code": "AI_UPSTREAM_ERROR",
-                "detail": (
-                    "O provedor de IA não devolveu uma extração utilizável. Preencha à mão."
-                ),
+                "detail": "O provedor de IA não devolveu uma resposta utilizável.",
                 "extra": {},
             },
             response_only=True,
@@ -60,11 +58,11 @@ class AiRateThrottle(UserRateThrottle):
 
 @extend_schema(
     tags=[AI_TAG],
-    summary="Diz se o preenchimento por IA está disponível",
+    summary="Diz se a Íris está disponível",
     description=(
-        "Portão de fallback da SPEC 7.2: sem `ANTHROPIC_API_KEY` responde "
-        "`enabled: false` e o frontend não renderiza o botão *Preencher com IA*. "
-        "O sistema é 100% funcional nesse estado."
+        "Portão de fallback: sem chave do provedor responde `enabled: false` e "
+        "o frontend mostra a Íris desligada na página dela. O resto do sistema "
+        "é 100% funcional nesse estado."
     ),
     responses={200: AiStatusSerializer},
 )
@@ -75,34 +73,57 @@ def ai_status(_request: Request) -> Response:
 
 @extend_schema(
     tags=[AI_TAG],
-    summary="Extrai nome, documento e telefone de texto livre",
+    summary="Pergunta em linguagem natural sobre o hotel",
     description=(
-        "Recebe o texto que o atendente colou (linha lida do documento, recado de "
-        "reserva por telefone) e devolve os três campos do cadastro. **Nada é "
-        "persistido**: o resultado apenas preenche o formulário, e o atendente "
-        "revisa e submete (human-in-the-loop, SPEC 7.1).\n\n"
-        "Privacidade: com a chave configurada, o texto é enviado a um provedor "
-        "externo (Anthropic). O payload não é registrado em log (SPEC 2.2)."
+        "A Íris responde ao atendente consultando o próprio banco: reservas e "
+        "estadias (inclusive por nome de acompanhante), prévia de checkout, "
+        "quartos livres e faturamento. O modelo **pede** as consultas e o "
+        "servidor as executa; nada é gravado por este endpoint.\n\n"
+        "Quando a pergunta tem uma ação clara, a resposta traz `proposed_action` "
+        "— o frontend a renderiza como um botão que chama os endpoints de "
+        "check-in ou de checkout de sempre (human-in-the-loop). A ação só vem "
+        "quando a reserva foi identificada de forma única e o status confere; "
+        "caso contrário é `null`, e o texto ainda é útil.\n\n"
+        "Privacidade: com a chave configurada saem para o Google Gemini os "
+        "nomes (titular e acompanhantes), quartos, datas, o extrato projetado e "
+        "os agregados de faturamento. **Documento e telefone nunca saem.** O "
+        "conteúdo não é registrado em log. No tier gratuito o Google pode usar "
+        "as entradas e saídas para treinar os modelos e revisores humanos podem "
+        "lê-las: para dados reais, use uma chave de projeto com billing."
     ),
-    request=ParseGuestRequestSerializer,
+    request=CopilotRequestSerializer,
     responses={
-        200: ParsedGuestSerializer,
+        200: CopilotReplySerializer,
         400: ErrorEnvelopeSerializer,
         502: AI_UPSTREAM_RESPONSE,
         503: AI_DISABLED_RESPONSE,
     },
     examples=[
         OpenApiExample(
-            "Texto colado no balcão",
-            value={"text": "hóspede Ana Souza cpf 123.456.789-01 cel (21) 98888-7777"},
+            "Chegada narrada no balcão",
+            value={"message": "A Ana Souza chegou, tem reserva hoje."},
             request_only=True,
         ),
         OpenApiExample(
-            "Extração devolvida ao formulário",
+            "Resposta com ação proposta",
             value={
-                "full_name": "Ana Souza",
-                "document": "123.456.789-01",
-                "phone": "(21) 98888-7777",
+                "reply": (
+                    "A Ana Souza tem a reserva 4 no quarto 101, de hoje a "
+                    "amanhã, com vaga. O check-in abre às 14:00."
+                ),
+                "proposed_action": {
+                    "type": "check_in",
+                    "reservation_id": 4,
+                    "guest_name": "Ana Souza",
+                },
+            },
+            response_only=True,
+        ),
+        OpenApiExample(
+            "Resposta sem ação",
+            value={
+                "reply": "No hotel agora: Bruno Lima no 102, desde ontem às 15:00.",
+                "proposed_action": None,
             },
             response_only=True,
         ),
@@ -110,17 +131,12 @@ def ai_status(_request: Request) -> Response:
 )
 @api_view(["POST"])
 @throttle_classes([AiRateThrottle])
-def parse_guest(request: Request) -> Response:
+def copilot(request: Request) -> Response:
     if not ai_enabled():
         raise AiDisabledError
 
-    payload = ParseGuestRequestSerializer(data=request.data)
+    payload = CopilotRequestSerializer(data=request.data)
     payload.is_valid(raise_exception=True)
 
-    extracted = ParsedGuestSerializer(data=extract_guest_fields(payload.validated_data["text"]))
-    if not extracted.is_valid():
-        # LLM fora do contrato e falha de upstream, nao do atendente.
-        # extra vazio: os erros por campo citariam o valor devolvido pelo modelo.
-        raise AiUpstreamError
-
-    return Response(extracted.validated_data)
+    result = answer(payload.validated_data["message"], now=timezone.now())
+    return Response(CopilotReplySerializer(result).data)

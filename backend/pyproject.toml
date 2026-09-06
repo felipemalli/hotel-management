@@ -76,3 +76,12 @@ name = "core e accounts sao folhas; ninguem do dominio importa ai ou config"
 type = "forbidden"
 source_modules = ["core", "accounts", "hotel"]
 forbidden_modules = ["ai", "config"]
+
+[[tool.importlinter.contracts]]
+name = "ai so toca o dominio por reservations"
+type = "forbidden"
+source_modules = ["ai"]
+forbidden_modules = ["hotel.billing", "hotel.rooms", "hotel.guests"]
+# Sem isto o contrato falha em ai.tools -> hotel.reservations.services ->
+# hotel.billing.engine: e o import direto que esta proibido, nao a cadeia.
+allow_indirect_imports = true

@@ -2,19 +2,29 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-MAX_TEXT_LENGTH = 2000
+MAX_MESSAGE_LENGTH = 2000
 
 
 class AiStatusSerializer(serializers.Serializer):
     enabled = serializers.BooleanField()
 
 
-class ParseGuestRequestSerializer(serializers.Serializer):
-    text = serializers.CharField(max_length=MAX_TEXT_LENGTH, trim_whitespace=True)
+class CopilotRequestSerializer(serializers.Serializer):
+    message = serializers.CharField(
+        max_length=MAX_MESSAGE_LENGTH,
+        trim_whitespace=True,
+        help_text="A pergunta do atendente, em linguagem natural.",
+    )
 
 
-class ParsedGuestSerializer(serializers.Serializer):
-    # allow_blank: chave obrigatoria, valor vazio = "nao achei".
-    full_name = serializers.CharField(max_length=140, allow_blank=True, trim_whitespace=True)
-    document = serializers.CharField(max_length=40, allow_blank=True, trim_whitespace=True)
-    phone = serializers.CharField(max_length=40, allow_blank=True, trim_whitespace=True)
+class ProposedActionSerializer(serializers.Serializer):
+    type = serializers.ChoiceField(choices=["check_in", "checkout"])
+    reservation_id = serializers.IntegerField()
+    # Do banco, nao do modelo: o botao, o toast e o dialog do check-in
+    # antecipado nomeiam o hospede.
+    guest_name = serializers.CharField()
+
+
+class CopilotReplySerializer(serializers.Serializer):
+    reply = serializers.CharField()
+    proposed_action = ProposedActionSerializer(allow_null=True)

@@ -201,4 +201,7 @@ CONTENT_SECURITY_POLICY = {
     }
 }
 
-ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY")
+# Duas chaves: a gratuita (projeto sem billing) e, opcional, a paga. O 429
+# da primeira faz o client repetir na segunda -- ver ai/config.py.
+GEMINI_API_KEY = env("GEMINI_API_KEY")
+GEMINI_API_KEY_PAID = env("GEMINI_API_KEY_PAID")
