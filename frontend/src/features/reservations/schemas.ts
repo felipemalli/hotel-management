@@ -12,6 +12,24 @@ export const paymentMethodSchema = z.enum(['CASH', 'CARD', 'PIX', 'OTHER'])
 
 export const guestRefSchema = z.object({ id: z.number().int(), full_name: z.string() })
 
+export const accountStatusSchema = z.enum(['OPEN', 'CLOSED', 'PAID'])
+
+export const paymentSchema = z.object({
+  paid_at: isoDateTime,
+  method: paymentMethodSchema,
+  received_by: userRefSchema,
+})
+
+// Toda a conta da estadia: aberta no check-in, fechada no checkout, paga depois.
+export const accountSchema = z.object({
+  id: z.number().int(),
+  status: accountStatusSchema,
+  total_amount: moneyString.nullable(),
+  opened_at: isoDateTime,
+  closed_at: isoDateTime.nullable(),
+  payment: paymentSchema.nullable(),
+})
+
 // Monetário é string decimal ("120.00"), nunca number.
 export const reservationSchema = z.object({
   id: z.number().int(),
@@ -26,19 +44,13 @@ export const reservationSchema = z.object({
   checked_in_at: isoDateTime.nullable(),
   checked_out_at: isoDateTime.nullable(),
   cancelled_at: isoDateTime.nullable(),
-  total_daily: moneyString.nullable(),
-  total_parking: moneyString.nullable(),
-  late_fee: moneyString.nullable(),
-  late_fee_base: moneyString.nullable(),
-  total_amount: moneyString.nullable(),
-  paid_at: isoDateTime.nullable(),
-  payment_method: paymentMethodSchema.nullable(),
+  // null fora de CHECKED_IN/CHECKED_OUT: antes do check-in não existe conta.
+  account: accountSchema.nullable(),
   created_at: isoDateTime,
   created_by: userRefSchema.nullable(),
   checked_in_by: userRefSchema.nullable(),
   checked_out_by: userRefSchema.nullable(),
   cancelled_by: userRefSchema.nullable(),
-  paid_by: userRefSchema.nullable(),
 })
 
 export const billLineSchema = z.object({
@@ -55,12 +67,6 @@ export const lateFeeSchema = z.discriminatedUnion('applied', [
 ])
 
 export const reservationPageSchema = paginated(reservationSchema)
-
-export const paymentSchema = z.object({
-  paid_at: isoDateTime,
-  method: paymentMethodSchema,
-  paid_by: userRefSchema,
-})
 
 export const checkoutStatementSchema = z.object({
   reservation_id: z.number().int(),

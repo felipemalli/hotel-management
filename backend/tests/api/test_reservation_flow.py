@@ -57,7 +57,7 @@ def statement_url(reservation: Reservation) -> str:
 
 
 def test_create_reservation_persists_pending(auth_client):
-    """RF2: reserva nasce PENDING com todos os campos financeiros `null` (SPEC 4.4)."""
+    """RF2: reserva nasce PENDING e sem conta (SPEC 4.4)."""
     guest = GuestFactory()
     today = timezone.localdate()
 
@@ -79,8 +79,7 @@ def test_create_reservation_persists_pending(auth_client):
     assert response.data["has_vehicle"] is True
     assert response.data["checked_in_at"] is None
     assert response.data["checked_out_at"] is None
-    for money in ("total_daily", "total_parking", "late_fee", "total_amount"):
-        assert response.data[money] is None, money
+    assert response.data["account"] is None
 
     stored = Reservation.objects.get(pk=response.data["id"])
     assert stored.guest_id == guest.pk
@@ -224,11 +223,12 @@ def test_checkout_freezes_totals(auth_client):
     assert response.status_code == 200
     stored = Reservation.objects.get(pk=reservation.pk)
     assert stored.status == ReservationStatus.CHECKED_OUT
-    assert stored.total_daily == Decimal("300.00")
-    assert stored.total_parking == Decimal("35.00")
-    assert stored.late_fee == Decimal("90.00")
-    assert stored.total_amount == Decimal("425.00")
+    assert stored.account.status == "CLOSED"
+    assert stored.account.total_amount == Decimal("425.00")
     assert stored.checked_out_at is not None
+    assert response.data["subtotal_daily"] == "300.00"
+    assert response.data["subtotal_parking"] == "35.00"
+    assert response.data["late_fee"]["amount"] == "90.00"
 
 
 def test_checkout_statement_matches_T7(auth_client):
@@ -250,6 +250,8 @@ def test_checkout_statement_matches_T7(auth_client):
         "subtotal_daily": "300.00",
         "subtotal_parking": "35.00",
         "late_fee": {"applied": True, "base_rate": "180.00", "amount": "90.00"},
+        "extras": [],
+        "subtotal_extras": "0.00",
         "total": "425.00",
         "payment": None,
     }
@@ -295,7 +297,9 @@ def test_reservation_detail_returns_the_full_object(auth_client):
     assert response.status_code == 200
     assert response.data["id"] == reservation.pk
     assert response.data["status"] == ReservationStatus.CHECKED_OUT
-    assert response.data["total_amount"] == "300.00"
+    assert response.data["account"]["status"] == "CLOSED"
+    assert response.data["account"]["total_amount"] == "300.00"
+    assert response.data["account"]["payment"] is None
 
 
 def test_checkout_at_noon_has_no_late_fee(auth_client):
@@ -313,6 +317,8 @@ def test_checkout_at_noon_has_no_late_fee(auth_client):
         "base_rate": None,
         "amount": "0.00",
     }
+    assert response.data["extras"] == []
+    assert response.data["subtotal_extras"] == "0.00"
     assert response.data["total"] == "300.00"
 
 
@@ -328,7 +334,7 @@ def test_double_checkout_returns_invalid_status(auth_client):
 
     assert response.status_code == 409
     assert response.data["code"] == "INVALID_STATUS"
-    assert Reservation.objects.get(pk=reservation.pk).total_amount == Decimal("425.00")
+    assert Reservation.objects.get(pk=reservation.pk).account.total_amount == Decimal("425.00")
 
 
 def test_checkout_without_checkin_returns_invalid_status(auth_client):
@@ -473,7 +479,7 @@ def test_pay_returns_statement_with_payment(auth_client, attendant):
     assert response.data["payment"] == {
         "paid_at": "2025-03-09T12:30:00-03:00",
         "method": "PIX",
-        "paid_by": {"id": attendant.pk, "username": attendant.username},
+        "received_by": {"id": attendant.pk, "username": attendant.username},
     }
 
 
@@ -486,6 +492,43 @@ def test_statement_reissued_after_payment_shows_it(auth_client):
 
     assert reissued.status_code == 200
     assert reissued.data == paid.data
+
+
+def test_checkin_response_carries_an_open_account(auth_client, attendant):
+    reservation = t7_reservation()
+
+    with freeze_time(local(MARCH_7, 15, 0)):
+        response = auth_client.post(checkin_url(reservation), {}, format="json")
+
+    assert response.status_code == 200
+    assert response.data["account"]["status"] == "OPEN"
+    assert response.data["account"]["total_amount"] is None
+    assert response.data["account"]["payment"] is None
+
+    with freeze_time(local(MARCH_9, 12, 1)):
+        auth_client.post(checkout_url(reservation), format="json")
+    with freeze_time(local(MARCH_9, 12, 30)):
+        auth_client.post(pay_url(reservation), {"payment_method": "PIX"}, format="json")
+
+    detail = auth_client.get(detail_url(reservation))
+    assert detail.data["account"]["status"] == "PAID"
+    assert detail.data["account"]["payment"] == {
+        "paid_at": "2025-03-09T12:30:00-03:00",
+        "method": "PIX",
+        "received_by": {"id": attendant.pk, "username": attendant.username},
+    }
+
+
+def test_checkout_statement_has_empty_extras_by_default(auth_client):
+    reservation = t7_reservation()
+
+    with freeze_time(local(MARCH_7, 15, 0)):
+        auth_client.post(checkin_url(reservation), {}, format="json")
+    with freeze_time(local(MARCH_9, 12, 1)):
+        response = auth_client.post(checkout_url(reservation), format="json")
+
+    assert response.data["extras"] == []
+    assert response.data["subtotal_extras"] == "0.00"
 
 
 def test_pay_twice_returns_409(auth_client):

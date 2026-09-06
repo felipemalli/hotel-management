@@ -31,8 +31,10 @@ export function ReservationDetailPage() {
   const reservation = useReservation(id)
   const guest = useGuest(reservation.data?.guest_id)
   const [dialog, setDialog] = useState<DetailDialog>(null)
-  // Checkout já semeou esta chave: a 2ª via não refaz o GET.
-  const statement = useReservationStatement(id ?? 0, { enabled: dialog === 'statement' })
+  // Checkout já semeou esta chave: a 2ª via e a seção Conta não refazem o GET.
+  const statement = useReservationStatement(id ?? 0, {
+    enabled: dialog === 'statement' || reservation.data?.status === 'CHECKED_OUT',
+  })
 
   if (id === null || isApiErrorCode(reservation.error, 'NOT_FOUND')) return <NotFound />
 
@@ -79,7 +81,7 @@ export function ReservationDetailPage() {
       <ReservationPeopleSection reservation={current} guest={guest} />
       <ReservationHistorySection reservation={current} />
       {current.status === 'CHECKED_OUT' ? (
-        <ReservationAccountSection reservation={current} />
+        <ReservationAccountSection reservation={current} statement={statement.data} />
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">

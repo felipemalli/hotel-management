@@ -164,7 +164,7 @@ export function CheckoutStatementDialog({
                   <Badge variant="success">Pago</Badge>
                   <span>
                     Pago em {formatISODateTime(payment.paid_at)} ·{' '}
-                    {PAYMENT_METHOD_LABELS[payment.method]} · por {payment.paid_by.username}
+                    {PAYMENT_METHOD_LABELS[payment.method]} · por {payment.received_by.username}
                   </span>
                 </Typography>
               ) : (

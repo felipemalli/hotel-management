@@ -78,7 +78,7 @@ from hotel.rooms.serializers import RoomSerializer
     create=extend_schema(
         summary="Cria reserva",
         description=(
-            "Nasce `PENDING` com campos financeiros `null`. Exige `checkout_date > "
+            "Nasce `PENDING` sem conta (`account: null`). Exige `checkout_date > "
             "checkin_date` (D13) e `checkin_date >= hoje` local (D11)."
         ),
         request=ReservationCreateSerializer,
@@ -193,8 +193,8 @@ class ReservationViewSet(
     @extend_schema(
         summary="Efetiva o checkout e devolve o extrato",
         description=(
-            "Exige `CHECKED_IN`. Congela os totais na mesma transação; duplo "
-            "checkout responde `409 INVALID_STATUS`. O extrato é calculado pelos "
+            "Exige `CHECKED_IN`. Lança as linhas e fecha a conta na mesma transação; "
+            "duplo checkout responde `409 INVALID_STATUS`. O extrato é calculado pelos "
             "fatos reais (D6) por `hotel/billing/engine.py` — a view não faz dinheiro."
         ),
         request=None,
@@ -212,16 +212,18 @@ class ReservationViewSet(
     @action(detail=True, methods=["post"], url_path="checkout")
     def checkout(self, request: Request, pk: str | None = None) -> Response:
         reservation = self.get_object()
-        bill = reservations_service.check_out(reservation, now=timezone.now(), actor=request.user)
-        return Response(StatementSerializer(build_statement(reservation, bill)).data)
+        statement = reservations_service.check_out(
+            reservation, now=timezone.now(), actor=request.user
+        )
+        return Response(StatementSerializer(build_statement(reservation, statement)).data)
 
     @extend_schema(
         summary="2ª via do extrato de uma reserva finalizada",
         description=(
             "RN6 exige o extrato **durante** o checkout, e o POST acima cumpre isso. "
             "Esta rota cobre a operação de balcão: o atendente fechou o modal e o "
-            "hóspede quer o recibo de novo. Não guarda estado novo — recomputa dos "
-            "fatos congelados (SPEC 1.3), então o valor confere com `total_amount`. "
+            "hóspede quer o recibo de novo. Não guarda estado novo — hidrata as linhas "
+            "congeladas da conta (SPEC 1.3), nunca recomputa. "
             "Reserva que ainda não fez checkout responde `409 INVALID_STATUS`."
         ),
         responses={
@@ -237,8 +239,8 @@ class ReservationViewSet(
     @action(detail=True, methods=["get"], url_path="statement")
     def statement(self, request: Request, pk: str | None = None) -> Response:
         reservation = self.get_object()
-        bill = reservations_service.statement(reservation)
-        return Response(StatementSerializer(build_statement(reservation, bill)).data)
+        statement = reservations_service.statement(reservation)
+        return Response(StatementSerializer(build_statement(reservation, statement)).data)
 
     @extend_schema(
         summary="Registra o pagamento da conta",
@@ -284,8 +286,8 @@ class ReservationViewSet(
             actor=request.user,
             payment_method=payload.validated_data["payment_method"],
         )
-        bill = reservations_service.statement(reservation)
-        return Response(StatementSerializer(build_statement(reservation, bill)).data)
+        statement = reservations_service.statement(reservation)
+        return Response(StatementSerializer(build_statement(reservation, statement)).data)
 
     @extend_schema(
         summary="Cancela uma reserva pendente",

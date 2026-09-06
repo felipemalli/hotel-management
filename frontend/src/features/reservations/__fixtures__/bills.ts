@@ -249,7 +249,7 @@ export const PAID_T7_STATEMENT: CheckoutStatement = {
   payment: {
     paid_at: '2025-03-09T12:30:00-03:00',
     method: 'PIX',
-    paid_by: { id: 1, username: 'atendente' },
+    received_by: { id: 1, username: 'atendente' },
   },
 }
 

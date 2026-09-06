@@ -4,6 +4,7 @@ from datetime import date
 
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q, QuerySet, Value
 
+from hotel.billing.models import AccountStatus
 from hotel.guests.models import Guest
 from hotel.guests.selectors import guest_search_predicate
 from hotel.reservations.models import Reservation, ReservationStatus
@@ -27,7 +28,9 @@ RESERVATION_RELATIONS = (
     "checked_in_by",
     "checked_out_by",
     "cancelled_by",
-    "paid_by",
+    "account",
+    "account__payment",
+    "account__payment__received_by",
 )
 
 
@@ -89,7 +92,12 @@ def list_reservations(
     if guest_id is not None:
         queryset = queryset.filter(guest_id=guest_id)
     if paid is not None:
-        queryset = queryset.filter(paid_at__isnull=not paid)
+        # `paid=false` inclui reserva sem conta: em aberto e tudo que nao esta pago.
+        queryset = (
+            queryset.filter(account__status=AccountStatus.PAID)
+            if paid
+            else queryset.exclude(account__status=AccountStatus.PAID)
+        )
     if search:
         queryset = queryset.filter(_reservation_search_predicate(search))
     return queryset

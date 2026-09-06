@@ -31,12 +31,13 @@ export function historyEntries(reservation: Reservation): HistoryEntry[] {
     })
   }
 
-  if (reservation.paid_at !== null) {
-    const method =
-      reservation.payment_method === null
-        ? 'Pagamento'
-        : `Pagamento (${PAYMENT_METHOD_LABELS[reservation.payment_method]})`
-    entries.push({ label: method, at: reservation.paid_at, by: reservation.paid_by })
+  const payment = reservation.account?.payment ?? null
+  if (payment !== null) {
+    entries.push({
+      label: `Pagamento (${PAYMENT_METHOD_LABELS[payment.method]})`,
+      at: payment.paid_at,
+      by: payment.received_by,
+    })
   }
 
   if (reservation.cancelled_at !== null) {

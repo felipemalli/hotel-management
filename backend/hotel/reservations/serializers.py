@@ -6,8 +6,9 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from core.serializers import UserMinimalSerializer, money_field
-from hotel.billing.engine import Bill
 from hotel.billing.models import PaymentMethod
+from hotel.billing.selectors import payment_of
+from hotel.billing.serializers import AccountSerializer, ExtraLineSerializer, PaymentSerializer
 from hotel.guests.models import Guest
 from hotel.guests.serializers import GuestMinimalSerializer, GuestSerializer
 from hotel.reservations.models import Reservation, ReservationStatus
@@ -17,6 +18,7 @@ from hotel.reservations.selectors import (
     PENDING_COMPANION_RESERVATIONS_ATTR,
     PENDING_RESERVATIONS_ATTR,
 )
+from hotel.reservations.statement import Statement
 from hotel.rooms.models import Room
 from hotel.rooms.serializers import RoomSummarySerializer
 
@@ -43,16 +45,11 @@ class ReservationSerializer(serializers.ModelSerializer):
     guest_id = serializers.IntegerField(read_only=True)
     room = RoomSummarySerializer(read_only=True)
     companions = GuestMinimalSerializer(many=True, read_only=True)
-    total_daily = money_field(read_only=True)
-    total_parking = money_field(read_only=True)
-    late_fee = money_field(read_only=True)
-    late_fee_base = money_field(read_only=True)
-    total_amount = money_field(read_only=True)
+    account = AccountSerializer(read_only=True, allow_null=True)
     created_by = UserMinimalSerializer(read_only=True)
     checked_in_by = UserMinimalSerializer(read_only=True)
     checked_out_by = UserMinimalSerializer(read_only=True)
     cancelled_by = UserMinimalSerializer(read_only=True)
-    paid_by = UserMinimalSerializer(read_only=True)
 
     class Meta:
         model = Reservation
@@ -69,19 +66,12 @@ class ReservationSerializer(serializers.ModelSerializer):
             "checked_in_at",
             "checked_out_at",
             "cancelled_at",
-            "total_daily",
-            "total_parking",
-            "late_fee",
-            "late_fee_base",
-            "total_amount",
-            "paid_at",
-            "payment_method",
+            "account",
             "created_at",
             "created_by",
             "checked_in_by",
             "checked_out_by",
             "cancelled_by",
-            "paid_by",
         ]
         read_only_fields = fields
 
@@ -219,12 +209,6 @@ class LateFeeSerializer(serializers.Serializer):
     amount = money_field()
 
 
-class PaymentSerializer(serializers.Serializer):
-    paid_at = serializers.DateTimeField()
-    method = serializers.ChoiceField(choices=PaymentMethod.choices)
-    paid_by = UserMinimalSerializer()
-
-
 class StatementSerializer(serializers.Serializer):
     reservation_id = serializers.IntegerField()
     guest = GuestMinimalSerializer()
@@ -234,35 +218,28 @@ class StatementSerializer(serializers.Serializer):
     subtotal_daily = money_field()
     subtotal_parking = money_field()
     late_fee = LateFeeSerializer()
+    extras = ExtraLineSerializer(many=True)
+    subtotal_extras = money_field()
     total = money_field()
     payment = PaymentSerializer(allow_null=True)
 
 
-def build_statement(reservation: Reservation, bill: Bill) -> dict[str, Any]:
+def build_statement(reservation: Reservation, statement: Statement) -> dict[str, Any]:
     return {
         "reservation_id": reservation.pk,
         "guest": reservation.guest,
         "checked_in_at": reservation.checked_in_at,
         "checked_out_at": reservation.checked_out_at,
-        "lines": bill.lines,
-        "subtotal_daily": bill.subtotal_daily,
-        "subtotal_parking": bill.subtotal_parking,
+        "lines": statement.lines,
+        "subtotal_daily": statement.subtotal_daily,
+        "subtotal_parking": statement.subtotal_parking,
         "late_fee": {
-            "applied": bill.late_fee_applied,
-            "base_rate": bill.late_fee_base,
-            "amount": bill.late_fee,
+            "applied": statement.late_fee_applied,
+            "base_rate": statement.late_fee_base,
+            "amount": statement.late_fee,
         },
-        "total": bill.total,
-        "payment": _payment_of(reservation),
-    }
-
-
-def _payment_of(reservation: Reservation) -> dict[str, Any] | None:
-    # None = conta aberta. Um dict com campos nulos diria "houve pagamento, sem dados".
-    if reservation.paid_at is None:
-        return None
-    return {
-        "paid_at": reservation.paid_at,
-        "method": reservation.payment_method,
-        "paid_by": reservation.paid_by,
+        "extras": statement.extras,
+        "subtotal_extras": statement.subtotal_extras,
+        "total": statement.total,
+        "payment": payment_of(reservation.account),
     }

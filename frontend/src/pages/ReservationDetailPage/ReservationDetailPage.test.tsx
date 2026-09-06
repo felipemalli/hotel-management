@@ -45,7 +45,9 @@ describe('ReservationDetailPage', () => {
   beforeEach(() => {
     vi.mocked(fetchCurrentUser).mockResolvedValue(ATTENDANT)
     vi.mocked(fetchGuest).mockResolvedValue(BRUNO)
-    vi.mocked(fetchReservationStatement).mockResolvedValue(T7_STATEMENT)
+    vi.mocked(fetchReservationStatement).mockImplementation((id: number) =>
+      Promise.resolve({ ...T7_STATEMENT, reservation_id: id }),
+    )
   })
 
   it('mostra hospedagem, pessoas e historico da estadia', async () => {
@@ -101,7 +103,8 @@ describe('ReservationDetailPage', () => {
 
     const account = await screen.findByRole('region', { name: 'Conta' })
     expect(within(account).getByText('R$ 425,00')).toBeInTheDocument()
-    expect(within(account).getByText('R$ 90,00 (base R$ 180,00)')).toBeInTheDocument()
+    // Diárias/Vaga/Multa vêm do extrato, que carrega numa segunda consulta.
+    expect(await within(account).findByText('R$ 90,00 (base R$ 180,00)')).toBeInTheDocument()
     expect(within(account).getByText('Em aberto')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver extrato' }))

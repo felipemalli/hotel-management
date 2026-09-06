@@ -1,7 +1,7 @@
 import { ANA, BRUNO, CARLA, EVA } from '@/features/guests/__fixtures__/guests'
 import { ROOM_101, ROOM_102, ROOM_103 } from '@/features/rooms/__fixtures__/rooms'
 
-import type { Reservation } from '../types'
+import type { Account, Reservation } from '../types'
 
 export const ATTENDANT_REF = { id: 1, username: 'atendente' }
 
@@ -19,19 +19,31 @@ const BASE: Reservation = {
   checked_in_at: null,
   checked_out_at: null,
   cancelled_at: null,
-  total_daily: null,
-  total_parking: null,
-  late_fee: null,
-  late_fee_base: null,
-  total_amount: null,
-  paid_at: null,
-  payment_method: null,
+  account: null,
   created_at: '2026-09-01T08:00:00-03:00',
   created_by: ATTENDANT_REF,
   checked_in_by: null,
   checked_out_by: null,
   cancelled_by: null,
-  paid_by: null,
+}
+
+const OPEN_ACCOUNT: Account = {
+  id: 1,
+  status: 'OPEN',
+  total_amount: null,
+  opened_at: '2026-09-03T15:00:00-03:00',
+  closed_at: null,
+  payment: null,
+}
+
+// Totais de T7: 425,00 em aberto (mesma conta do seed).
+const CLOSED_ACCOUNT: Account = {
+  id: 2,
+  status: 'CLOSED',
+  total_amount: '425.00',
+  opened_at: '2026-08-28T15:00:00-03:00',
+  closed_at: '2026-08-30T12:01:00-03:00',
+  payment: null,
 }
 
 export function reservation(overrides: Partial<Reservation> = {}): Reservation {
@@ -52,9 +64,9 @@ export const BRUNO_CHECKED_IN = reservation({
   status: 'CHECKED_IN',
   checked_in_at: '2026-09-03T15:00:00-03:00',
   checked_in_by: ATTENDANT_REF,
+  account: OPEN_ACCOUNT,
 })
 
-// Totais de T7: 425,00 em aberto (mesma conta do seed).
 export const CARLA_CHECKED_OUT = reservation({
   id: 3,
   guest_id: CARLA.id,
@@ -65,20 +77,22 @@ export const CARLA_CHECKED_OUT = reservation({
   status: 'CHECKED_OUT',
   checked_in_at: '2026-08-28T15:00:00-03:00',
   checked_out_at: '2026-08-30T12:01:00-03:00',
-  total_daily: '300.00',
-  total_parking: '35.00',
-  late_fee: '90.00',
-  late_fee_base: '180.00',
-  total_amount: '425.00',
   checked_in_by: ATTENDANT_REF,
   checked_out_by: ATTENDANT_REF,
+  account: CLOSED_ACCOUNT,
 })
 
 export const CARLA_PAID = reservation({
   ...CARLA_CHECKED_OUT,
-  paid_at: '2026-08-30T12:30:00-03:00',
-  payment_method: 'PIX',
-  paid_by: ATTENDANT_REF,
+  account: {
+    ...CLOSED_ACCOUNT,
+    status: 'PAID',
+    payment: {
+      paid_at: '2026-08-30T12:30:00-03:00',
+      method: 'PIX',
+      received_by: ATTENDANT_REF,
+    },
+  },
 })
 
 // Id próprio: cancelada é outra linha, não a pendente.

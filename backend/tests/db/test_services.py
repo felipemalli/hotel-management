@@ -4,13 +4,17 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from django.db import IntegrityError, transaction
+from django.db.models import Sum
 
 from core import errors
+from hotel.billing import engine as pricing
+from hotel.billing.models import AccountLine, LineKind
 from hotel.guests import services as guests_service
 from hotel.guests.models import GUEST_DOCUMENT_UNIQUE, Guest
 from hotel.reservations import services as service
 from hotel.reservations.errors import ReservationError
 from hotel.reservations.models import Reservation, ReservationStatus
+from hotel.reservations.statement import Statement
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -53,7 +57,7 @@ def test_create_reservation_starts_pending_without_money(actor):
     assert reservation.pk is not None
     assert reservation.status == ReservationStatus.PENDING
     assert reservation.checked_in_at is None
-    assert reservation.total_amount is None
+    assert reservation.account is None
 
 
 def test_create_reservation_accepts_today_as_checkin(actor):
@@ -355,23 +359,19 @@ def test_sync_matches_refresh_from_db(actor):
     expected = {field: getattr(from_db, field) for field in service.SYNCED_FIELDS}
 
     assert synced == expected
+    # "account" e o objeto: copiar so o id deixaria a conta em cache aberta.
+    assert reservation.account.status == from_db.account.status
+    assert reservation.account.total_amount == from_db.account.total_amount
     written_by_transitions = {
         "status",
         "policy_id",
-        "paid_at",
-        "payment_method",
-        "paid_by_id",
+        "account",
         "checked_in_at",
         "checked_in_by_id",
         "checked_out_at",
         "checked_out_by_id",
         "cancelled_at",
         "cancelled_by_id",
-        "total_daily",
-        "total_parking",
-        "late_fee",
-        "late_fee_base",
-        "total_amount",
     }
     assert set(service.SYNCED_FIELDS) == written_by_transitions
 
@@ -444,22 +444,27 @@ def test_check_out_freezes_totals_matching_T7(actor):
     reservation = t7_reservation()
     service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False, actor=actor)
 
-    bill = service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
+    statement = service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
 
-    assert bill.subtotal_daily == Decimal("300.00")
-    assert bill.subtotal_parking == Decimal("35.00")
-    assert bill.late_fee_applied is True
-    assert bill.late_fee_base == Decimal("180.00")
-    assert bill.late_fee == Decimal("90.00")
-    assert bill.total == Decimal("425.00")
+    assert statement.subtotal_daily == Decimal("300.00")
+    assert statement.subtotal_parking == Decimal("35.00")
+    assert statement.late_fee_applied is True
+    assert statement.late_fee_base == Decimal("180.00")
+    assert statement.late_fee == Decimal("90.00")
+    assert statement.total == Decimal("425.00")
 
     stored = Reservation.objects.get(pk=reservation.pk)
     assert stored.status == ReservationStatus.CHECKED_OUT
     assert stored.checked_out_at == local(MARCH_9, 12, 1)
-    assert stored.total_daily == Decimal("300.00")
-    assert stored.total_parking == Decimal("35.00")
-    assert stored.late_fee == Decimal("90.00")
-    assert stored.total_amount == Decimal("425.00")
+    assert stored.account.total_amount == Decimal("425.00")
+    totals = dict(
+        AccountLine.objects.filter(account=stored.account)
+        .values_list("kind")
+        .annotate(total=Sum("amount"))
+    )
+    assert totals[LineKind.DAILY] == Decimal("300.00")
+    assert totals[LineKind.PARKING] == Decimal("35.00")
+    assert totals[LineKind.LATE_FEE] == Decimal("90.00")
 
 
 def test_check_out_charges_real_stay_not_scheduled_dates(actor):
@@ -534,17 +539,21 @@ def test_persisted_statement_matches_recomputation(actor):
     """O extrato HIDRATADO bate com o que o motor produziu no checkout.
 
     Nao e mais uma prova de que o extrato e recomputavel -- ele deixou de ser
-    recomputado. E a prova de que persistir nao mudou nenhum numero: o `Bill`
-    reemitido das colunas e das `StatementLine` e igual ao que `check_out`
-    devolveu, campo a campo, linhas inclusive.
+    recomputado. E a prova de que persistir nao mudou nenhum numero: o extrato
+    hidratado do livro e igual ao que o motor produziu, campo a campo.
     """
     reservation = t7_reservation()
     service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False, actor=actor)
     frozen = service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
 
     recomputed = service.statement(Reservation.objects.get(pk=reservation.pk))
+    from_engine = Statement.from_bill(
+        pricing.calculate_bill(
+            checkin=local(MARCH_7, 15), checkout=local(MARCH_9, 12, 1), has_vehicle=True
+        )
+    )
 
-    assert recomputed == frozen
+    assert recomputed == frozen == from_engine
 
 
 def test_statement_requires_checkout():

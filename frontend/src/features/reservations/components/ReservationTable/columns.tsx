@@ -62,17 +62,20 @@ export const reservationColumns: DataTableColumns<Reservation> = helper.columns(
   helper.display({
     id: 'total',
     header: 'Total',
-    cell: ({ row }) => (
-      <Typography
-        as="span"
-        variant="mono"
-        weight="medium"
-        tone={row.original.total_amount === null ? 'muted' : 'default'}
-        className="whitespace-nowrap"
-      >
-        {row.original.total_amount === null ? '—' : formatBRL(row.original.total_amount)}
-      </Typography>
-    ),
+    cell: ({ row }) => {
+      const total = row.original.account?.total_amount ?? null
+      return (
+        <Typography
+          as="span"
+          variant="mono"
+          weight="medium"
+          tone={total === null ? 'muted' : 'default'}
+          className="whitespace-nowrap"
+        >
+          {total === null ? '—' : formatBRL(total)}
+        </Typography>
+      )
+    },
   }),
   helper.display({
     id: 'payment',

@@ -6,12 +6,8 @@ from django.contrib.postgres.fields import DateRangeField, RangeBoundary, RangeO
 from django.db import models
 from django.db.models import F, Func, Q
 
-from hotel.billing.models import PaymentMethod
-
 RESV_ACTIVE_HAS_POLICY = "resv_active_has_policy"
-RESV_PAYMENT_COMPLETE = "resv_payment_complete"
-RESV_PAID_REQUIRES_CHECKED_OUT = "resv_paid_requires_checked_out"
-STMTLINE_UNIQUE_DATE = "stmtline_unique_date"
+RESV_ACCOUNT_MATCHES_STATUS = "resv_account_matches_status"
 RESV_ROOM_NO_OVERLAP = "resv_room_no_overlap"
 RESV_ONE_ACTIVE_PER_ROOM = "resv_one_active_per_room"
 
@@ -93,25 +89,11 @@ class Reservation(models.Model):
         null=True,
         blank=True,
     )
-    total_daily = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    total_parking = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    late_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    # late_fee_applied do extrato deriva de `late_fee_base IS NOT NULL`.
-    late_fee_base = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    paid_at = models.DateTimeField(null=True, blank=True)
-    # null=True e deliberado (DJ001): as tres colunas do pagamento nascem juntas.
-    # "" seria uma segunda representacao de "nao pago" e um valor fora do enum.
-    payment_method = models.CharField(  # noqa: DJ001
-        max_length=8,
-        choices=PaymentMethod,
-        null=True,
-        blank=True,
-    )
-    paid_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+    # Aberta no check-in, fechada no checkout. Todo o dinheiro da estadia vive nela.
+    account = models.OneToOneField(
+        "billing.Account",
         on_delete=models.PROTECT,
-        related_name="reservations_paid",
+        related_name="reservation",
         null=True,
         blank=True,
     )
@@ -158,52 +140,17 @@ class Reservation(models.Model):
             ),
             models.CheckConstraint(
                 name="resv_checked_out_complete",
-                condition=~Q(status="CHECKED_OUT")
-                | (Q(checked_out_at__isnull=False) & Q(total_amount__isnull=False)),
+                condition=~Q(status="CHECKED_OUT") | Q(checked_out_at__isnull=False),
             ),
             models.CheckConstraint(
-                name=RESV_PAYMENT_COMPLETE,
+                name=RESV_ACCOUNT_MATCHES_STATUS,
                 condition=(
-                    Q(paid_at__isnull=True)
-                    & Q(payment_method__isnull=True)
-                    & Q(paid_by__isnull=True)
+                    Q(status__in=["CHECKED_IN", "CHECKED_OUT"]) & Q(account__isnull=False)
                 )
-                | (
-                    Q(paid_at__isnull=False)
-                    & Q(payment_method__isnull=False)
-                    & Q(paid_by__isnull=False)
-                ),
-            ),
-            models.CheckConstraint(
-                name=RESV_PAID_REQUIRES_CHECKED_OUT,
-                condition=Q(paid_at__isnull=True) | Q(status="CHECKED_OUT"),
+                | (Q(status__in=["PENDING", "CANCELLED"]) & Q(account__isnull=True)),
             ),
         ]
 
     def __str__(self) -> str:
         return f"{self.guest_id} {self.checkin_date} -> {self.checkout_date} ({self.status})"
 
-
-class StatementLine(models.Model):
-    """Uma diaria congelada no checkout. weekday_label deriva da data, nao e coluna."""
-
-    reservation = models.ForeignKey(
-        Reservation,
-        on_delete=models.CASCADE,
-        related_name="statement_lines",
-    )
-    date = models.DateField()
-    daily_rate = models.DecimalField(max_digits=10, decimal_places=2)
-    parking_fee = models.DecimalField(max_digits=10, decimal_places=2)
-
-    class Meta:
-        ordering = ["date"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["reservation", "date"],
-                name=STMTLINE_UNIQUE_DATE,
-            ),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.reservation_id} {self.date} {self.daily_rate}"

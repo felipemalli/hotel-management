@@ -92,12 +92,12 @@ class Command(BaseCommand):
                 actor=attendant,
                 allow_early=False,
             )
-            bill = reservation_services.check_out(
+            statement = reservation_services.check_out(
                 carla_reservation, now=local_dt(sunday, time(12, 1)), actor=attendant
             )
             self.stdout.write(
-                f"  estadia encerrada (em aberto): Carla Nunes - total R$ {bill.total} "
-                f"(multa R$ {bill.late_fee})"
+                f"  estadia encerrada (em aberto): Carla Nunes - total R$ {statement.total} "
+                f"(multa R$ {statement.late_fee})"
             )
 
         self._ensure_guest("Davi Rocha", "321.654.987-00", "+55 41 95555-4444", "BR")

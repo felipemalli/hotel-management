@@ -10,7 +10,7 @@ paths: frontend/src/**/*.test.{ts,tsx}, frontend/src/test/**, frontend/vite.conf
 
 - **Único mock permitido em teste de integração: `@/features/<feature>/api`** (`vi.mock`). Nunca mockar um hook, o axios ou o router. MSW foi avaliado e recusado (README §3) — ele dublaria a mesma camada mais abaixo, sem provar nada a mais.
 - **Os ids de `it(...)` na matriz RF/RN do RESUMO-DO-PROJETO.md §10 (local) são imutáveis.** O arquivo pode mudar de pasta; o nome do arquivo e o id do caso não mudam sem que a matriz mude primeiro. O CI tem um guard (`ci.yml` job `frontend`) que falha se um id sumir.
-- **`__fixtures__/bills.ts` (T1–T9) é intocável.** Dinheiro em teste é sempre a string literal da fixture (`'R$ 425,00'`), nunca uma conta feita no teste — o cálculo mora no backend.
+- **`__fixtures__/bills.ts` (T1–T9) é intocável.** Dinheiro em teste é sempre a string literal da fixture (`'R$ 425,00'`), nunca uma conta feita no teste — o cálculo mora no backend. A única edição já feita foi a chave `payment.paid_by` → `payment.received_by` no T7 pago (2026-09): nenhum número mudou. O extrato da API também traz `extras` e `subtotal_extras`, que o zod não-strict descarta — o frontend ainda não os modela.
 - **Componente vendorizado (`src/components/ui/**`) nunca ganha teste próprio.** Ele testa o Base UI, não o produto.
 
 ## Qual teste para quê

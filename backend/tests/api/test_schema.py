@@ -13,6 +13,8 @@ EXPECTED_PATHS = [
     "/api/guests/in-hotel/",
     "/api/guests/pending-checkin/",
     "/api/reservations/",
+    "/api/reservations/{id}/",
+    "/api/reservations/{id}/statement/",
     "/api/reservations/{id}/check-in/",
     "/api/reservations/{id}/checkout/",
     "/api/reservations/{id}/cancel/",

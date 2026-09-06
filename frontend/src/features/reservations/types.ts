@@ -3,6 +3,8 @@ import type { z } from 'zod'
 import type { userRefSchema } from '@/lib/api/schemas'
 
 import type {
+  accountSchema,
+  accountStatusSchema,
   billLineSchema,
   checkoutStatementSchema,
   guestRefSchema,
@@ -16,6 +18,10 @@ import type {
 export type ReservationStatus = z.infer<typeof reservationStatusSchema>
 
 export type Reservation = z.infer<typeof reservationSchema>
+
+export type Account = z.infer<typeof accountSchema>
+
+export type AccountStatus = z.infer<typeof accountStatusSchema>
 
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>
 

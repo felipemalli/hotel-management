@@ -10,9 +10,10 @@ from django.utils import timezone
 
 from accounts.models import Role
 from hotel.billing import engine as pricing
-from hotel.billing.models import Account, PricingPolicy
+from hotel.billing import services as billing
+from hotel.billing.models import Account, LineKind, PricingPolicy
 from hotel.guests.models import Guest
-from hotel.reservations.models import Reservation, ReservationStatus, StatementLine
+from hotel.reservations.models import Reservation, ReservationStatus
 from hotel.rooms.models import Room
 
 CHECKIN_TIME = time(15, 0)
@@ -86,12 +87,16 @@ class ReservationFactory(factory.django.DjangoModelFactory):
         skip_postgeneration_save = True
 
     class Params:
+        # resv_account_matches_status: hospede dentro do hotel tem conta aberta.
         checked_in = factory.Trait(
             status=ReservationStatus.CHECKED_IN,
             checked_in_at=factory.LazyAttribute(
                 lambda o: local_datetime(o.checkin_date, CHECKIN_TIME)
             ),
             policy=factory.SubFactory(PricingPolicyFactory),
+            account=factory.LazyAttribute(
+                lambda o: billing.open_account(now=local_datetime(o.checkin_date, CHECKIN_TIME))
+            ),
         )
         checked_out = factory.Trait(
             status=ReservationStatus.CHECKED_OUT,
@@ -102,12 +107,7 @@ class ReservationFactory(factory.django.DjangoModelFactory):
             checked_out_at=factory.LazyAttribute(
                 lambda o: local_datetime(o.checkout_date, CHECKOUT_TIME)
             ),
-            total_daily=factory.LazyAttribute(lambda o: _frozen_bill(o).subtotal_daily),
-            total_parking=factory.LazyAttribute(lambda o: _frozen_bill(o).subtotal_parking),
-            late_fee=factory.LazyAttribute(lambda o: _frozen_bill(o).late_fee),
-            late_fee_base=factory.LazyAttribute(lambda o: _frozen_bill(o).late_fee_base),
-            total_amount=factory.LazyAttribute(lambda o: _frozen_bill(o).total),
-            with_statement_lines=True,
+            account=factory.LazyAttribute(lambda o: _frozen_account(o)),
         )
 
     guest = factory.SubFactory(GuestFactory)
@@ -117,20 +117,6 @@ class ReservationFactory(factory.django.DjangoModelFactory):
     checkout_date = factory.LazyAttribute(lambda o: o.checkin_date + timedelta(days=2))
     has_vehicle = False
 
-    @factory.post_generation
-    def with_statement_lines(obj, create, extracted, **kwargs):
-        if not create or not extracted:
-            return
-        StatementLine.objects.bulk_create(
-            StatementLine(
-                reservation=obj,
-                date=line.date,
-                daily_rate=line.daily_rate,
-                parking_fee=line.parking_fee,
-            )
-            for line in _frozen_bill(obj).lines
-        )
-
 
 def _frozen_bill(obj) -> pricing.Bill:
     return pricing.calculate_bill(
@@ -138,3 +124,42 @@ def _frozen_bill(obj) -> pricing.Bill:
         checkout=local_datetime(obj.checkout_date, CHECKOUT_TIME),
         has_vehicle=obj.has_vehicle,
     )
+
+
+def _frozen_account(obj) -> Account:
+    """Percorre o mesmo caminho do checkout: abre, lanca as linhas e fecha."""
+    closed_at = local_datetime(obj.checkout_date, CHECKOUT_TIME)
+    bill = _frozen_bill(obj)
+    account = billing.open_account(now=local_datetime(obj.checkin_date, CHECKIN_TIME))
+
+    lines = [
+        billing.LineInput(
+            kind=LineKind.DAILY,
+            service_date=line.date,
+            unit_amount=line.daily_rate,
+            description=line.weekday_label,
+        )
+        for line in bill.lines
+    ]
+    lines += [
+        billing.LineInput(
+            kind=LineKind.PARKING,
+            service_date=line.date,
+            unit_amount=line.parking_fee,
+            description="vaga de estacionamento",
+        )
+        for line in bill.lines
+        if line.parking_fee
+    ]
+    if bill.late_fee_applied:
+        lines.append(
+            billing.LineInput(
+                kind=LineKind.LATE_FEE,
+                service_date=obj.checkout_date,
+                unit_amount=bill.late_fee_base,
+                quantity=pricing.DEFAULT_RATES.late_fee_factor,
+            )
+        )
+
+    billing.post_lines(account, lines, posted_by=None, now=closed_at)
+    return billing.close_account(account, now=closed_at)

@@ -47,10 +47,11 @@ def test_seed_freezes_a_weekend_statement_with_a_late_fee():
         guest__full_name="Carla Nunes", status=ReservationStatus.CHECKED_OUT
     )
 
-    assert carla.total_daily == Decimal("300.00")
-    assert carla.total_parking == Decimal("35.00")
-    assert carla.late_fee == Decimal("90.00")
-    assert carla.total_amount == Decimal("425.00")
+    assert carla.account.total_amount == Decimal("425.00")
+    statement = reservations_service.statement(carla)
+    assert statement.subtotal_daily == Decimal("300.00")
+    assert statement.subtotal_parking == Decimal("35.00")
+    assert statement.late_fee == Decimal("90.00")
     assert carla.checked_out_at < timezone.now()
 
 

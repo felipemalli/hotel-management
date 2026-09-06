@@ -136,10 +136,19 @@ describe('reservationSchema', () => {
     expect(reservationSchema.safeParse(CARLA_PAID).success).toBe(true)
   })
 
-  it('recusa forma de pagamento fora do contrato', () => {
-    expect(reservationSchema.safeParse({ ...CARLA_PAID, payment_method: 'BOLETO' }).success).toBe(
-      false,
-    )
+  it('recusa status de conta e forma de pagamento fora do contrato', () => {
+    const account = CARLA_PAID.account
+
+    expect(
+      reservationSchema.safeParse({ ...CARLA_PAID, account: { ...account, status: 'FOO' } })
+        .success,
+    ).toBe(false)
+    expect(
+      reservationSchema.safeParse({
+        ...CARLA_PAID,
+        account: { ...account, payment: { ...account?.payment, method: 'BOLETO' } },
+      }).success,
+    ).toBe(false)
   })
 
   it('recusa data-hora sem deslocamento, que o formatador nao saberia situar', () => {

@@ -51,7 +51,10 @@ T7_STATEMENT_EXAMPLE = OpenApiExample(
         "subtotal_daily": "300.00",
         "subtotal_parking": "35.00",
         "late_fee": {"applied": True, "base_rate": "180.00", "amount": "90.00"},
+        "extras": [],
+        "subtotal_extras": "0.00",
         "total": "425.00",
+        "payment": None,
     },
     response_only=True,
 )

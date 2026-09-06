@@ -26,9 +26,6 @@ describe('historyEntries', () => {
       'Pagamento (Pix)',
     ])
     expect(labels(historyEntries(ANA_CANCELLED))).toEqual(['Criada', 'Cancelamento'])
-
-    const withoutMethod = reservation({ ...CARLA_PAID, payment_method: null })
-    expect(labels(historyEntries(withoutMethod))).toContain('Pagamento')
   })
 })
 

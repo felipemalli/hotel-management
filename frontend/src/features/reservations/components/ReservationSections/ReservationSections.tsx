@@ -5,7 +5,7 @@ import { Typography } from '@/components/ui'
 import type { Guest } from '@/features/guests/types'
 import { describeEntry, historyEntries } from '@/features/reservations/history'
 import { PAYMENT_METHOD_LABELS } from '@/features/reservations/status'
-import type { Reservation } from '@/features/reservations/types'
+import type { CheckoutStatement, Reservation } from '@/features/reservations/types'
 import { errorMessage } from '@/lib/errors/errors'
 import { countryName } from '@/lib/format/countries'
 import { formatISODate } from '@/lib/format/dates'
@@ -140,26 +140,30 @@ export function ReservationHistorySection({ reservation }: { reservation: Reserv
   )
 }
 
-export function ReservationAccountSection({ reservation }: { reservation: Reservation }) {
-  // Os três campos do pagamento são nulos juntos; ler o método estreita o tipo.
-  const method = reservation.payment_method
+export function ReservationAccountSection({
+  reservation,
+  statement,
+}: {
+  reservation: Reservation
+  statement?: CheckoutStatement
+}) {
+  const payment = reservation.account?.payment ?? null
 
   const lines = [
-    { label: 'Diárias', value: money(reservation.total_daily) },
-    { label: 'Vaga', value: money(reservation.total_parking) },
+    { label: 'Diárias', value: money(statement?.subtotal_daily ?? null) },
+    { label: 'Vaga', value: money(statement?.subtotal_parking ?? null) },
     {
-      // Base da multa, não o fator: o extrato congelado não carrega o fator.
+      // Base da multa, não o fator: o extrato não carrega o fator.
       label: 'Multa de checkout tardio',
-      value:
-        reservation.late_fee_base === null
-          ? '—'
-          : `${money(reservation.late_fee)} (base ${money(reservation.late_fee_base)})`,
+      value: !statement?.late_fee.applied
+        ? '—'
+        : `${money(statement.late_fee.amount)} (base ${money(statement.late_fee.base_rate)})`,
     },
   ]
   const paymentLine =
-    method === null
+    payment === null
       ? 'Em aberto'
-      : `${PAYMENT_METHOD_LABELS[method]} · por ${reservation.paid_by?.username ?? 'sistema'}`
+      : `${PAYMENT_METHOD_LABELS[payment.method]} · por ${payment.received_by.username}`
 
   return (
     <Section title="Conta">
@@ -186,7 +190,7 @@ export function ReservationAccountSection({ reservation }: { reservation: Reserv
           </Typography>
         </div>
         <Typography as="p" variant="mono" className="text-lg font-semibold">
-          {money(reservation.total_amount)}
+          {money(reservation.account?.total_amount ?? null)}
         </Typography>
       </div>
     </Section>

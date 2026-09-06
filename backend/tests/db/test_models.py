@@ -3,10 +3,11 @@ from datetime import timedelta
 import pytest
 from django.db import IntegrityError, connection, transaction
 
+from hotel.billing.models import AccountStatus
 from hotel.guests.models import Guest
 from hotel.guests.normalization import normalize_document, normalize_phone
 from hotel.reservations.models import ReservationStatus
-from tests.factories import GuestFactory, ReservationFactory, local_datetime
+from tests.factories import AccountFactory, GuestFactory, ReservationFactory, local_datetime
 
 pytestmark = pytest.mark.django_db
 
@@ -120,7 +121,7 @@ def test_only_one_checked_in_reservation_per_guest():
 
 
 def test_checked_out_requires_timestamp_and_frozen_total():
-    """Constraint resv_checked_out_complete: estado terminal sem extrato nao entra."""
+    """Constraint resv_checked_out_complete: estado terminal sem carimbo de saida nao entra."""
     reservation = ReservationFactory(checked_in=True)
     reservation.status = ReservationStatus.CHECKED_OUT
 
@@ -132,8 +133,25 @@ def test_checked_out_trait_satisfies_the_constraint():
     reservation = ReservationFactory(checked_out=True, has_vehicle=True)
 
     assert reservation.status == ReservationStatus.CHECKED_OUT
-    assert reservation.total_amount is not None
+    assert reservation.account.status == AccountStatus.CLOSED
+    assert reservation.account.total_amount is not None
     assert reservation.checked_out_at is not None
+
+
+@pytest.mark.parametrize(
+    "trait, account",
+    [("checked_in", None), (None, True)],
+    ids=["checked_in_without_account", "pending_with_account"],
+)
+def test_account_must_match_status_constraint(trait, account):
+    """resv_account_matches_status: quem esta ou esteve no hotel tem conta, o resto nao."""
+    reservation = ReservationFactory(**({trait: True} if trait else {}))
+    reservation.account = AccountFactory() if account else None
+
+    with pytest.raises(IntegrityError) as excinfo, transaction.atomic():
+        reservation.save(update_fields=["account"])
+
+    assert "resv_account_matches_status" in str(excinfo.value)
 
 
 def test_guest_with_reservations_is_protected_from_deletion():
@@ -150,8 +168,7 @@ def test_reservation_defaults_are_pending_and_unpriced():
     assert reservation.status == ReservationStatus.PENDING
     assert reservation.checked_in_at is None
     assert reservation.checked_out_at is None
-    assert reservation.total_amount is None
-    assert reservation.late_fee is None
+    assert reservation.account is None
 
 
 @pytest.mark.parametrize(

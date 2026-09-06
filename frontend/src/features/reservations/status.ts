@@ -34,5 +34,5 @@ export function peopleCount(reservation: Reservation): number {
 // — fora de CHECKED_OUT: antes do checkout não existe conta.
 export function paymentLabel(reservation: Reservation): string {
   if (reservation.status !== 'CHECKED_OUT') return '—'
-  return reservation.paid_at === null ? 'Em aberto' : 'Pago'
+  return reservation.account?.status === 'PAID' ? 'Pago' : 'Em aberto'
 }

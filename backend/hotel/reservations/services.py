@@ -9,9 +9,11 @@ from django.db.models import Q
 from django.utils import timezone
 
 from core.errors import DomainValidationError, translate_integrity_error
+from core.money import ZERO
 from hotel.billing import engine
 from hotel.billing import selectors as billing_selectors
-from hotel.billing.models import PaymentMethod
+from hotel.billing import services as billing
+from hotel.billing.models import LineKind
 from hotel.billing.services import rate_table_of
 from hotel.guests.models import Guest
 from hotel.reservations import selectors
@@ -25,14 +27,14 @@ from hotel.reservations.models import (
     RESV_ROOM_NO_OVERLAP,
     Reservation,
     ReservationStatus,
-    StatementLine,
 )
+from hotel.reservations.statement import Statement, statement_from_lines
 from hotel.rooms.models import Room
 
 if TYPE_CHECKING:  # pragma: no cover
     from django.contrib.auth.models import AbstractBaseUser
 
-# Ordem de lock: Guest (pk asc) -> Room -> Reservation. Inverter isso deadlocks.
+# Ordem de lock: Guest (pk asc) -> Room -> Reservation -> Account. Inverter isso deadlocks.
 # create_reservation nao trava: a autoridade e o EXCLUDE sob savepoint.
 ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     ReservationStatus.PENDING: frozenset(
@@ -44,23 +46,19 @@ ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
 }
 
 # Lista manual: derivar de update_fields esconderia o esquecimento.
+# "account" e o objeto, nao "account_id": o id nao muda no checkout nem no
+# pagamento, entao copiar so o _id deixaria o objeto do select_related em cache
+# com a conta aberta e o total nulo.
 SYNCED_FIELDS = (
     "status",
     "policy_id",
-    "paid_at",
-    "payment_method",
-    "paid_by_id",
+    "account",
     "checked_in_at",
     "checked_out_at",
     "cancelled_at",
     "checked_in_by_id",
     "checked_out_by_id",
     "cancelled_by_id",
-    "total_daily",
-    "total_parking",
-    "late_fee",
-    "late_fee_base",
-    "total_amount",
 )
 
 
@@ -142,6 +140,7 @@ def check_in(
         locked.checked_in_at = now
         locked.checked_in_by = actor
         locked.policy = policy
+        locked.account = billing.open_account(now=now)
         with translate_integrity_error(
             {
                 RESV_ONE_ACTIVE_PER_ROOM: lambda: RoomUnavailableError(
@@ -149,58 +148,96 @@ def check_in(
                 )
             }
         ):
-            locked.save(update_fields=["status", "checked_in_at", "checked_in_by", "policy"])
+            locked.save(
+                update_fields=["status", "checked_in_at", "checked_in_by", "policy", "account"]
+            )
 
     return _sync(reservation, locked)
 
 
-def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) -> engine.Bill:
+def preview_checkout(reservation: Reservation, *, now: datetime) -> Statement:
+    """Quanto sairia se o checkout fosse agora. Sem lock, sem escrita."""
+    bill = _bill_for(reservation, now=now)
+    extras = reservation.account.lines.filter(kind=LineKind.EXTRA)
+    return Statement.from_bill(bill, extras=extras)
+
+
+def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) -> Statement:
     with transaction.atomic():
         locked = _lock(reservation)
         _assert_transition(locked, ReservationStatus.CHECKED_OUT)
-        if locked.checked_in_at is None:
-            raise InvalidStatusError("Reserva sem check-in registrado.")
+        bill = _bill_for(locked, now=now)
 
-        # Cobranca pelos fatos, em hora local, com a politica amarrada no check-in.
-        bill = engine.calculate_bill(
-            checkin=timezone.localtime(locked.checked_in_at),
-            checkout=timezone.localtime(now),
-            has_vehicle=locked.has_vehicle,
-            rates=rate_table_of(locked.policy),
+        rates = rate_table_of(locked.policy)
+        billing.post_lines(
+            locked.account,
+            _line_inputs(bill, rates=rates, now=now),
+            posted_by=actor,
+            now=now,
         )
+        locked.account = billing.close_account(locked.account, now=now)
 
         locked.status = ReservationStatus.CHECKED_OUT
         locked.checked_out_at = now
         locked.checked_out_by = actor
-        locked.total_daily = bill.subtotal_daily
-        locked.total_parking = bill.subtotal_parking
-        locked.late_fee = bill.late_fee
-        locked.late_fee_base = bill.late_fee_base
-        locked.total_amount = bill.total
-        locked.save(
-            update_fields=[
-                "status",
-                "checked_out_at",
-                "checked_out_by",
-                "total_daily",
-                "total_parking",
-                "late_fee",
-                "late_fee_base",
-                "total_amount",
-            ]
-        )
-        StatementLine.objects.bulk_create(
-            StatementLine(
-                reservation=locked,
-                date=line.date,
-                daily_rate=line.daily_rate,
-                parking_fee=line.parking_fee,
-            )
-            for line in bill.lines
-        )
+        locked.save(update_fields=["status", "checked_out_at", "checked_out_by"])
 
     _sync(reservation, locked)
-    return bill
+    # Reconstruido do livro: a 2a via e o extrato do checkout percorrem um so caminho.
+    return statement(locked)
+
+
+def _bill_for(reservation: Reservation, *, now: datetime) -> engine.Bill:
+    if reservation.status != ReservationStatus.CHECKED_IN:
+        raise InvalidStatusError(
+            f"Transição inválida: {reservation.status} -> {ReservationStatus.CHECKED_OUT}.",
+            extra={"status": reservation.status},
+        )
+    if reservation.checked_in_at is None:
+        raise InvalidStatusError("Reserva sem check-in registrado.")
+
+    # Cobranca pelos fatos, em hora local, com a politica amarrada no check-in.
+    return engine.calculate_bill(
+        checkin=timezone.localtime(reservation.checked_in_at),
+        checkout=timezone.localtime(now),
+        has_vehicle=reservation.has_vehicle,
+        rates=rate_table_of(reservation.policy),
+    )
+
+
+def _line_inputs(
+    bill: engine.Bill, *, rates: engine.RateTable, now: datetime
+) -> list[billing.LineInput]:
+    lines = [
+        billing.LineInput(
+            kind=LineKind.DAILY,
+            service_date=line.date,
+            unit_amount=line.daily_rate,
+            description=line.weekday_label,
+        )
+        for line in bill.lines
+    ]
+    lines += [
+        billing.LineInput(
+            kind=LineKind.PARKING,
+            service_date=line.date,
+            unit_amount=line.parking_fee,
+            description="vaga de estacionamento",
+        )
+        for line in bill.lines
+        if line.parking_fee != ZERO
+    ]
+    if bill.late_fee_applied:
+        lines.append(
+            billing.LineInput(
+                kind=LineKind.LATE_FEE,
+                service_date=timezone.localdate(now),
+                unit_amount=bill.late_fee_base,
+                quantity=rates.late_fee_factor,
+                description=f"checkout após {rates.checkout_limit:%H:%M}",
+            )
+        )
+    return lines
 
 
 def cancel(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) -> Reservation:
@@ -215,31 +252,14 @@ def cancel(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) 
     return _sync(reservation, locked)
 
 
-def statement(reservation: Reservation) -> engine.Bill:
-    """Reemite o snapshot congelado. Nao recomputa."""
+def statement(reservation: Reservation) -> Statement:
+    """Reemite o extrato do livro. Nao recomputa."""
     if reservation.status != ReservationStatus.CHECKED_OUT:
         raise InvalidStatusError("Extrato disponível apenas após o checkout.")
 
-    lines = [
-        engine.BillLine(
-            date=line.date,
-            weekday_label=engine.weekday_label(line.date),
-            daily_rate=line.daily_rate,
-            parking_fee=line.parking_fee,
-        )
-        for line in reservation.statement_lines.all()
-    ]
-    if not lines:
-        raise InvalidStatusError("Extrato indisponível: esta reserva não tem linhas gravadas.")
-
-    return engine.Bill(
-        lines=lines,
-        subtotal_daily=reservation.total_daily,
-        subtotal_parking=reservation.total_parking,
-        late_fee_applied=reservation.late_fee_base is not None,
-        late_fee_base=reservation.late_fee_base,
-        late_fee=reservation.late_fee,
-        total=reservation.total_amount,
+    account = reservation.account
+    return statement_from_lines(
+        billing_selectors.lines_of(account), total=account.total_amount
     )
 
 
@@ -257,16 +277,9 @@ def mark_paid(
                 "Pagamento disponível apenas após o checkout.",
                 extra={"status": locked.status},
             )
-        if locked.paid_at is not None:
-            raise InvalidStatusError(
-                "Esta conta já foi paga.",
-                extra={"paid_at": timezone.localtime(locked.paid_at).isoformat()},
-            )
-
-        locked.paid_at = now
-        locked.payment_method = PaymentMethod(payment_method)
-        locked.paid_by = actor
-        locked.save(update_fields=["paid_at", "payment_method", "paid_by"])
+        locked.account = billing.register_payment(
+            locked.account, method=payment_method, now=now, actor=actor
+        )
 
     return _sync(reservation, locked)
 
