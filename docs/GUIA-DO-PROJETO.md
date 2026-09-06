@@ -1,5 +1,12 @@
 # Guia do projeto — para quem sabe programar e nunca usou Django
 
+> **Nota (2026-09).** As âncoras `arquivo:linha` das seções 4–7 referem-se ao layout
+> anterior a esta data: `hotel/` virou pacote namespace com quatro apps
+> (`guests`, `rooms`, `billing`, `reservations`) e os helpers comuns saíram para
+> `core/`. A estrutura atual está em [`ARQUITECTURE.md`](../ARQUITECTURE.md); as
+> árvores da seção 3 e a guarda de `float(` abaixo já estão corrigidas. O resto é
+> débito declarado — os conceitos de Python/Django que o guia ensina não mudaram.
+
 **Para quem é este documento.** Você programa bem, provavelmente em
 JavaScript/TypeScript, talvez Java ou C#, e nunca escreveu backend em Python nem
 tocou em Django. Este guia não ensina Django: ele ensina **este projeto**, e
@@ -122,8 +129,9 @@ backend/
 ├── manage.py        # o CLI do projeto
 ├── conftest.py      # fixtures globais do pytest
 ├── config/          # o "projeto" Django  (configuração e roteamento)
+├── core/            # helpers sem models: erros, envelope, dinheiro, serializers
 ├── accounts/        # app: o usuário
-├── hotel/           # app: o domínio (hóspede, reserva, dinheiro)
+├── hotel/           # pacote namespace: quatro apps de domínio
 ├── ai/              # feature opcional, isolada
 └── tests/           # unit / db / api
 ```
@@ -185,26 +193,25 @@ accounts/            # 41 linhas de código (fora a migração gerada)
 ├── apps.py          # metadados do app
 └── migrations/0001_initial.py
 
-hotel/               # o domínio inteiro
-├── models.py        # Guest, Reservation, ReservationStatus
-├── normalization.py # documento alfanumérico, telefone dígitos (D9)
-├── selectors.py     # LEITURA: consultas nomeadas
-├── services/
-│   ├── pricing.py       # o motor financeiro, PURO (sem banco, sem relógio)
-│   ├── guests.py        # ESCRITA: cadastro de hóspede (unicidade de documento)
-│   └── reservations.py  # ESCRITA: check-in, checkout, cancelamento
-├── serializers/     # a fronteira de entrada/saída (JSON ↔ Python)
-│   ├── common.py        # dinheiro como string, envelope de erro
-│   ├── guests.py        # cadastro e as duas abas
-│   ├── reservations.py  # reserva, criação, override de check-in
-│   └── statement.py     # o extrato
-├── views/           # HTTP: rotas, status codes, delegação
-│   ├── guests.py        # GuestViewSet
-│   ├── reservations.py  # ReservationViewSet
-│   └── openapi.py       # respostas e exemplos de erro compartilhados
-├── exceptions.py    # o envelope único de erro
-├── management/commands/seed_demo.py   # `manage.py seed_demo`
-└── migrations/
+hotel/               # pacote namespace: um app por domínio, nenhum model aqui
+├── guests/          # QUEM: cadastro, PII, busca
+│   ├── models.py        # Guest
+│   ├── normalization.py # documento alfanumérico, telefone dígitos (D9)
+│   ├── selectors.py · services.py · serializers.py · views.py · urls.py
+│   └── migrations/
+├── rooms/           # ONDE: inventário e capacidade
+│   └── models.py · selectors.py · services.py · serializers.py · views.py · urls.py · migrations/
+├── billing/         # QUANTO: tarifa, motor e livro da conta
+│   ├── engine.py        # o motor financeiro, PURO (sem banco, sem relógio)
+│   ├── models.py        # PricingPolicy, Account, AccountLine, Payment
+│   └── selectors.py · services.py · serializers.py · views.py · urls.py · migrations/
+└── reservations/    # QUANDO: agenda, transições e extrato
+    ├── models.py        # Reservation, ReservationStatus
+    ├── errors.py        # erros de domínio da reserva
+    ├── statement.py     # o extrato hidratado do livro
+    ├── selectors.py · services.py · serializers.py · views.py · urls.py
+    ├── management/commands/seed_demo.py   # `manage.py seed_demo`
+    └── migrations/
 ```
 
 **`__init__.py`.** Cada pasta que é um pacote Python tem um arquivo
@@ -762,10 +769,10 @@ guarda de texto** que barra o `float` antes de qualquer teste rodar:
 
 ```yaml
 # .github/workflows/ci.yml:52-54 — o passo "Guard", antes de instalar qualquer coisa
-run: '! grep -RnE "float\(" backend/hotel backend/accounts'
+run: '! grep -RnE "float\(" backend/hotel backend/accounts backend/core'
 ```
 
-Se você escrever `float(` em qualquer arquivo de `hotel/` ou `accounts/`, o job
+Se você escrever `float(` em qualquer arquivo de `hotel/`, `accounts/` ou `core/`, o job
 falha no terceiro passo. É grosseiro de propósito: é uma guarda, não um
 analisador.
 

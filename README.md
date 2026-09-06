@@ -101,7 +101,7 @@ As duas contas são credenciais de **demonstração**, e as duas são usuários
 comuns: `is_staff=False` nas duas, inclusive na de `admin`. O papel
 (`role=ATTENDANT` / `role=ADMIN`) é do produto e decide o acesso às rotas
 administrativas da API; `is_staff` decide o acesso ao `/admin/` do Django, que
-**não** é caminho de escrita deste domínio (não existe `hotel/admin.py`).
+**não** é caminho de escrita deste domínio (nenhum app em `hotel/` registra admin).
 Confundir os dois daria ao administrador do hotel uma porta que grava na base
 sem passar por nenhuma regra. Para o `/admin/`, rode `createsuperuser`.
 `GET /api/auth/me/` devolve `{id, username, role}`: é como o frontend sabe se
@@ -287,16 +287,17 @@ Três notas honestas sobre esse caminho:
 
 ## 3. Verificação: as suítes de teste
 
-Retrato de 04/09/2026: **380 testes de backend** (unitários puros do motor
-financeiro, testes de banco com PostgreSQL real e testes de API ponta a ponta),
-**325 testes de frontend** em 50 arquivos (Vitest + Testing Library) e **8
-cenários de e2e** (Playwright, 4 arquivos) contra o backend real. O número sobe
-conforme testes entram — os comandos abaixo é que valem como verdade, não a
-contagem.
+Três suítes: backend em Pytest (unitários puros do motor financeiro, testes de
+banco com PostgreSQL real e testes de API ponta a ponta), frontend em Vitest +
+Testing Library, e e2e em Playwright contra o backend real. Os comandos abaixo
+são a verdade; contagem de testes envelhece a cada commit e não vale como prova.
 
 ```bash
 # backend — comando canônico, com o piso de cobertura
-docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov-fail-under=85 -q
+docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov=core --cov-fail-under=85 -q
+
+# grafo de dependências entre os apps (o mesmo contrato que o CI cobra)
+docker compose exec backend uv run lint-imports
 
 # frontend — o script único, na mesma ordem em que o CI o executa passo a passo
 cd frontend && pnpm run check
@@ -469,23 +470,23 @@ O preço não muda com o número de pessoas (o briefing cobra por diária, não 
 
 **D14 (complemento) — a pendência vencida retém o quarto.** Consequência direta de "o sistema não muda estado sem gesto humano": enquanto ninguém cancela nem faz o check-in, o quarto segue reservado. É registrado aqui porque é o custo assumido de não ter no-show automático; a saída é o `cancel`.
 
-**A ordem de lock é `Guest → Room → Reservation`,** por tabela, e dentro de `Guest` por pk crescente. Duas transações que travem as mesmas linhas em ordens diferentes fazem deadlock, e o atendente vê um 500. `create_reservation` não trava nada: a autoridade dela é o `EXCLUDE` sob savepoint, que traduz a corrida no mesmo `409 ROOM_UNAVAILABLE` da guarda.
+**A ordem de lock é `Guest → Room → Reservation → Account`,** por tabela, e dentro de `Guest` por pk crescente. Duas transações que travem as mesmas linhas em ordens diferentes fazem deadlock, e o atendente vê um 500. `create_reservation` não trava nada: a autoridade dela é o `EXCLUDE` sob savepoint, que traduz a corrida no mesmo `409 ROOM_UNAVAILABLE` da guarda.
 
-**D17 — capacidade sim, lotação do hotel não.** `capacity` é a única propriedade do quarto que outra regra consome (titular + acompanhantes ≤ capacidade); sem ela, "reserva com mais pessoas" não tem freio. Lotação total é derivada (`Sum(capacity)` dos ativos) e já imposta por construção pelo anti-overbooking. **Gatilho:** lotação legal (alvará) *menor* que a soma — aí é uma linha de configuração e uma guarda no check-in. Sem preço por quarto, sem `RoomType` e sem foto: a costura para preço é `catalog.rate_table_of`, ponto único, e foto exigiria `MEDIA_ROOT`, volume no compose e Pillow no Dockerfile — não é a coluna que custa.
+**D17 — capacidade sim, lotação do hotel não.** `capacity` é a única propriedade do quarto que outra regra consome (titular + acompanhantes ≤ capacidade); sem ela, "reserva com mais pessoas" não tem freio. Lotação total é derivada (`Sum(capacity)` dos ativos) e já imposta por construção pelo anti-overbooking. **Gatilho:** lotação legal (alvará) *menor* que a soma — aí é uma linha de configuração e uma guarda no check-in. Sem preço por quarto, sem `RoomType` e sem foto: a costura para preço é `hotel.billing.services.rate_table_of`, ponto único, e foto exigiria `MEDIA_ROOT`, volume no compose e Pillow no Dockerfile — não é a coluna que custa.
 
-**D18 — pagamento único e integral, em colunas da reserva.** Alternativa: `ReservationStatus.PAID` como quinto estado, ou uma tabela `Payment` desde já. Divergência: `PAID` obrigaria toda consulta de "estadia encerrada" a olhar dois valores, numa máquina de estados linear que já termina em `CHECKED_OUT` — e pago é um **fato sobre** a reserva encerrada, não um estágio dela. Uma tabela `Payment` 1:1 duplicaria os quatro totais e o ator, ou obrigaria a movê-los. Adotada: três colunas (`paid_at`, `payment_method`, `paid_by`) que nascem e morrem juntas, guardadas pela CHECK `resv_payment_complete` — meio pagamento gravado seria um recibo que não se sustenta. Pagar duas vezes responde `409 INVALID_STATUS` com `extra.paid_at`, e **não** um código `ALREADY_PAID`: é uma operação ilegal para o estado atual do recurso, o mesmo significado de D8. **Gatilho para extrair `Payment`:** o primeiro pagamento parcial ou estorno — aí a transição passa a ser repetível e a coluna deixa de ser o histórico.
+**D18 — pagamento único e integral (decisão revista).** A leitura do briefing continua a mesma: não há pagamento parcial nem estorno, e `PAID` **não** é um quinto estado da reserva — pago é um fato sobre a estadia encerrada, não um estágio dela. O que mudou foi onde o fato mora. A primeira versão guardava `paid_at`, `payment_method` e `paid_by` como três colunas da reserva, com a CHECK `resv_payment_complete` impedindo meio pagamento. O argumento contra uma tabela `Payment` era que ela duplicaria os quatro totais e o ator — argumento que caiu quando os totais saíram da reserva. Hoje o dinheiro inteiro vive em `hotel/billing`: `Account` (OPEN → CLOSED → PAID), `AccountLine` por item cobrado e `Payment` **1:1** com a conta, e a reserva guarda só a FK `account`. A CHECK `account_closed_is_complete` faz o papel da antiga: conta fechada tem `closed_at` e `total_amount`, conta aberta não tem nenhum dos dois. Pagar duas vezes segue respondendo `409 INVALID_STATUS` com `extra.paid_at`, e **não** um código `ALREADY_PAID`: é operação ilegal para o estado atual do recurso, o mesmo significado de D8. O ator do recebimento chama-se `received_by` (não `paid_by`): a coluna guarda o atendente logado, como `checked_in_by`/`checked_out_by` — não o pagador. **Gatilho para `Payment` virar N:1:** o primeiro pagamento parcial ou estorno — aí `Payment.account` deixa de ser OneToOne e o status da conta passa a derivar da soma.
 
-**O extrato deixa de ser recomputado.** Até aqui a 2ª via chamava `calculate_bill` de novo. Com a tarifa versionada isso parou de divergir, mas ainda fazia o recibo depender de o motor continuar produzindo o mesmo número para a mesma entrada — e o recibo de uma estadia encerrada não é uma função, é um fato. O checkout grava uma `StatementLine` por diária e a base da multa; `statement()` hidrata das colunas. `pricing.calculate_bill` fica com **um único chamador** em `services/reservations.py`. `late_fee_applied` deriva de `late_fee_base IS NOT NULL` em vez de virar coluna: duas colunas para o mesmo fato podem discordar. `weekday_label` **não** é coluna — nome de dia da semana é formatação na fronteira de I/O, e congelá-lo guardaria o idioma junto com o dinheiro.
+**O extrato é um fato, não uma função.** A 2ª via já não recomputava; agora nem os totais são colunas. O checkout lança uma `AccountLine` por diária, uma por vaga e, se houver, uma de multa (`quantity` = fator da política, `unit_amount` = tarifa do dia da saída), e fecha a conta somando as linhas na mesma transação do flip de status. `statement()` hidrata dessas linhas e **nunca** chama o motor. `calculate_bill` passa a ter exatamente **dois** chamadores, ambos em `hotel/reservations/services.py`: `check_out`, que persiste, e `preview_checkout`, que projeta sem escrever — o mesmo cálculo, um com efeito e outro sem. `late_fee_applied` deriva da presença da linha `LATE_FEE`, não de uma coluna: dois lugares para o mesmo fato podem discordar. `weekday_label` continua fora do banco — nome de dia da semana é formatação na fronteira de I/O, e congelá-lo guardaria o idioma junto com o dinheiro.
 
 **D15 — a política amarrada no check-in rege a estadia inteira.** Alternativa: "ler o limite de checkout da política vigente no momento do checkout." Divergência com caso numérico: política A (`checkout_limit=12:00`, multa 50%) amarrada na sexta; o admin publica B (`13:00`, 25%) no sábado; a saída é domingo 12:30. Adotada: **atraso sob A** — multa de R$ 90,00 e total de R$ 425,00 (o T7). Alternativa: isento, porque 12:30 < 13:00 — e a diária viria de A enquanto a decisão de multar viria de B, duas políticas dentro do mesmo extrato. Venceu a adotada: o hóspede combinou uma política na entrada, e é a combinada que fecha a conta.
 
 A exceção é o horário de **abertura** do check-in: ele decide se o check-in pode acontecer, logo antecede a amarração e só pode vir da política vigente no ato. É por isso que `EARLY_CHECKIN` traz `extra.opens_at` — o cliente monta a mensagem sem parsear `detail`, e com a política do briefing o texto sai idêntico ao de sempre ("Check-in permitido a partir das 14:00.").
 
-**Valores configuráveis não quebram o briefing.** Os números do desafio (120/180/15/20, multa de 50%, 14h/12h) passam a ser o **estado inicial** do sistema, em três camadas redundantes: (1) `pricing.DEFAULT_RATES` segue a constante, agora com os horários como campos com default — `tests/unit/test_pricing.py` não passa `rates`, e T1–T9 não mudam um byte; (2) uma data migration insere a mesma linha com os **mesmos literais** (migração é registro histórico e não importa constante de código), e `test_default_policy_row_matches_default_rates` amarra as duas fontes campo a campo; (3) `effective_from` é o instante da publicação e a política é amarrada por FK no check-in, então **mudar a política é mudar o futuro, nunca o passado**. Isto é *mais* fiel ao briefing que antes: até aqui, mudar `DEFAULT_RATES` reescreveria silenciosamente a 2ª via de um extrato já emitido. Sem uma ação deliberada de um `ADMIN`, cada número e cada mensagem do sistema é idêntico ao de hoje.
+**Valores configuráveis não quebram o briefing.** Os números do desafio (120/180/15/20, multa de 50%, 14h/12h) passam a ser o **estado inicial** do sistema, em três camadas redundantes: (1) `engine.DEFAULT_RATES` segue a constante, agora com os horários como campos com default — `tests/unit/test_pricing.py` não passa `rates`, e T1–T9 não mudam um byte; (2) uma data migration insere a mesma linha com os **mesmos literais** (migração é registro histórico e não importa constante de código), e `test_default_policy_row_matches_default_rates` amarra as duas fontes campo a campo; (3) `effective_from` é o instante da publicação e a política é amarrada por FK no check-in, então **mudar a política é mudar o futuro, nunca o passado**. Isto é *mais* fiel ao briefing que antes: antes da política versionada, mudar `DEFAULT_RATES` reescreveria silenciosamente a 2ª via de um extrato já emitido. Sem uma ação deliberada de um `ADMIN`, cada número e cada mensagem do sistema é idêntico ao de hoje.
 
-**D9 (emenda) — o telefone exige `+` e código do país na entrada.** Alternativa: "aceitar o número como vier e inferir o país." Divergência: `11933334444` é um celular de São Paulo; sem o `+`, `phonenumbers` o lê como `+1 193…` (EUA) — e `31…` vira Holanda, `41…` vira Suíça. Adotada: `400` no campo `phone`, e o atendente completa o DDI. Alternativa: o número entra no banco com o país errado, passa a busca e a unicidade sem levantar nada, e nunca mais volta ao dono. Por isso a checagem é `is_valid_number` (plano de numeração do país) e não `is_possible_number` (só comprimento) — a segunda aceitaria os três casos acima. A regra mora em `services.guests.create_guest`, não no serializer, pelo mesmo motivo de D11/D13: tem de valer para o seed e para o shell. Consequência declarada: a IA de preenchimento **não** infere DDI — inferir país a partir de um número solto é regra de negócio dentro de um prompt, acertaria o Brasil na maioria dos casos e erraria calado no hóspede estrangeiro.
+**D9 (emenda) — o telefone exige `+` e código do país na entrada.** Alternativa: "aceitar o número como vier e inferir o país." Divergência: `11933334444` é um celular de São Paulo; sem o `+`, `phonenumbers` o lê como `+1 193…` (EUA) — e `31…` vira Holanda, `41…` vira Suíça. Adotada: `400` no campo `phone`, e o atendente completa o DDI. Alternativa: o número entra no banco com o país errado, passa a busca e a unicidade sem levantar nada, e nunca mais volta ao dono. Por isso a checagem é `is_valid_number` (plano de numeração do país) e não `is_possible_number` (só comprimento) — a segunda aceitaria os três casos acima. A regra mora em `hotel.guests.services.create_guest`, não no serializer, pelo mesmo motivo de D11/D13: tem de valer para o seed e para o shell. Consequência declarada: a IA de preenchimento **não** infere DDI — inferir país a partir de um número solto é regra de negócio dentro de um prompt, acertaria o Brasil na maioria dos casos e erraria calado no hóspede estrangeiro.
 
-**D9 (emenda) — nacionalidade obrigatória, ISO 3166-1 alpha-2.** Alternativa: `django-countries`/`pycountry`. Divergência: o que o sistema precisa é recusar `ZZ`, não traduzir nomes de país para 40 idiomas nem servir um `<select>` — isso é do frontend, que já tem a lista. Adotada: um `frozenset` de 249 strings estáveis em `normalization.py`, zero dependência. O model **não** tem `default`: default silencioso faria todo hóspede estrangeiro nascer brasileiro no primeiro caminho de escrita que esquecesse o campo (o `"BR"` da migração é one-off, `preserve_default=False`).
+**D9 (emenda) — nacionalidade obrigatória, ISO 3166-1 alpha-2.** Alternativa: `django-countries`/`pycountry`. Divergência: o que o sistema precisa é recusar `ZZ`, não traduzir nomes de país para 40 idiomas nem servir um `<select>` — isso é do frontend, que já tem a lista. Adotada: um `frozenset` de 249 strings estáveis em `hotel/guests/normalization.py`, zero dependência. O model **não** tem `default`: default silencioso faria todo hóspede estrangeiro nascer brasileiro no primeiro caminho de escrita que esquecesse o campo (o `"BR"` da migração é one-off, `preserve_default=False`).
 
 **D10 — sem vaga no dia da saída.** Alternativa: "checkout tardio cobra também a vaga do dia da saída." Divergência: T7 iria de **R$ 425,00** para R$ 445,00 (+ dom 20,00). Venceu a adotada: a consequência do atraso está enumerada exaustivamente no briefing (os 50%); cobrar vaga extra é regra inventada — e alteraria a §3.3, já conferida.
 
@@ -591,8 +592,8 @@ antes de chegar ao formulário, e qualquer desvio (timeout, HTTP diferente de
 em vez de campo estranho no cadastro.
 
 O app é **removível por construção** — o núcleo do sistema não sabe que ele
-existe. `hotel/` não importa nada de `ai/`, o pacote não entra em
-`INSTALLED_APPS` (não tem models nem migrações) e nada no frontend importa
+existe. `ai/` importa só `core/`, nenhum app de `hotel/` importa `ai/`, o pacote
+não entra em `INSTALLED_APPS` (não tem models nem migrações) e nada no frontend importa
 `features/ai/` além do formulário de cadastro. A feature inteira cabe em:
 
 - `backend/ai/` e `backend/tests/api/test_ai.py`;
@@ -618,7 +619,8 @@ exigem `X-CSRFToken`; as de negócio não precisam, porque header não é creden
 ambiente. O desenho inteiro está em `backend/docs/TECHNICAL_GUIDE.md`.
 Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 (`"120.00"`) — o frontend formata, nunca calcula. Paginação padrão do DRF
-(`page_size=20`).
+(`page_size=20`). O extrato traz `lines`, `subtotal_daily`, `subtotal_parking`,
+`late_fee`, `extras`, `subtotal_extras`, `total` e `payment`.
 
 | Método & rota | Auth | Função |
 |---|---|---|
@@ -628,22 +630,22 @@ Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
 | `GET /api/auth/me/` | ✔ | `{id, username, role}` — o papel vem do servidor, nunca do token |
 | `GET /api/health/` | — | `{"status":"ok"}` (healthcheck do Compose) |
 | `GET /api/rooms/` · `/{id}/` | ✔ | Inventário (`?is_active=false` inclui os desativados) |
-| `GET /api/rooms/available/` | ✔ | Quartos livres em `?checkin_date=&checkout_date=&people=` |
+| `GET /api/rooms/available/` | ✔ | Quartos livres em `?checkin_date=&checkout_date=&people=` (servido por `hotel/reservations`) |
 | `POST /api/rooms/` · `PATCH /api/rooms/{id}/` | **admin** | Cadastro e ajuste de capacidade/situação |
 | `GET /api/pricing-policies/` · `/current/` | ✔ | Histórico e tarifa vigente |
 | `POST /api/pricing-policies/` | **admin** | Publica tarifa (append-only; vigência = agora) |
 | `GET/POST /api/guests/` | ✔ | Lista + busca (`?search=`) / cadastro |
 | `GET /api/guests/{id}/` | ✔ | Detalhe (PII completa) |
-| `GET /api/guests/in-hotel/` | ✔ | Hóspedes com reserva `CHECKED_IN` (`?search=` compõe) |
-| `GET /api/guests/pending-checkin/` | ✔ | Hóspedes com reservas `PENDING` (`?search=` compõe) |
-| `GET/POST /api/reservations/` | ✔ | Lista (`?status=&guest=&paid=`) / criação (`room_id`, `companion_ids`) |
-| `GET /api/reservations/{id}/` | ✔ | Detalhe da reserva |
+| `GET /api/guests/in-hotel/` | ✔ | Hóspedes com reserva `CHECKED_IN` (`?search=` compõe; servido por `hotel/reservations`) |
+| `GET /api/guests/pending-checkin/` | ✔ | Hóspedes com reservas `PENDING` (`?search=` compõe; servido por `hotel/reservations`) |
+| `GET/POST /api/reservations/` | ✔ | Lista (`?status=&guest=&paid=`; `paid=true` = conta `PAID`) / criação (`room_id`, `companion_ids`) |
+| `GET /api/reservations/{id}/` | ✔ | Detalhe da reserva, com a conta aninhada em `account` (`null` fora de `CHECKED_IN`/`CHECKED_OUT`) |
 | `GET /api/reservations/{id}/statement/` | ✔ | 2ª via do extrato (após o checkout) |
 | `POST /api/reservations/{id}/check-in/` | ✔ | Efetiva o check-in (com override `allow_early`) |
 | `POST /api/reservations/{id}/checkout/` | ✔ | Efetiva o checkout → extrato |
 | `POST /api/reservations/{id}/cancel/` | ✔ | `PENDING → CANCELLED` |
 | `GET /api/reservations/{id}/statement/` | ✔ | 2ª via do extrato (só `CHECKED_OUT`) |
-| `POST /api/reservations/{id}/pay/` | ✔ | Registra o pagamento único (D18) → extrato com `payment` |
+| `POST /api/reservations/{id}/pay/` | ✔ | Registra o pagamento único (D18) → extrato com `payment {paid_at, method, received_by}` |
 | `GET /api/ai/status/` · `POST /api/ai/parse-guest/` | ✔ | Diferencial opcional (5.4) |
 | `GET /api/schema/` · `/api/docs/` | — | OpenAPI 3 + Swagger UI |
 
@@ -678,17 +680,15 @@ hotel-management/
 ├── .github/workflows/ci.yml    # três jobs: backend (com PG de serviço), frontend, e2e
 ├── .claude/skills/              # testing-frontend · frontend-ui-components · adding-shadcn-component
 ├── backend/
-│   ├── config/                 # settings, urls, health
+│   ├── config/                 # settings, urls (só includes), health
+│   ├── core/                   # erros, envelope, money (quantize), serializers e tags comuns
 │   ├── accounts/               # CustomUser (o atendente nasce do seed)
-│   ├── hotel/                  # domínio: models, normalization, selectors, services
-│   │   ├── selectors.py        # leitura: consultas nomeadas, sem efeito colateral
-│   │   ├── services/
-│   │   │   ├── pricing.py      # motor financeiro PURO: sem ORM, sem I/O, sem relógio próprio
-│   │   │   ├── guests.py       # escrita de hóspede (unicidade de documento)
-│   │   │   ├── reservations.py # escrita de reserva: criação e transições de status
-│   │   │   └── errors.py       # erros de domínio já no formato do envelope da API
-│   │   └── management/commands/seed_demo.py
-│   ├── ai/                     # diferencial opcional (5.4), zero acoplamento
+│   ├── hotel/                  # pacote namespace: quatro apps, um por domínio
+│   │   ├── guests/             # quem: cadastro, normalização de PII, busca
+│   │   ├── rooms/              # onde: inventário, capacidade, operação
+│   │   ├── billing/            # quanto: PricingPolicy · engine.py (motor PURO) · Account/AccountLine/Payment
+│   │   └── reservations/       # quando: agenda, transições, extrato, seed_demo
+│   ├── ai/                     # diferencial opcional (5.4), importa só core/
 │   └── tests/{unit,db,api}/
 └── frontend/
     ├── e2e/                    # Playwright: support · auth.setup · 4 specs contra o backend real
@@ -722,10 +722,10 @@ Django Styleguide) e um **núcleo funcional puro** no lugar exato onde a
 correção precisa ser auditável — o que a literatura chama de *functional core,
 imperative shell*. Não é hexagonal e não é DDD, por decisão: o domínio importa
 Django de propósito, porque a única fronteira que paga aqui é a do motor
-financeiro, e ela é mantida por ausência de imports em `services/pricing.py` —
-o único módulo do repositório que sobreviveria intacto a uma troca de
-framework. O raciocínio completo, com o custo de cada alternativa e o gatilho
-que a tornaria certa, está em [`docs/ARQUITETURA-BACKEND.md`](docs/ARQUITETURA-BACKEND.md).
+financeiro, e ela é mantida por ausência de imports em `hotel/billing/engine.py`
+— o único módulo do repositório que sobreviveria intacto a uma troca de
+framework. O mapa dos quatro apps, o grafo de dependências e as invariantes por
+domínio estão em [`ARQUITECTURE.md`](ARQUITECTURE.md).
 
 Quatro invariantes atravessam o código inteiro e explicam a maior parte das
 escolhas de estrutura:
@@ -736,9 +736,9 @@ escolhas de estrutura:
    explícito: a view injeta `timezone.now()`, o teste injeta o que quiser. Fuso
    `America/Sao_Paulo`, banco em UTC, e **toda** comparação de regra (14h, 12h)
    acontece em hora local.
-3. **Camadas, sem exceção.** Models enxutos → `selectors.py` (leitura) →
-   `services/` (**toda** mutação e todo dinheiro) → serializers (I/O) → views
-   finas. A regra vale para a criação como vale para o check-in: view nunca
+3. **Camadas, sem exceção.** Em cada app: models enxutos → `selectors.py`
+   (leitura) → `services.py` (**toda** mutação e todo dinheiro) → serializers
+   (I/O) → views finas. A regra vale para a criação como vale para o check-in: view nunca
    calcula dinheiro, model nunca conhece request, e **serializer nunca lê o
    relógio nem aplica regra de negócio**. É por isso que "reserva não pode ser
    no passado" é testável passando uma data como argumento, sem subir HTTP e
@@ -893,6 +893,7 @@ minha máquina" e "passa no CI" signifiquem a mesma coisa:
 | Ferramenta | Configuração | Papel |
 |---|---|---|
 | **Ruff** | `backend/pyproject.toml` | lint e formatação do Python |
+| **import-linter** | `backend/pyproject.toml` (`[tool.importlinter]`) | fiscaliza o grafo de dependências entre `core`, `accounts`, os quatro apps de `hotel/` e `ai/` (ARQUITECTURE.md §3). Passo `uv run lint-imports` no CI |
 | **Prettier** | `frontend/.prettierrc` | formatação única do frontend (sem `;`, aspas simples, 100 colunas), com `prettier-plugin-tailwindcss` ordenando as classes utilitárias — inclusive dentro de `cn()`/`cva()` (`tailwindFunctions`). `pnpm run format:check` é passo do CI |
 | **ESLint 9**, flat config | `frontend/eslint.config.js` | `typescript-eslint` **type-aware** (`strictTypeChecked`), `jsx-a11y`, `react-hooks`, `simple-import-sort`, `testing-library`/`jest-dom` nos testes — e `no-restricted-imports` por pasta impondo as camadas `lib → components → features → pages → app`: `lib` não importa ninguém, `components` não importa features nem páginas, nenhuma feature alcança `pages` ou `app`, e uma página não alcança `app`; dentro de `features/**`/`pages/**` também é proibido `../../*` (sempre `@/`). Roda com `--max-warnings 0` |
 | **TypeScript** | `frontend/tsconfig{,.app,.test,.node,.e2e}.json` | quatro programas por `references` (aplicação, testes, `vite.config.ts`, `e2e/` + `playwright.config.ts`), para que `node`, os globais de teste e o Playwright não tipem código de produção. `strict` + `noUncheckedIndexedAccess`; `pnpm run typecheck` é `tsc -b` |

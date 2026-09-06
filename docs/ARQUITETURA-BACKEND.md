@@ -1,5 +1,11 @@
 # Arquitetura do backend — retrato, tensões e opções
 
+> **Superado por [`ARQUITECTURE.md`](../ARQUITECTURE.md) (2026-09-05).** T4/T5 e a Opção B
+> (livro-caixa: `Account`, `AccountLine`, `Payment` em `hotel/billing`) foram implementadas.
+> Os caminhos citados abaixo são os do layout anterior e não foram re-patheados: este documento
+> vale como registro do raciocínio, não como mapa do código atual.
+
+
 **Escopo:** apenas o backend (`backend/`), o compose e o CI. Frontend fora.
 **Objetivo:** dar base para decidir, não prescrever reescrita.
 **Data da análise:** 2026-09-01. Commit base: `2a9caea`.
