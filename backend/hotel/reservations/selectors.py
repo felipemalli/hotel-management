@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
 
-from django.db.models import Count, Exists, OuterRef, Prefetch, Q, QuerySet, Value
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q, QuerySet, Sum, Value
 
-from hotel.billing.models import AccountStatus
+from core.money import ZERO, quantize_money
+from hotel.billing.models import AccountLine, AccountStatus, LineKind
 from hotel.guests.models import Guest
 from hotel.guests.selectors import guest_search_predicate
 from hotel.reservations.models import Reservation, ReservationStatus
@@ -112,6 +115,52 @@ def _reservation_search_predicate(term: str) -> Q:
     if numeric.isdigit():
         predicate |= Q(pk=int(numeric))
     return predicate
+
+
+def search_stays(*, status: str, term: str = "") -> QuerySet[Reservation]:
+    """Reservas de um status cujo titular, acompanhante, quarto ou nº casa o termo."""
+    queryset = reservation_queryset().filter(status=status)
+    term = term.strip()
+    if not term:
+        return queryset
+    # Acompanhante entra aqui e nao em list_reservations: quem pergunta por uma
+    # pessoa nao sabe se ela e titular; a tela de reservas lista por reserva (D19).
+    return queryset.filter(
+        _reservation_search_predicate(term) | Q(companions__full_name__icontains=term)
+    ).distinct()
+
+
+@dataclass(frozen=True)
+class RevenueSummary:
+    stays: int
+    billed: Decimal
+    paid: Decimal
+    late_fees: Decimal
+
+
+def revenue_summary(*, since: datetime | None = None) -> RevenueSummary:
+    """Faturamento das estadias encerradas: fechado, ja recebido e multas."""
+    stays = Reservation.objects.filter(status=ReservationStatus.CHECKED_OUT)
+    if since is not None:
+        stays = stays.filter(checked_out_at__gte=since)
+
+    # Tres consultas simples em vez de um aggregate com dois joins: somar
+    # total_amount e amount na mesma linha multiplicaria cada um pela
+    # cardinalidade do outro.
+    billed = stays.aggregate(total=Sum("account__total_amount"))["total"]
+    paid = stays.filter(account__status=AccountStatus.PAID).aggregate(
+        total=Sum("account__total_amount")
+    )["total"]
+    late = AccountLine.objects.filter(
+        kind=LineKind.LATE_FEE, account__in=stays.values("account_id")
+    ).aggregate(total=Sum("amount"))["total"]
+
+    return RevenueSummary(
+        stays=stays.count(),
+        billed=quantize_money(billed or ZERO),
+        paid=quantize_money(paid or ZERO),
+        late_fees=quantize_money(late or ZERO),
+    )
 
 
 def active_reservations_of(room: Room) -> QuerySet[Reservation]:

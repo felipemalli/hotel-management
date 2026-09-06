@@ -15,7 +15,13 @@ from hotel.reservations import services as service
 from hotel.reservations.errors import ReservationError
 from hotel.reservations.models import Reservation, ReservationStatus
 from hotel.reservations.statement import Statement
-from tests.factories import GuestFactory, ReservationFactory, RoomFactory, UserFactory
+from tests.factories import (
+    GuestFactory,
+    PricingPolicyFactory,
+    ReservationFactory,
+    RoomFactory,
+    UserFactory,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -374,6 +380,41 @@ def test_sync_matches_refresh_from_db(actor):
         "cancelled_by_id",
     }
     assert set(service.SYNCED_FIELDS) == written_by_transitions
+
+
+def test_checkin_window_before_opening_is_early():
+    """A janela e a leitura que o 409 usa -- e que a Iris narra sem tentar o check-in."""
+    window = service.checkin_window(now=local(MARCH_7, 13, 59, 59))
+
+    assert window.is_early is True
+    assert window.opens_at == time(14, 0)
+    assert window.server_time == local(MARCH_7, 13, 59, 59)
+
+
+def test_checkin_window_at_opening_is_not_early():
+    window = service.checkin_window(now=local(MARCH_7, 14, 0, 0))
+
+    assert window.is_early is False
+    assert window.opens_at == time(14, 0)
+
+
+def test_checkin_window_reads_local_time_from_a_utc_timestamp():
+    """16:30 UTC sao 13:30 em Sao Paulo: e cedo, mesmo parecendo tarde."""
+    window = service.checkin_window(now=datetime(2025, 3, 7, 16, 30, tzinfo=UTC))
+
+    assert window.is_early is True
+    assert window.server_time.strftime("%H:%M") == "13:30"
+
+
+def test_checkin_window_follows_the_policy_in_force():
+    """D15: quem abre a porta e a politica vigente no ato, nao a constante do motor."""
+    policy = PricingPolicyFactory(checkin_opens=time(15, 0), effective_from=local(MARCH_7, 0))
+
+    window = service.checkin_window(now=local(MARCH_7, 14, 30))
+
+    assert window.policy == policy
+    assert window.opens_at == time(15, 0)
+    assert window.is_early is True
 
 
 def test_check_in_at_14_sets_status_and_timestamp(actor):

@@ -1,15 +1,39 @@
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import pytest
 from django.utils import timezone
 
 from hotel.guests import selectors as guest_selectors
 from hotel.reservations import selectors
-from hotel.reservations.models import ReservationStatus
+from hotel.reservations import services as service
+from hotel.reservations.models import Reservation, ReservationStatus
 from hotel.rooms import selectors as room_selectors
-from tests.factories import GuestFactory, ReservationFactory, RoomFactory
+from tests.factories import GuestFactory, ReservationFactory, RoomFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
+
+SAO_PAULO = ZoneInfo("America/Sao_Paulo")
+MARCH_7 = date(2025, 3, 7)  # sexta
+MARCH_9 = date(2025, 3, 9)  # domingo
+
+
+def local(day: date, hour: int, minute: int = 0, second: int = 0) -> datetime:
+    return datetime.combine(day, time(hour, minute, second), tzinfo=SAO_PAULO)
+
+
+@pytest.fixture
+def actor():
+    return UserFactory(username="atendente-dos-selectors")
+
+
+def t7_checked_out(actor) -> Reservation:
+    """Estadia T7 fechada pelo servico: sex 07 15:00 -> dom 09 12:01, com vaga."""
+    reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
+    service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
+    service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
+    return reservation
 
 
 def test_search_name_fragment():
@@ -192,3 +216,83 @@ def test_list_rooms_filters_by_search():
     assert set(room_selectors.list_rooms(search="30")) == {room_301}
     assert set(room_selectors.list_rooms(search="inexistente")) == set()
     assert set(room_selectors.list_rooms()) == {room_101, room_301}
+
+
+def test_search_stays_matches_holder_companion_room_and_number():
+    """A Iris procura pessoas: titular, acompanhante, quarto ou nº da reserva."""
+    ana = ReservationFactory(guest__full_name="Ana Souza", room__number="101")
+    bruno = ReservationFactory(guest__full_name="Bruno Lima", room__number="102")
+    bruno.companions.set([GuestFactory(full_name="Eva Lima")])
+
+    pending = ReservationStatus.PENDING
+    assert set(selectors.search_stays(status=pending, term="ana")) == {ana}
+    assert set(selectors.search_stays(status=pending, term="101")) == {ana}
+    assert set(selectors.search_stays(status=pending, term=f"#{ana.pk}")) == {ana}
+    assert set(selectors.search_stays(status=pending, term="eva")) == {bruno}
+    assert set(selectors.search_stays(status=pending, term="inexistente")) == set()
+
+
+def test_search_stays_filters_by_status():
+    pending = ReservationFactory(guest__full_name="Ana Souza")
+    inside = ReservationFactory(guest__full_name="Ana Prado", checked_in=True)
+
+    assert set(selectors.search_stays(status=ReservationStatus.PENDING, term="ana")) == {pending}
+    assert set(selectors.search_stays(status=ReservationStatus.CHECKED_IN, term="ana")) == {inside}
+
+
+def test_search_stays_lists_all_when_the_term_is_blank():
+    first = ReservationFactory()
+    second = ReservationFactory()
+    ReservationFactory(checked_in=True)
+
+    pending = ReservationStatus.PENDING
+    assert set(selectors.search_stays(status=pending)) == {first, second}
+    assert set(selectors.search_stays(status=pending, term="   ")) == {first, second}
+
+
+def test_search_stays_does_not_duplicate_a_reservation_matched_twice():
+    """distinct(): o termo casando titular e acompanhante devolve uma linha."""
+    reservation = ReservationFactory(guest__full_name="Lima Souza")
+    reservation.companions.set([GuestFactory(full_name="Eva Lima")])
+
+    found = list(selectors.search_stays(status=ReservationStatus.PENDING, term="lima"))
+
+    assert found == [reservation]
+
+
+def test_revenue_summary_sums_closed_accounts(actor):
+    t7_checked_out(actor)
+    t7_checked_out(actor)
+
+    summary = selectors.revenue_summary()
+
+    assert summary.stays == 2
+    assert summary.billed == Decimal("850.00")  # 2 x T7
+    assert summary.paid == Decimal("0.00")  # fechadas, nenhuma recebida
+
+
+def test_revenue_summary_separates_paid_and_late_fees(actor):
+    """T7 pago: o total da tabela-verdade, tudo recebido, multa de R$ 90,00."""
+    reservation = t7_checked_out(actor)
+    service.mark_paid(reservation, now=local(MARCH_9, 13), actor=actor, payment_method="PIX")
+
+    summary = selectors.revenue_summary()
+
+    assert summary.stays == 1
+    assert summary.billed == Decimal("425.00")
+    assert summary.paid == Decimal("425.00")
+    assert summary.late_fees == Decimal("90.00")
+
+
+def test_revenue_summary_respects_since_and_ignores_open_accounts(actor):
+    t7_checked_out(actor)
+    ReservationFactory(checked_in=True)  # conta aberta, sem total
+    ReservationFactory()  # PENDING, sem conta
+
+    assert selectors.revenue_summary(since=local(MARCH_9, 12)).billed == Decimal("425.00")
+
+    later = selectors.revenue_summary(since=local(MARCH_9, 13))
+
+    assert later.stays == 0
+    assert later.billed == Decimal("0.00")
+    assert later.late_fees == Decimal("0.00")

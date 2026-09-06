@@ -166,7 +166,7 @@ class ReservationViewSet(
                         value={
                             "code": "EARLY_CHECKIN",
                             "detail": "Check-in permitido a partir das 14:00.",
-                            "extra": {"server_time": "13:45"},
+                            "extra": {"server_time": "13:45", "opens_at": "14:00"},
                         },
                         response_only=True,
                     ),

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import date, datetime
+from dataclasses import dataclass
+from datetime import date, datetime, time
 from typing import TYPE_CHECKING
 
 from django.db import transaction
@@ -13,7 +14,7 @@ from core.money import ZERO
 from hotel.billing import engine
 from hotel.billing import selectors as billing_selectors
 from hotel.billing import services as billing
-from hotel.billing.models import LineKind
+from hotel.billing.models import LineKind, PricingPolicy
 from hotel.billing.services import rate_table_of
 from hotel.guests.models import Guest
 from hotel.reservations import selectors
@@ -108,6 +109,31 @@ def create_reservation(
         return reservation
 
 
+@dataclass(frozen=True)
+class CheckinWindow:
+    """A politica vigente e o que ela diz sobre a hora de agora (D15)."""
+
+    policy: PricingPolicy
+    is_early: bool
+    opens_at: time
+    server_time: datetime  # ja em hora local
+
+
+def checkin_window(*, now: datetime) -> CheckinWindow:
+    # Uma consulta e uma fonte de verdade para o 409 do check-in e para quem so
+    # precisa narrar o horario: cedo ou nao, a politica e a vigente agora, porque
+    # a amarracao na reserva (D15) acontece depois desta leitura.
+    policy = billing_selectors.policy_in_force(now)
+    rates = rate_table_of(policy)
+    local_now = timezone.localtime(now)
+    return CheckinWindow(
+        policy=policy,
+        is_early=engine.early_checkin(local_now, rates),
+        opens_at=rates.checkin_opens,
+        server_time=local_now,
+    )
+
+
 def check_in(
     reservation: Reservation,
     *,
@@ -124,22 +150,21 @@ def check_in(
         _assert_no_active_stay(locked, people_ids)
         _assert_room_ready(locked, now=now)
 
-        # Cedo ou nao usa a politica vigente agora; a amarracao e duas linhas abaixo.
-        policy = billing_selectors.policy_in_force(now)
-        rates = rate_table_of(policy)
-
-        local_now = timezone.localtime(now)
-        if engine.early_checkin(local_now, rates) and not allow_early:
-            opens_at = f"{rates.checkin_opens:%H:%M}"
+        window = checkin_window(now=now)
+        if window.is_early and not allow_early:
+            opens_at = f"{window.opens_at:%H:%M}"
             raise EarlyCheckinError(
                 detail=f"Check-in permitido a partir das {opens_at}.",
-                extra={"server_time": local_now.strftime("%H:%M"), "opens_at": opens_at},
+                extra={
+                    "server_time": window.server_time.strftime("%H:%M"),
+                    "opens_at": opens_at,
+                },
             )
 
         locked.status = ReservationStatus.CHECKED_IN
         locked.checked_in_at = now
         locked.checked_in_by = actor
-        locked.policy = policy
+        locked.policy = window.policy
         locked.account = billing.open_account(now=now)
         with translate_integrity_error(
             {
