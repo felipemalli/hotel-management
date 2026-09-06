@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, time, timedelta
 from decimal import Decimal
 
 from core.money import ZERO, quantize_money
@@ -93,22 +93,22 @@ def stay_dates(checkin: date, checkout: date) -> list[date]:
     return days
 
 
-def early_checkin(now: datetime, rates: RateTable = DEFAULT_RATES) -> bool:
-    return now.time() < rates.checkin_opens
+def early_checkin(local_time: time, rates: RateTable = DEFAULT_RATES) -> bool:
+    return local_time < rates.checkin_opens
 
 
-def late_checkout(now: datetime, rates: RateTable = DEFAULT_RATES) -> bool:
-    return now.time() > rates.checkout_limit
+def late_checkout(local_time: time, rates: RateTable = DEFAULT_RATES) -> bool:
+    return local_time > rates.checkout_limit
 
 
 def calculate_bill(
     *,
-    checkin: datetime,
-    checkout: datetime,
+    checkin_day: date,
+    checkout_day: date,
+    checkout_time: time,
     has_vehicle: bool,
     rates: RateTable = DEFAULT_RATES,
 ) -> Bill:
-    """`checkin`/`checkout` ja em hora local."""
     lines = [
         BillLine(
             date=day,
@@ -116,15 +116,15 @@ def calculate_bill(
             daily_rate=daily_rate(day, rates),
             parking_fee=parking_fee(day, has_vehicle=has_vehicle, rates=rates),
         )
-        for day in stay_dates(checkin.date(), checkout.date())
+        for day in stay_dates(checkin_day, checkout_day)
     ]
 
     subtotal_daily = quantize_money(sum((line.daily_rate for line in lines), ZERO))
     subtotal_parking = quantize_money(sum((line.parking_fee for line in lines), ZERO))
 
-    applied = late_checkout(checkout, rates)
+    applied = late_checkout(checkout_time, rates)
     # A multa usa a tarifa do dia da saida: e o procedimento de checkout que se penaliza.
-    base = daily_rate(checkout.date(), rates) if applied else None
+    base = daily_rate(checkout_day, rates) if applied else None
     fee = quantize_money(rates.late_fee_factor * base) if applied else ZERO
 
     return Bill(

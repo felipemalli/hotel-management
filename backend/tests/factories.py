@@ -120,8 +120,9 @@ class ReservationFactory(factory.django.DjangoModelFactory):
 
 def _frozen_bill(obj) -> pricing.Bill:
     return pricing.calculate_bill(
-        checkin=local_datetime(obj.checkin_date, CHECKIN_TIME),
-        checkout=local_datetime(obj.checkout_date, CHECKOUT_TIME),
+        checkin_day=obj.checkin_date,
+        checkout_day=obj.checkout_date,
+        checkout_time=CHECKOUT_TIME,
         has_vehicle=obj.has_vehicle,
     )
 

@@ -128,7 +128,7 @@ def checkin_window(*, now: datetime) -> CheckinWindow:
     local_now = timezone.localtime(now)
     return CheckinWindow(
         policy=policy,
-        is_early=engine.early_checkin(local_now, rates),
+        is_early=engine.early_checkin(local_now.time(), rates),
         opens_at=rates.checkin_opens,
         server_time=local_now,
     )
@@ -221,10 +221,14 @@ def _bill_for(reservation: Reservation, *, now: datetime) -> engine.Bill:
     if reservation.checked_in_at is None:
         raise InvalidStatusError("Reserva sem check-in registrado.")
 
-    # Cobranca pelos fatos, em hora local, com a politica amarrada no check-in.
+    # Cobranca pelos fatos, com a politica amarrada no check-in. A conversao
+    # para hora local mora aqui: o motor so aceita date/time, sem fuso para errar.
+    checkin_local = timezone.localtime(reservation.checked_in_at)
+    checkout_local = timezone.localtime(now)
     return engine.calculate_bill(
-        checkin=timezone.localtime(reservation.checked_in_at),
-        checkout=timezone.localtime(now),
+        checkin_day=checkin_local.date(),
+        checkout_day=checkout_local.date(),
+        checkout_time=checkout_local.time(),
         has_vehicle=reservation.has_vehicle,
         rates=rate_table_of(reservation.policy),
     )

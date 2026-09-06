@@ -590,7 +590,10 @@ def test_persisted_statement_matches_recomputation(actor):
     recomputed = service.statement(Reservation.objects.get(pk=reservation.pk))
     from_engine = Statement.from_bill(
         pricing.calculate_bill(
-            checkin=local(MARCH_7, 15), checkout=local(MARCH_9, 12, 1), has_vehicle=True
+            checkin_day=MARCH_7,
+            checkout_day=MARCH_9,
+            checkout_time=time(12, 1),
+            has_vehicle=True,
         )
     )
 

@@ -131,6 +131,17 @@ TRUTH_TABLE = [
 ]
 
 
+def bill_of(checkin, checkout, has_vehicle, rates=pricing.DEFAULT_RATES) -> pricing.Bill:
+    """A tabela-verdade e escrita em datetimes locais; o motor so aceita date/time."""
+    return pricing.calculate_bill(
+        checkin_day=checkin.date(),
+        checkout_day=checkout.date(),
+        checkout_time=checkout.time(),
+        has_vehicle=has_vehicle,
+        rates=rates,
+    )
+
+
 @pytest.mark.parametrize(
     (
         "checkin, checkout, has_vehicle, expected_lines, expected_daily, "
@@ -149,7 +160,7 @@ def test_truth_table(
     expected_late_fee,
     expected_total,
 ):
-    bill = pricing.calculate_bill(checkin=checkin, checkout=checkout, has_vehicle=has_vehicle)
+    bill = bill_of(checkin, checkout, has_vehicle)
 
     assert [
         (line.date.day, line.weekday_label, line.daily_rate, line.parking_fee)
@@ -169,7 +180,7 @@ STAY_INPUTS = [pytest.param(*case.values[:3], id=case.id) for case in TRUTH_TABL
 
 @pytest.mark.parametrize("checkin, checkout, has_vehicle", STAY_INPUTS)
 def test_truth_table_amounts_are_decimal_with_two_places(checkin, checkout, has_vehicle):
-    bill = pricing.calculate_bill(checkin=checkin, checkout=checkout, has_vehicle=has_vehicle)
+    bill = bill_of(checkin, checkout, has_vehicle)
 
     amounts = [bill.subtotal_daily, bill.subtotal_parking, bill.late_fee, bill.total]
     amounts += [line.daily_rate for line in bill.lines]
@@ -191,7 +202,7 @@ def test_truth_table_amounts_are_decimal_with_two_places(checkin, checkout, has_
 )
 def test_early_checkin_boundaries(now, expected):
     """14:00:00 em ponto ja permite o check-in; 13:59:59 alerta (SPEC 3.3/D4)."""
-    assert pricing.early_checkin(now) is expected
+    assert pricing.early_checkin(now.time()) is expected
 
 
 @pytest.mark.parametrize(
@@ -206,7 +217,7 @@ def test_early_checkin_boundaries(now, expected):
 )
 def test_late_checkout_boundaries(now, expected):
     """`ate as 12h00min` inclui o limite: 12:00:00 e isento (SPEC 3.3/T8/D3)."""
-    assert pricing.late_checkout(now) is expected
+    assert pricing.late_checkout(now.time()) is expected
 
 
 def test_stay_dates_is_semi_open_interval():
@@ -239,7 +250,7 @@ def test_quantize_money_rounds_half_up():
 
 def test_bill_is_immutable():
     """Extrato congelado: ninguem ajusta um total depois de calculado."""
-    bill = pricing.calculate_bill(checkin=dt(3, 15), checkout=dt(5, 11), has_vehicle=False)
+    bill = bill_of(dt(3, 15), dt(5, 11), False)
     with pytest.raises(AttributeError):
         bill.total = Decimal("0.00")
 
@@ -260,10 +271,8 @@ def test_rate_table_is_a_parameter_not_a_global():
         late_fee_factor=D("0.5"),
     )
 
-    with_default = pricing.calculate_bill(checkin=dt(3, 15), checkout=dt(5, 11), has_vehicle=False)
-    with_future = pricing.calculate_bill(
-        checkin=dt(3, 15), checkout=dt(5, 11), has_vehicle=False, rates=future_rates
-    )
+    with_default = bill_of(dt(3, 15), dt(5, 11), False)
+    with_future = bill_of(dt(3, 15), dt(5, 11), False, rates=future_rates)
 
     assert with_default.total == D("240.00")  # tabela SPEC 3.3, caso T1
     assert with_future.total == D("280.00")
@@ -284,9 +293,7 @@ def test_rate_table_reaches_parking_and_late_fee():
         late_fee_factor=D("0.5"),
     )
 
-    bill = pricing.calculate_bill(
-        checkin=dt(7, 15), checkout=dt(9, 12, 1), has_vehicle=True, rates=future_rates
-    )
+    bill = bill_of(dt(7, 15), dt(9, 12, 1), True, rates=future_rates)
 
     assert bill.subtotal_daily == D("340.00")
     assert bill.subtotal_parking == D("43.00")
@@ -311,19 +318,19 @@ def test_rate_table_times_are_parameters():
     """
     late_shift = replace(pricing.DEFAULT_RATES, checkin_opens=time(15, 0))
 
-    assert pricing.early_checkin(dt(3, 14, 30), late_shift) is True
-    assert pricing.early_checkin(dt(3, 14, 30)) is False
-    assert pricing.early_checkin(dt(3, 15, 0), late_shift) is False
+    assert pricing.early_checkin(dt(3, 14, 30).time(), late_shift) is True
+    assert pricing.early_checkin(dt(3, 14, 30).time()) is False
+    assert pricing.early_checkin(dt(3, 15, 0).time(), late_shift) is False
 
 
 def test_checkout_limit_is_a_parameter_and_the_exact_minute_is_exempt():
     generous = replace(pricing.DEFAULT_RATES, checkout_limit=time(13, 0))
 
-    assert pricing.late_checkout(dt(3, 12, 30)) is True
-    assert pricing.late_checkout(dt(3, 12, 30), generous) is False
+    assert pricing.late_checkout(dt(3, 12, 30).time()) is True
+    assert pricing.late_checkout(dt(3, 12, 30).time(), generous) is False
     # O limite em ponto continua isento, seja ele qual for.
-    assert pricing.late_checkout(dt(3, 13, 0, 0), generous) is False
-    assert pricing.late_checkout(dt(3, 13, 0, 1), generous) is True
+    assert pricing.late_checkout(dt(3, 13, 0, 0).time(), generous) is False
+    assert pricing.late_checkout(dt(3, 13, 0, 1).time(), generous) is True
 
 
 def test_calculate_bill_uses_the_checkout_limit_from_the_rates():
@@ -335,9 +342,7 @@ def test_calculate_bill_uses_the_checkout_limit_from_the_rates():
     """
     generous = replace(pricing.DEFAULT_RATES, checkout_limit=time(13, 0))
 
-    bill = pricing.calculate_bill(
-        checkin=dt(3, 15), checkout=dt(5, 12, 30), has_vehicle=False, rates=generous
-    )
+    bill = bill_of(dt(3, 15), dt(5, 12, 30), False, rates=generous)
 
     assert bill.late_fee_applied is False
     assert bill.late_fee == D("0.00")

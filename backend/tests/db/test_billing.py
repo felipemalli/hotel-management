@@ -61,7 +61,7 @@ def test_check_in_opens_an_account_in_the_same_transaction(actor):
 def test_checkout_persists_statement_lines_equal_to_bill(actor):
     reservation = t7_checked_in(actor)
     bill = pricing.calculate_bill(
-        checkin=local(MARCH_7, 15), checkout=local(MARCH_9, 12, 1), has_vehicle=True
+        checkin_day=MARCH_7, checkout_day=MARCH_9, checkout_time=time(12, 1), has_vehicle=True
     )
 
     service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
