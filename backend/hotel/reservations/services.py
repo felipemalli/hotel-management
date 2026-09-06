@@ -229,6 +229,7 @@ def _bill_for(reservation: Reservation, *, now: datetime) -> engine.Bill:
         checkin_day=checkin_local.date(),
         checkout_day=checkout_local.date(),
         checkout_time=checkout_local.time(),
+        booked_checkin_day=reservation.checkin_date,
         booked_checkout_day=reservation.checkout_date,
         has_vehicle=reservation.has_vehicle,
         rates=rate_table_of(reservation.policy),

@@ -593,6 +593,7 @@ def test_persisted_statement_matches_recomputation(actor):
             checkin_day=MARCH_7,
             checkout_day=MARCH_9,
             checkout_time=time(12, 1),
+            booked_checkin_day=MARCH_7,
             booked_checkout_day=MARCH_9,
             has_vehicle=True,
         )

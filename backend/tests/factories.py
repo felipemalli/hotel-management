@@ -123,6 +123,7 @@ def _frozen_bill(obj) -> pricing.Bill:
         checkin_day=obj.checkin_date,
         checkout_day=obj.checkout_date,
         checkout_time=CHECKOUT_TIME,
+        booked_checkin_day=obj.checkin_date,
         booked_checkout_day=obj.checkout_date,
         has_vehicle=obj.has_vehicle,
     )

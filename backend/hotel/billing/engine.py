@@ -112,10 +112,12 @@ def calculate_bill(
     checkin_day: date,
     checkout_day: date,
     checkout_time: time,
+    booked_checkin_day: date,
     booked_checkout_day: date,
     has_vehicle: bool,
     rates: RateTable = DEFAULT_RATES,
 ) -> Bill:
+    billed_from = min(checkin_day, booked_checkin_day)
     billed_until = max(checkout_day, booked_checkout_day)
     lines = [
         BillLine(
@@ -124,7 +126,7 @@ def calculate_bill(
             daily_rate=daily_rate(day, rates),
             parking_fee=parking_fee(day, has_vehicle=has_vehicle, rates=rates),
         )
-        for day in stay_dates(checkin_day, billed_until)
+        for day in stay_dates(billed_from, billed_until)
     ]
 
     subtotal_daily = quantize_money(sum((line.daily_rate for line in lines), ZERO))

@@ -142,7 +142,12 @@ def late_on(checkout, rates=pricing.DEFAULT_RATES, booked_checkout=None) -> bool
 
 
 def bill_of(
-    checkin, checkout, has_vehicle, rates=pricing.DEFAULT_RATES, booked_checkout=None
+    checkin,
+    checkout,
+    has_vehicle,
+    rates=pricing.DEFAULT_RATES,
+    booked_checkout=None,
+    booked_checkin=None,
 ) -> pricing.Bill:
     """A tabela-verdade e escrita em datetimes locais; o motor so aceita date/time.
 
@@ -152,6 +157,7 @@ def bill_of(
         checkin_day=checkin.date(),
         checkout_day=checkout.date(),
         checkout_time=checkout.time(),
+        booked_checkin_day=booked_checkin or checkin.date(),
         booked_checkout_day=booked_checkout or checkout.date(),
         has_vehicle=has_vehicle,
         rates=rates,
@@ -247,6 +253,18 @@ def test_early_checkout_costs_the_same_as_staying_to_the_booked_end():
     assert [line.date.day for line in early.lines] == [3, 4]
     assert early.subtotal_daily == D("240.00")
     assert early.total == bill_of(dt(3, 15), dt(5, 11), False).total == D("240.00")
+
+
+def test_late_check_in_still_pays_every_booked_daily():
+    """BUSINESS_RULE: `caso o check-in ocorra depois, o valor de todas as diarias se mantem`.
+
+    Mesma reserva do T1 (contratada seg 03 -> qua 05); o hospede so chegou na
+    terca 04. As duas diarias contratadas continuam sendo cobradas.
+    """
+    late_arrival = bill_of(dt(4, 15), dt(5, 11), False, booked_checkin=date(2025, 3, 3))
+
+    assert [line.date.day for line in late_arrival.lines] == [3, 4]
+    assert late_arrival.total == bill_of(dt(3, 15), dt(5, 11), False).total == D("240.00")
 
 
 def test_leaving_early_after_noon_is_not_a_late_checkout():

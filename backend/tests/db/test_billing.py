@@ -78,12 +78,28 @@ def test_early_checkout_bills_every_booked_daily_and_no_late_fee(actor):
     assert reservation.account.total_amount == Decimal("300.00")
 
 
+def test_late_check_in_bills_the_booked_period_from_the_start(actor):
+    """BUSINESS_RULE: chegar depois nao devolve diaria.
+
+    Contratado sex 07 -> dom 09; o hospede so chegou no sabado 08. A sexta
+    continua na conta.
+    """
+    reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
+    service.check_in(reservation, now=local(MARCH_8, 15), actor=actor)
+
+    statement = service.check_out(reservation, now=local(MARCH_9, 11), actor=actor)
+
+    assert [line.service_date.day for line in lines_by_kind(reservation, LineKind.DAILY)] == [7, 8]
+    assert statement.total == Decimal("300.00")
+
+
 def test_checkout_persists_statement_lines_equal_to_bill(actor):
     reservation = t7_checked_in(actor)
     bill = pricing.calculate_bill(
         checkin_day=MARCH_7,
         checkout_day=MARCH_9,
         checkout_time=time(12, 1),
+        booked_checkin_day=MARCH_7,
         booked_checkout_day=MARCH_9,
         has_vehicle=True,
     )
