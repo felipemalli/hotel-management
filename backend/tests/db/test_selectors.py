@@ -4,8 +4,8 @@ import pytest
 from django.utils import timezone
 
 from hotel.guests import selectors as guest_selectors
-from hotel.models import ReservationStatus
 from hotel.reservations import selectors
+from hotel.reservations.models import ReservationStatus
 from hotel.rooms import selectors as room_selectors
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory
 

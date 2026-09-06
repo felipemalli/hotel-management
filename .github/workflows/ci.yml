@@ -59,6 +59,9 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
+      - name: Migracoes conferem com os models
+        run: uv run python manage.py makemigrations --check --dry-run
+
       - name: Suite backend com cobertura
         run: uv run pytest --cov=hotel --cov=accounts --cov=core --cov-fail-under=85 -q
 

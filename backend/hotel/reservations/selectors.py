@@ -4,8 +4,10 @@ from datetime import date
 
 from django.db.models import Exists, OuterRef, Prefetch, Q, QuerySet
 
+from hotel.guests.models import Guest
 from hotel.guests.selectors import guest_search_predicate
-from hotel.models import Guest, Reservation, ReservationStatus, Room
+from hotel.reservations.models import Reservation, ReservationStatus
+from hotel.rooms.models import Room
 from hotel.rooms.selectors import list_rooms
 
 ACTIVE_RESERVATIONS_ATTR = "active_reservations"

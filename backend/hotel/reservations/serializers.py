@@ -7,14 +7,17 @@ from rest_framework import serializers
 
 from core.serializers import UserMinimalSerializer, money_field
 from hotel.billing.engine import Bill
+from hotel.billing.models import PaymentMethod
+from hotel.guests.models import Guest
 from hotel.guests.serializers import GuestMinimalSerializer, GuestSerializer
-from hotel.models import Guest, PaymentMethod, Reservation, ReservationStatus, Room
+from hotel.reservations.models import Reservation, ReservationStatus
 from hotel.reservations.selectors import (
     ACTIVE_COMPANION_RESERVATIONS_ATTR,
     ACTIVE_RESERVATIONS_ATTR,
     PENDING_COMPANION_RESERVATIONS_ATTR,
     PENDING_RESERVATIONS_ATTR,
 )
+from hotel.rooms.models import Room
 from hotel.rooms.serializers import RoomSummarySerializer
 
 

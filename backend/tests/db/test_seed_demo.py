@@ -12,9 +12,10 @@ from freezegun import freeze_time
 from accounts.models import Role
 from hotel.guests import selectors as guest_selectors
 from hotel.guests import services as guests_service
-from hotel.models import Guest, Reservation, ReservationStatus
+from hotel.guests.models import Guest
 from hotel.reservations import selectors
 from hotel.reservations import services as reservations_service
+from hotel.reservations.models import Reservation, ReservationStatus
 
 pytestmark = pytest.mark.django_db
 

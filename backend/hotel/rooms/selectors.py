@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django.db.models import QuerySet
 
-from hotel.models import Room
+from hotel.rooms.models import Room
 
 
 def list_rooms(*, active_only: bool = True, search: str | None = None) -> QuerySet[Room]:

@@ -13,9 +13,9 @@ from rest_framework.response import Response
 from accounts.permissions import IsHotelAdmin
 from core.openapi import PERMISSION_DENIED_RESPONSE, ROOMS_TAG
 from core.serializers import ErrorEnvelopeSerializer
-from hotel.models import Room
 from hotel.rooms import selectors
 from hotel.rooms import services as catalog_service
+from hotel.rooms.models import Room
 from hotel.rooms.serializers import RoomCreateSerializer, RoomSerializer, RoomUpdateSerializer
 
 

@@ -5,10 +5,11 @@ import pytest
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from hotel.models import Reservation, ReservationStatus, Room
 from hotel.reservations import selectors
 from hotel.reservations import services as service
+from hotel.reservations.models import Reservation, ReservationStatus
 from hotel.rooms import services as catalog
+from hotel.rooms.models import Room
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory, UserFactory
 
 pytestmark = pytest.mark.django_db

@@ -6,9 +6,9 @@ import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
-from hotel.models import ReservationStatus
 from hotel.reservations import selectors
 from hotel.reservations import services as service
+from hotel.reservations.models import ReservationStatus
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -93,7 +93,7 @@ def test_create_reservation_is_atomic_across_companions(actor, monkeypatch):
     acompanhantes estivesse FORA da `atomic` da reserva, a reserva
     sobreviveria -- ocupando o quarto para um grupo que nao existe.
     """
-    from hotel.models import Reservation
+    from hotel.reservations.models import Reservation
 
     def explode(self, *args, **kwargs):
         raise RuntimeError("falha ao gravar acompanhante")
@@ -124,7 +124,7 @@ def test_checkin_locks_people_in_pk_order_without_join(actor):
     locks = [
         query["sql"]
         for query in captured.captured_queries
-        if "FOR UPDATE" in query["sql"] and "hotel_guest" in query["sql"]
+        if "FOR UPDATE" in query["sql"] and "guests_guest" in query["sql"]
     ]
     assert len(locks) == 1, locks
     assert "ORDER BY" in locks[0]

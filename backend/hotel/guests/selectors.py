@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from django.db.models import Q, QuerySet
 
+from hotel.guests.models import Guest
 from hotel.guests.normalization import normalize_document, normalize_phone
-from hotel.models import Guest
 
 
 def guest_search_predicate(term: str) -> Q:

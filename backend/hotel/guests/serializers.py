@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from hotel.guests.models import Guest
 from hotel.guests.normalization import (
     DOCUMENT_MAX_LENGTH,
     DOCUMENT_MIN_LENGTH,
     PHONE_MAX_LENGTH,
     normalize_document,
 )
-from hotel.models import Guest
 
 
 class GuestSerializer(serializers.ModelSerializer):

@@ -7,9 +7,10 @@ from django.db import IntegrityError, transaction
 
 from core import errors
 from hotel.guests import services as guests_service
-from hotel.models import GUEST_DOCUMENT_UNIQUE, Guest, Reservation, ReservationStatus
+from hotel.guests.models import GUEST_DOCUMENT_UNIQUE, Guest
 from hotel.reservations import services as service
 from hotel.reservations.errors import ReservationError
+from hotel.reservations.models import Reservation, ReservationStatus
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory, UserFactory
 
 pytestmark = pytest.mark.django_db

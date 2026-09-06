@@ -9,9 +9,9 @@ from core.openapi import GUESTS_TAG
 from core.serializers import ErrorEnvelopeSerializer
 from hotel.guests import selectors
 from hotel.guests import services as guests_service
+from hotel.guests.models import Guest
 from hotel.guests.openapi import DUPLICATE_DOCUMENT_RESPONSE, GUEST_SEARCH_PARAMETER
 from hotel.guests.serializers import GuestCreateSerializer, GuestSerializer
-from hotel.models import Guest
 
 
 @extend_schema(tags=[GUESTS_TAG])

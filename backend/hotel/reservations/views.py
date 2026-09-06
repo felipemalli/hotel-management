@@ -16,9 +16,9 @@ from rest_framework.response import Response
 from core.openapi import GUESTS_TAG, RESERVATIONS_TAG, ROOMS_TAG
 from core.serializers import ErrorEnvelopeSerializer
 from hotel.guests.openapi import GUEST_SEARCH_PARAMETER
-from hotel.models import ReservationStatus
 from hotel.reservations import selectors
 from hotel.reservations import services as reservations_service
+from hotel.reservations.models import ReservationStatus
 from hotel.reservations.openapi import (
     INVALID_STATUS_EXAMPLE,
     ROOM_UNAVAILABLE_EXAMPLE,

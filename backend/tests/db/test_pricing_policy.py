@@ -5,10 +5,11 @@ import pytest
 from django.db import IntegrityError, transaction
 
 from hotel.billing import engine as pricing
+from hotel.billing.models import PricingPolicy
 from hotel.billing.selectors import policy_in_force
 from hotel.billing.services import create_policy, rate_table_of
-from hotel.models import PricingPolicy, ReservationStatus
 from hotel.reservations import services as service
+from hotel.reservations.models import ReservationStatus
 from tests.factories import PricingPolicyFactory, ReservationFactory, UserFactory
 
 pytestmark = pytest.mark.django_db

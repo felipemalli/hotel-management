@@ -9,9 +9,11 @@ from django.utils import timezone
 
 from accounts.models import Role
 from hotel.guests import services as guest_services
+from hotel.guests.models import Guest
 from hotel.guests.normalization import normalize_document
-from hotel.models import Guest, Reservation, ReservationStatus, Room
 from hotel.reservations import services as reservation_services
+from hotel.reservations.models import Reservation, ReservationStatus
+from hotel.rooms.models import Room
 
 ATTENDANT_USERNAME = "atendente"
 ATTENDANT_PASSWORD = "atendente123"

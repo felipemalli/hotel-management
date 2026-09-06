@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from hotel.models import PricingPolicy
+from hotel.billing.models import PricingPolicy
 
 pytestmark = pytest.mark.django_db
 

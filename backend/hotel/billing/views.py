@@ -12,8 +12,8 @@ from core.openapi import PERMISSION_DENIED_RESPONSE, PRICING_TAG
 from core.serializers import ErrorEnvelopeSerializer
 from hotel.billing import selectors
 from hotel.billing import services as billing_service
+from hotel.billing.models import PricingPolicy
 from hotel.billing.serializers import PricingPolicyCreateSerializer, PricingPolicySerializer
-from hotel.models import PricingPolicy
 
 
 @extend_schema(tags=[PRICING_TAG])

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from hotel.models import Room
+from hotel.rooms.models import Room
 
 
 class RoomSerializer(serializers.ModelSerializer):

@@ -11,23 +11,23 @@ from django.utils import timezone
 from core.errors import DomainValidationError, translate_integrity_error
 from hotel.billing import engine
 from hotel.billing import selectors as billing_selectors
+from hotel.billing.models import PaymentMethod
 from hotel.billing.services import rate_table_of
-from hotel.models import (
-    RESV_ONE_ACTIVE_PER_ROOM,
-    RESV_ROOM_NO_OVERLAP,
-    Guest,
-    PaymentMethod,
-    Reservation,
-    ReservationStatus,
-    Room,
-    StatementLine,
-)
+from hotel.guests.models import Guest
 from hotel.reservations import selectors
 from hotel.reservations.errors import (
     EarlyCheckinError,
     InvalidStatusError,
     RoomUnavailableError,
 )
+from hotel.reservations.models import (
+    RESV_ONE_ACTIVE_PER_ROOM,
+    RESV_ROOM_NO_OVERLAP,
+    Reservation,
+    ReservationStatus,
+    StatementLine,
+)
+from hotel.rooms.models import Room
 
 if TYPE_CHECKING:  # pragma: no cover
     from django.contrib.auth.models import AbstractBaseUser

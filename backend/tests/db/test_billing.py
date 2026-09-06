@@ -6,8 +6,9 @@ import pytest
 from django.db import IntegrityError, transaction
 
 from hotel.billing import engine as pricing
-from hotel.models import PaymentMethod, Reservation, ReservationStatus, StatementLine
+from hotel.billing.models import PaymentMethod
 from hotel.reservations import services as service
+from hotel.reservations.models import Reservation, ReservationStatus, StatementLine
 from tests.factories import PricingPolicyFactory, ReservationFactory, UserFactory
 
 pytestmark = pytest.mark.django_db

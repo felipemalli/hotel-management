@@ -5,7 +5,7 @@ import pytest
 from django.utils import timezone
 from freezegun import freeze_time
 
-from hotel.models import Reservation, ReservationStatus
+from hotel.reservations.models import Reservation, ReservationStatus
 from tests.api.conftest import local
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory
 

@@ -43,7 +43,7 @@ def default_policy(request):
     if "django_db" not in request.keywords and "db" not in request.fixturenames:
         return None
 
-    from hotel.models import PricingPolicy
+    from hotel.billing.models import PricingPolicy
 
     policy, _ = PricingPolicy.objects.get_or_create(
         effective_from=BOOTSTRAP_EFFECTIVE_FROM,

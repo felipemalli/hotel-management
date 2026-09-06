@@ -3,8 +3,9 @@ from datetime import timedelta
 import pytest
 from django.db import IntegrityError, connection, transaction
 
+from hotel.guests.models import Guest
 from hotel.guests.normalization import normalize_document, normalize_phone
-from hotel.models import Guest, ReservationStatus
+from hotel.reservations.models import ReservationStatus
 from tests.factories import GuestFactory, ReservationFactory, local_datetime
 
 pytestmark = pytest.mark.django_db
@@ -48,7 +49,7 @@ def test_pii_is_plaintext_at_rest():
 
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT document, phone FROM hotel_guest WHERE id = %s",
+            "SELECT document, phone FROM guests_guest WHERE id = %s",
             [guest.id],
         )
         stored_document, stored_phone = cursor.fetchone()
@@ -78,7 +79,7 @@ def test_guest_requires_nationality():
     with pytest.raises(IntegrityError), transaction.atomic():
         with connection.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO hotel_guest "
+                "INSERT INTO guests_guest "
                 "(full_name, document, phone, nationality, created_at, updated_at) "
                 "VALUES (%s, %s, %s, NULL, NOW(), NOW())",
                 ["Sem Pais", "77766655544", "5521988887777"],
@@ -170,7 +171,7 @@ def test_icontains_uses_the_functional_trigram_index(column, index_name, pattern
         # SET LOCAL: some com o rollback da transacao do teste.
         cursor.execute("SET LOCAL enable_seqscan = off")
         cursor.execute(
-            f'EXPLAIN SELECT id FROM hotel_guest WHERE UPPER("{column}"::text) LIKE UPPER(%s)',
+            f'EXPLAIN SELECT id FROM guests_guest WHERE UPPER("{column}"::text) LIKE UPPER(%s)',
             [pattern],
         )
         plan = "\n".join(row[0] for row in cursor.fetchall())

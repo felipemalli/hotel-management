@@ -10,14 +10,10 @@ from django.utils import timezone
 
 from accounts.models import Role
 from hotel.billing import engine as pricing
-from hotel.models import (
-    Guest,
-    PricingPolicy,
-    Reservation,
-    ReservationStatus,
-    Room,
-    StatementLine,
-)
+from hotel.billing.models import PricingPolicy
+from hotel.guests.models import Guest
+from hotel.reservations.models import Reservation, ReservationStatus, StatementLine
+from hotel.rooms.models import Room
 
 CHECKIN_TIME = time(15, 0)
 CHECKOUT_TIME = time(11, 0)

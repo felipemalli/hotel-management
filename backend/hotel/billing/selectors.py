@@ -4,7 +4,7 @@ from datetime import datetime
 
 from django.db.models import QuerySet
 
-from hotel.models import PricingPolicy
+from hotel.billing.models import PricingPolicy
 
 
 def policy_in_force(at: datetime) -> PricingPolicy:

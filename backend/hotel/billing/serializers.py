@@ -3,7 +3,7 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from core.serializers import UserMinimalSerializer, money_field
-from hotel.models import PricingPolicy
+from hotel.billing.models import PricingPolicy
 
 # Precisao de minuto. Sem input_formats o DRF aceita 12:00:30 e o segundo
 # entraria numa regra que so tem sentido em minuto.

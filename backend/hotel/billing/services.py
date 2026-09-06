@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from core.errors import DomainValidationError
 from hotel.billing import engine
-from hotel.models import PricingPolicy
+from hotel.billing.models import PricingPolicy
 
 if TYPE_CHECKING:  # pragma: no cover
     from django.contrib.auth.models import AbstractBaseUser

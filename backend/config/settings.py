@@ -54,7 +54,11 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "drf_spectacular_sidecar",
     "accounts",
-    "hotel",
+    # `hotel` e pacote namespace, nao app: os quatro dominios sao os apps.
+    "hotel.guests",
+    "hotel.rooms",
+    "hotel.billing",
+    "hotel.reservations",
 ]
 
 MIDDLEWARE = [

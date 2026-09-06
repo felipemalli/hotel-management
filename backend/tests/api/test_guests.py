@@ -3,7 +3,8 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from hotel.models import Guest, ReservationStatus
+from hotel.guests.models import Guest
+from hotel.reservations.models import ReservationStatus
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory
 
 pytestmark = pytest.mark.django_db

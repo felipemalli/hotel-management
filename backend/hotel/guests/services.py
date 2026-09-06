@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from core.errors import DomainError, DomainValidationError, translate_integrity_error
+from hotel.guests.models import GUEST_DOCUMENT_UNIQUE, Guest
 from hotel.guests.normalization import (
     ISO_3166_ALPHA2,
     normalize_country,
     normalize_document,
     to_e164_digits,
 )
-from hotel.models import GUEST_DOCUMENT_UNIQUE, Guest
 
 PHONE_HELP = "Informe o telefone com o código do país, ex.: +55 21 98888-7777."
 NATIONALITY_HELP = "Informe a nacionalidade como código ISO 3166-1 alpha-2, ex.: BR."
