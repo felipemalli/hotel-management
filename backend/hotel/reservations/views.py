@@ -8,30 +8,35 @@ from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
 )
-from rest_framework import mixins, status, viewsets
+from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from hotel import selectors
+from core.openapi import GUESTS_TAG, RESERVATIONS_TAG, ROOMS_TAG
+from core.serializers import ErrorEnvelopeSerializer
+from hotel.guests.openapi import GUEST_SEARCH_PARAMETER
 from hotel.models import ReservationStatus
-from hotel.serializers import (
+from hotel.reservations import selectors
+from hotel.reservations import services as reservations_service
+from hotel.reservations.openapi import (
+    INVALID_STATUS_EXAMPLE,
+    ROOM_UNAVAILABLE_EXAMPLE,
+    T7_STATEMENT_EXAMPLE,
+)
+from hotel.reservations.serializers import (
     CheckInRequestSerializer,
-    ErrorEnvelopeSerializer,
+    GuestInHotelSerializer,
+    GuestPendingCheckinSerializer,
     PaymentRequestSerializer,
     ReservationCreateSerializer,
     ReservationListQuerySerializer,
     ReservationSerializer,
+    RoomAvailabilityQuerySerializer,
     StatementSerializer,
     build_statement,
 )
-from hotel.services import reservations as reservations_service
-from hotel.views.openapi import (
-    INVALID_STATUS_EXAMPLE,
-    RESERVATIONS_TAG,
-    ROOM_UNAVAILABLE_EXAMPLE,
-    T7_STATEMENT_EXAMPLE,
-)
+from hotel.rooms.serializers import RoomSerializer
 
 
 @extend_schema(tags=[RESERVATIONS_TAG])
@@ -190,7 +195,7 @@ class ReservationViewSet(
         description=(
             "Exige `CHECKED_IN`. Congela os totais na mesma transação; duplo "
             "checkout responde `409 INVALID_STATUS`. O extrato é calculado pelos "
-            "fatos reais (D6) por `services/pricing.py` — a view não faz dinheiro."
+            "fatos reais (D6) por `hotel/billing/engine.py` — a view não faz dinheiro."
         ),
         request=None,
         responses={
@@ -301,3 +306,74 @@ class ReservationViewSet(
         reservation = self.get_object()
         reservations_service.cancel(reservation, now=timezone.now(), actor=request.user)
         return Response(ReservationSerializer(reservation).data)
+
+
+# As tres leituras a seguir sao sobre a agenda, nao sobre o cadastro: quem esta
+# no hotel e quais quartos estao livres so existem porque ha reservas. Ficam
+# aqui, com URL e operationId inalterados, para que `guests` e `rooms` sigam
+# folhas do grafo.
+@extend_schema(
+    tags=[GUESTS_TAG],
+    summary="Hóspedes que ainda estão no hotel",
+    description=(
+        "Reserva `CHECKED_IN` (RF4). `active_reservation` é único (SPEC 1.5). "
+        "`search` compõe com a aba: mesmo termo de `GET /guests/`, sobre quem está no hotel."
+    ),
+    parameters=[GUEST_SEARCH_PARAMETER],
+    responses={200: GuestInHotelSerializer(many=True)},
+)
+class GuestsInHotelView(generics.ListAPIView):
+    serializer_class = GuestInHotelSerializer
+
+    def get_queryset(self):
+        return selectors.guests_in_hotel(self.request.query_params.get("search"))
+
+
+@extend_schema(
+    tags=[GUESTS_TAG],
+    summary="Hóspedes com reserva sem check-in",
+    description=(
+        "Reservas `PENDING` (RF5). Pendência vencida continua listada até "
+        "ação do atendente (D14). `search` compõe com a aba: mesmo termo de "
+        "`GET /guests/`, sobre quem tem check-in pendente."
+    ),
+    parameters=[GUEST_SEARCH_PARAMETER],
+    responses={200: GuestPendingCheckinSerializer(many=True)},
+)
+class GuestsPendingCheckinView(generics.ListAPIView):
+    serializer_class = GuestPendingCheckinSerializer
+
+    def get_queryset(self):
+        return selectors.guests_pending_checkin(self.request.query_params.get("search"))
+
+
+@extend_schema(
+    tags=[ROOMS_TAG],
+    summary="Quartos disponíveis para um período",
+    description=(
+        "Ativos, com capacidade suficiente e sem reserva ativa cruzando o "
+        "intervalo. Quando o período começa hoje ou antes, quartos com hóspede "
+        "ainda dentro (`CHECKED_IN` de qualquer data) também saem da lista — "
+        "a agenda pode ter liberado, o quarto não (D6/D7/D14)."
+    ),
+    parameters=[RoomAvailabilityQuerySerializer],
+    responses={200: RoomSerializer(many=True), 400: ErrorEnvelopeSerializer},
+)
+class AvailableRoomsView(generics.ListAPIView):
+    serializer_class = RoomSerializer
+
+    def get_queryset(self):
+        query = RoomAvailabilityQuerySerializer(data=self.request.query_params)
+        query.is_valid(raise_exception=True)
+        return selectors.available_rooms(
+            **query.validated_data,
+            today=timezone.localdate(),
+        )
+
+
+__all__ = [
+    "AvailableRoomsView",
+    "GuestsInHotelView",
+    "GuestsPendingCheckinView",
+    "ReservationViewSet",
+]

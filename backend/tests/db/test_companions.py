@@ -6,9 +6,9 @@ import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
-from hotel import selectors
 from hotel.models import ReservationStatus
-from hotel.services import reservations as service
+from hotel.reservations import selectors
+from hotel.reservations import services as service
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -209,7 +209,7 @@ def test_pending_includes_own_and_companion_reservations(actor):
 
 def test_pending_merges_own_and_companion_rows_in_date_order(actor):
     """Uma pessoa que e titular numa reserva e acompanhante em outra ve as duas."""
-    from hotel.serializers import GuestPendingCheckinSerializer
+    from hotel.reservations.serializers import GuestPendingCheckinSerializer
 
     person = GuestFactory(full_name="Dupla Funcao")
     later = book(actor=actor, guest=person, checkin=MARCH_11, checkout=date(2025, 3, 13))
@@ -226,7 +226,7 @@ def test_pending_merges_own_and_companion_rows_in_date_order(actor):
 
 def test_statement_does_not_list_companions(actor):
     """O extrato e a conta, e a conta e do titular."""
-    from hotel.serializers import build_statement
+    from hotel.reservations.serializers import build_statement
 
     reservation = book(actor=actor, companions=[GuestFactory()])
     service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)

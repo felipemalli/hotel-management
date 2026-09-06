@@ -1,39 +1,32 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 
 from django.db.models import Exists, OuterRef, Prefetch, Q, QuerySet
 
-from hotel.models import Guest, PricingPolicy, Reservation, ReservationStatus, Room
-from hotel.normalization import normalize_document, normalize_phone
+from hotel.guests.selectors import guest_search_predicate
+from hotel.models import Guest, Reservation, ReservationStatus, Room
+from hotel.rooms.selectors import list_rooms
 
 ACTIVE_RESERVATIONS_ATTR = "active_reservations"
 PENDING_RESERVATIONS_ATTR = "pending_reservations"
 ACTIVE_COMPANION_RESERVATIONS_ATTR = "active_companion_reservations"
 PENDING_COMPANION_RESERVATIONS_ATTR = "pending_companion_reservations"
 
+OCCUPYING_STATUSES = (ReservationStatus.PENDING, ReservationStatus.CHECKED_IN)
 
-def _guest_search_predicate(term: str) -> Q:
-    predicate = Q(full_name__icontains=term)
-
-    document = normalize_document(term)
-    if document:
-        predicate |= Q(document__icontains=document)
-
-    phone = normalize_phone(term)
-    if phone:
-        predicate |= Q(phone__icontains=phone)
-
-    return predicate
-
-
-def search_guests(term: str | None = None) -> QuerySet[Guest]:
-    queryset = Guest.objects.all()
-    term = (term or "").strip()
-    if not term:
-        return queryset
-
-    return queryset.filter(_guest_search_predicate(term))
+# Tudo que ReservationSerializer le fora da linha. Sem isto, 20 linhas x 6
+# relacoes = 120 consultas.
+RESERVATION_RELATIONS = (
+    "guest",
+    "room",
+    "policy",
+    "created_by",
+    "checked_in_by",
+    "checked_out_by",
+    "cancelled_by",
+    "paid_by",
+)
 
 
 def _by_status(
@@ -51,7 +44,7 @@ def _by_status(
     # proprio nome continua na lista da aba.
     term = (search or "").strip()
     if term:
-        queryset = queryset.filter(_guest_search_predicate(term))
+        queryset = queryset.filter(guest_search_predicate(term))
 
     return queryset.prefetch_related(
         Prefetch("reservations", queryset=reservations, to_attr=attr_own),
@@ -75,20 +68,6 @@ def guests_pending_checkin(search: str | None = None) -> QuerySet[Guest]:
         attr_companion=PENDING_COMPANION_RESERVATIONS_ATTR,
         search=search,
     )
-
-
-# Tudo que ReservationSerializer le fora da linha. Sem isto, 20 linhas x 6
-# relacoes = 120 consultas.
-RESERVATION_RELATIONS = (
-    "guest",
-    "room",
-    "policy",
-    "created_by",
-    "checked_in_by",
-    "checked_out_by",
-    "cancelled_by",
-    "paid_by",
-)
 
 
 def reservation_queryset() -> QuerySet[Reservation]:
@@ -125,36 +104,15 @@ def _reservation_search_predicate(term: str) -> Q:
     return predicate
 
 
-def policy_in_force(at: datetime) -> PricingPolicy:
-    policy = (
-        PricingPolicy.objects.filter(effective_from__lte=at)
-        .order_by("-effective_from", "-id")
-        .first()
-    )
-    if policy is None:
-        # Banco sem bootstrap, nao erro do cliente. Um codigo de dominio fingiria
-        # que a requisicao resolve isso.
-        raise RuntimeError(
-            "nenhuma PricingPolicy vigente: o bootstrap nao foi aplicado (rode migrate)"
-        )
-    return policy
+def active_reservations_of(room: Room) -> QuerySet[Reservation]:
+    """Agenda viva do quarto. Encapsula os status: `rooms` nao os conhece."""
+    return room.reservations.filter(status__in=OCCUPYING_STATUSES)
 
 
-def list_policies() -> QuerySet[PricingPolicy]:
-    return PricingPolicy.objects.select_related("created_by").all()
-
-
-OCCUPYING_STATUSES = (ReservationStatus.PENDING, ReservationStatus.CHECKED_IN)
-
-
-def list_rooms(*, active_only: bool = True, search: str | None = None) -> QuerySet[Room]:
-    queryset = Room.objects.all()
-    if active_only:
-        queryset = queryset.filter(is_active=True)
-    search = (search or "").strip()
-    if search:
-        queryset = queryset.filter(number__icontains=search)
-    return queryset
+def largest_active_party(room: Room) -> int:
+    """Maior grupo ja aceito para o quarto; 0 sem reserva ativa."""
+    active = active_reservations_of(room)
+    return max((1 for _ in active), default=0)
 
 
 def _overlapping(checkin_date: date, checkout_date: date) -> QuerySet[Reservation]:

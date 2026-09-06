@@ -8,7 +8,10 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from hotel import selectors
+from core.errors import DomainValidationError, translate_integrity_error
+from hotel.billing import engine
+from hotel.billing import selectors as billing_selectors
+from hotel.billing.services import rate_table_of
 from hotel.models import (
     RESV_ONE_ACTIVE_PER_ROOM,
     RESV_ROOM_NO_OVERLAP,
@@ -19,14 +22,12 @@ from hotel.models import (
     Room,
     StatementLine,
 )
-from hotel.services import pricing
-from hotel.services.catalog import rate_table_of
-from hotel.services.errors import (
-    DomainError,
-    DomainValidationError,
-    translate_integrity_error,
+from hotel.reservations import selectors
+from hotel.reservations.errors import (
+    EarlyCheckinError,
+    InvalidStatusError,
+    RoomUnavailableError,
 )
-from hotel.services.pricing import Bill
 
 if TYPE_CHECKING:  # pragma: no cover
     from django.contrib.auth.models import AbstractBaseUser
@@ -61,26 +62,6 @@ SYNCED_FIELDS = (
     "late_fee_base",
     "total_amount",
 )
-
-
-class ReservationError(DomainError):
-    code = "INVALID_STATUS"
-    default_detail = "Operação inválida para esta reserva."
-
-
-class InvalidStatusError(ReservationError):
-    code = "INVALID_STATUS"
-    default_detail = "Transição de status inválida."
-
-
-class RoomUnavailableError(ReservationError):
-    code = "ROOM_UNAVAILABLE"
-    default_detail = "Quarto indisponível para o período."
-
-
-class EarlyCheckinError(ReservationError):
-    code = "EARLY_CHECKIN"
-    default_detail = "Check-in permitido a partir das 14:00."
 
 
 def create_reservation(
@@ -146,11 +127,11 @@ def check_in(
         _assert_room_ready(locked, now=now)
 
         # Cedo ou nao usa a politica vigente agora; a amarracao e duas linhas abaixo.
-        policy = selectors.policy_in_force(now)
+        policy = billing_selectors.policy_in_force(now)
         rates = rate_table_of(policy)
 
         local_now = timezone.localtime(now)
-        if pricing.early_checkin(local_now, rates) and not allow_early:
+        if engine.early_checkin(local_now, rates) and not allow_early:
             opens_at = f"{rates.checkin_opens:%H:%M}"
             raise EarlyCheckinError(
                 detail=f"Check-in permitido a partir das {opens_at}.",
@@ -173,7 +154,7 @@ def check_in(
     return _sync(reservation, locked)
 
 
-def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) -> Bill:
+def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) -> engine.Bill:
     with transaction.atomic():
         locked = _lock(reservation)
         _assert_transition(locked, ReservationStatus.CHECKED_OUT)
@@ -181,7 +162,7 @@ def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUse
             raise InvalidStatusError("Reserva sem check-in registrado.")
 
         # Cobranca pelos fatos, em hora local, com a politica amarrada no check-in.
-        bill = pricing.calculate_bill(
+        bill = engine.calculate_bill(
             checkin=timezone.localtime(locked.checked_in_at),
             checkout=timezone.localtime(now),
             has_vehicle=locked.has_vehicle,
@@ -234,15 +215,15 @@ def cancel(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) 
     return _sync(reservation, locked)
 
 
-def statement(reservation: Reservation) -> Bill:
+def statement(reservation: Reservation) -> engine.Bill:
     """Reemite o snapshot congelado. Nao recomputa."""
     if reservation.status != ReservationStatus.CHECKED_OUT:
         raise InvalidStatusError("Extrato disponível apenas após o checkout.")
 
     lines = [
-        pricing.BillLine(
+        engine.BillLine(
             date=line.date,
-            weekday_label=pricing.weekday_label(line.date),
+            weekday_label=engine.weekday_label(line.date),
             daily_rate=line.daily_rate,
             parking_fee=line.parking_fee,
         )
@@ -251,7 +232,7 @@ def statement(reservation: Reservation) -> Bill:
     if not lines:
         raise InvalidStatusError("Extrato indisponível: esta reserva não tem linhas gravadas.")
 
-    return Bill(
+    return engine.Bill(
         lines=lines,
         subtotal_daily=reservation.total_daily,
         subtotal_parking=reservation.total_parking,

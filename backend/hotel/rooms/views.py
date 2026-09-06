@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from django.utils import timezone
 from drf_spectacular.utils import (
     OpenApiExample,
     OpenApiParameter,
@@ -8,22 +7,16 @@ from drf_spectacular.utils import (
     extend_schema_view,
 )
 from rest_framework import mixins, status, viewsets
-from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from accounts.permissions import IsHotelAdmin
-from hotel import selectors
+from core.openapi import PERMISSION_DENIED_RESPONSE, ROOMS_TAG
+from core.serializers import ErrorEnvelopeSerializer
 from hotel.models import Room
-from hotel.serializers import (
-    ErrorEnvelopeSerializer,
-    RoomAvailabilityQuerySerializer,
-    RoomCreateSerializer,
-    RoomSerializer,
-    RoomUpdateSerializer,
-)
-from hotel.services import catalog as catalog_service
-from hotel.views.openapi import PERMISSION_DENIED_RESPONSE, ROOMS_TAG
+from hotel.rooms import selectors
+from hotel.rooms import services as catalog_service
+from hotel.rooms.serializers import RoomCreateSerializer, RoomSerializer, RoomUpdateSerializer
 
 
 @extend_schema(tags=[ROOMS_TAG])
@@ -119,30 +112,6 @@ class RoomViewSet(
         payload.is_valid(raise_exception=True)
         updated = catalog_service.update_room(room, **payload.validated_data)
         return Response(RoomSerializer(updated).data)
-
-    @extend_schema(
-        summary="Quartos disponíveis para um período",
-        description=(
-            "Ativos, com capacidade suficiente e sem reserva ativa cruzando o "
-            "intervalo. Quando o período começa hoje ou antes, quartos com hóspede "
-            "ainda dentro (`CHECKED_IN` de qualquer data) também saem da lista — "
-            "a agenda pode ter liberado, o quarto não (D6/D7/D14)."
-        ),
-        parameters=[RoomAvailabilityQuerySerializer],
-        responses={200: RoomSerializer(many=True), 400: ErrorEnvelopeSerializer},
-    )
-    @action(detail=False, methods=["get"], url_path="available")
-    def available(self, request: Request) -> Response:
-        query = RoomAvailabilityQuerySerializer(data=request.query_params)
-        query.is_valid(raise_exception=True)
-        rooms = selectors.available_rooms(
-            **query.validated_data,
-            today=timezone.localdate(),
-        )
-        page = self.paginate_queryset(rooms)
-        if page is not None:
-            return self.get_paginated_response(RoomSerializer(page, many=True).data)
-        return Response(RoomSerializer(rooms, many=True).data)
 
 
 __all__ = ["RoomViewSet"]

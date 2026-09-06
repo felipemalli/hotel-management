@@ -10,10 +10,11 @@ from django.utils import timezone
 from freezegun import freeze_time
 
 from accounts.models import Role
-from hotel import selectors
+from hotel.guests import selectors as guest_selectors
+from hotel.guests import services as guests_service
 from hotel.models import Guest, Reservation, ReservationStatus
-from hotel.services import guests as guests_service
-from hotel.services import reservations as reservations_service
+from hotel.reservations import selectors
+from hotel.reservations import services as reservations_service
 
 pytestmark = pytest.mark.django_db
 
@@ -34,7 +35,7 @@ def test_seed_populates_the_three_tabs():
         "Bruno Lima",
         "Eva Lima",
     ]
-    assert selectors.search_guests("Davi").count() == 1
+    assert guest_selectors.search_guests("Davi").count() == 1
 
 
 def test_seed_freezes_a_weekend_statement_with_a_late_fee():

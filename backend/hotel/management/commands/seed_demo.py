@@ -8,10 +8,10 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Role
+from hotel.guests import services as guest_services
+from hotel.guests.normalization import normalize_document
 from hotel.models import Guest, Reservation, ReservationStatus, Room
-from hotel.normalization import normalize_document
-from hotel.services import guests as guest_services
-from hotel.services import reservations as reservation_services
+from hotel.reservations import services as reservation_services
 
 ATTENDANT_USERNAME = "atendente"
 ATTENDANT_PASSWORD = "atendente123"

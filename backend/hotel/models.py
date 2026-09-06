@@ -11,7 +11,7 @@ from django.db import models
 from django.db.models import F, Func, Q
 from django.db.models.functions import Upper
 
-from hotel.normalization import (
+from hotel.guests.normalization import (
     DOCUMENT_MAX_LENGTH,
     PHONE_MAX_LENGTH,
     normalize_country,

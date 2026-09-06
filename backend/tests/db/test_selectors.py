@@ -3,8 +3,10 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from hotel import selectors
+from hotel.guests import selectors as guest_selectors
 from hotel.models import ReservationStatus
+from hotel.reservations import selectors
+from hotel.rooms import selectors as room_selectors
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory
 
 pytestmark = pytest.mark.django_db
@@ -16,10 +18,10 @@ def test_search_name_fragment():
     mariana = GuestFactory(full_name="Mariana Costa")
     bruno = GuestFactory(full_name="Bruno Lima")
 
-    assert set(selectors.search_guests("ana")) == {ana, mariana}
-    assert set(selectors.search_guests("SOU")) == {ana}
-    assert set(selectors.search_guests("  bruno  ")) == {bruno}
-    assert list(selectors.search_guests("inexistente")) == []
+    assert set(guest_selectors.search_guests("ana")) == {ana, mariana}
+    assert set(guest_selectors.search_guests("SOU")) == {ana}
+    assert set(guest_selectors.search_guests("  bruno  ")) == {bruno}
+    assert list(guest_selectors.search_guests("inexistente")) == []
 
 
 def test_search_document_any_format():
@@ -28,23 +30,23 @@ def test_search_document_any_format():
     GuestFactory(full_name="Bruno Lima", document="987.654.321-00")
 
     for term in ["123.456.789-01", "12345678901", "123 456 789 01"]:
-        assert set(selectors.search_guests(term)) == {ana}, term
+        assert set(guest_selectors.search_guests(term)) == {ana}, term
 
 
 def test_search_document_by_fragment():
     """D5: fragmento de documento acha -- cifra nao esta mais no caminho."""
     ana = GuestFactory(full_name="Ana Souza", document="123.456.789-01")
 
-    assert set(selectors.search_guests("789")) == {ana}
-    assert set(selectors.search_guests("789-01")) == {ana}
+    assert set(guest_selectors.search_guests("789")) == {ana}
+    assert set(guest_selectors.search_guests("789-01")) == {ana}
 
 
 def test_search_phone_by_fragment():
     """D5: fragmento de telefone acha, com ou sem mascara no termo."""
     ana = GuestFactory(full_name="Ana Souza", phone="+55 21 98888-7777")
 
-    assert set(selectors.search_guests("98888")) == {ana}
-    assert set(selectors.search_guests("888-7777")) == {ana}
+    assert set(guest_selectors.search_guests("98888")) == {ana}
+    assert set(guest_selectors.search_guests("888-7777")) == {ana}
 
 
 def test_search_phone_any_format():
@@ -53,7 +55,7 @@ def test_search_phone_any_format():
     GuestFactory(full_name="Bruno Lima", phone="+55 11 97777-6666")
 
     for term in ["+55 21 98888-7777", "5521988887777", "21 98888 7777", "98888"]:
-        assert set(selectors.search_guests(term)) == {ana}, term
+        assert set(guest_selectors.search_guests(term)) == {ana}, term
 
 
 def test_search_passport_does_not_collide_with_another_passport():
@@ -61,21 +63,21 @@ def test_search_passport_does_not_collide_with_another_passport():
     carla = GuestFactory(full_name="Carla Nunes", document="AB123456")
     GuestFactory(full_name="Davi Rocha", document="CD123456")
 
-    assert set(selectors.search_guests("ab123456")) == {carla}
+    assert set(guest_selectors.search_guests("ab123456")) == {carla}
 
 
 def test_search_without_term_lists_everyone():
     guests = {GuestFactory(), GuestFactory()}
 
-    assert set(selectors.search_guests()) == guests
-    assert set(selectors.search_guests("   ")) == guests
+    assert set(guest_selectors.search_guests()) == guests
+    assert set(guest_selectors.search_guests("   ")) == guests
 
 
 def test_search_term_without_alphanumerics_matches_nothing():
     """Termo so de separadores nao gera predicado de documento/telefone vazio."""
     GuestFactory(full_name="Ana Souza", document="123.456.789-01")
 
-    assert list(selectors.search_guests("()-.")) == []
+    assert list(guest_selectors.search_guests("()-.")) == []
 
 
 def test_in_hotel_only_checked_in():
@@ -186,7 +188,7 @@ def test_list_rooms_filters_by_search():
     room_101 = RoomFactory(number="101")
     room_301 = RoomFactory(number="301")
 
-    assert set(selectors.list_rooms(search="101")) == {room_101}
-    assert set(selectors.list_rooms(search="30")) == {room_301}
-    assert set(selectors.list_rooms(search="inexistente")) == set()
-    assert set(selectors.list_rooms()) == {room_101, room_301}
+    assert set(room_selectors.list_rooms(search="101")) == {room_101}
+    assert set(room_selectors.list_rooms(search="30")) == {room_301}
+    assert set(room_selectors.list_rooms(search="inexistente")) == set()
+    assert set(room_selectors.list_rooms()) == {room_101, room_301}

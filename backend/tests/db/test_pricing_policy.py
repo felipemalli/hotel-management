@@ -4,11 +4,11 @@ from decimal import Decimal
 import pytest
 from django.db import IntegrityError, transaction
 
+from hotel.billing import engine as pricing
+from hotel.billing.selectors import policy_in_force
+from hotel.billing.services import create_policy, rate_table_of
 from hotel.models import PricingPolicy, ReservationStatus
-from hotel.selectors import policy_in_force
-from hotel.services import pricing
-from hotel.services import reservations as service
-from hotel.services.catalog import create_policy, rate_table_of
+from hotel.reservations import services as service
 from tests.factories import PricingPolicyFactory, ReservationFactory, UserFactory
 
 pytestmark = pytest.mark.django_db

@@ -2,7 +2,6 @@ from csp.decorators import csp_exempt
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from rest_framework.routers import SimpleRouter
 
 from accounts.views import (
     CurrentUserView,
@@ -11,18 +10,6 @@ from accounts.views import (
     RefreshFromCookieView,
 )
 from config.health import health
-from hotel.views import (
-    GuestViewSet,
-    PricingPolicyViewSet,
-    ReservationViewSet,
-    RoomViewSet,
-)
-
-router = SimpleRouter()
-router.register("guests", GuestViewSet, basename="guest")
-router.register("reservations", ReservationViewSet, basename="reservation")
-router.register("pricing-policies", PricingPolicyViewSet, basename="pricing-policy")
-router.register("rooms", RoomViewSet, basename="room")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -32,7 +19,13 @@ urlpatterns = [
     path("api/auth/token/refresh/", RefreshFromCookieView.as_view(), name="token_refresh"),
     path("api/auth/logout/", LogoutView.as_view(), name="logout"),
     path("api/auth/me/", CurrentUserView.as_view(), name="current_user"),
-    path("api/", include(router.urls)),
+    # `reservations` antes de `guests`/`rooms`: as leituras cruzadas
+    # (`/guests/in-hotel/`, `/guests/pending-checkin/`, `/rooms/available/`)
+    # moram nele, e o detail `/guests/{pk}/` casaria `in-hotel` primeiro.
+    path("api/", include("hotel.reservations.urls")),
+    path("api/", include("hotel.guests.urls")),
+    path("api/", include("hotel.rooms.urls")),
+    path("api/", include("hotel.billing.urls")),
     path("api/ai/", include("ai.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     # Bootstrap inline do Swagger nao passa por default-src 'self'.

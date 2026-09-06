@@ -5,9 +5,9 @@ from zoneinfo import ZoneInfo
 import pytest
 from django.db import IntegrityError, transaction
 
+from hotel.billing import engine as pricing
 from hotel.models import PaymentMethod, Reservation, ReservationStatus, StatementLine
-from hotel.services import pricing
-from hotel.services import reservations as service
+from hotel.reservations import services as service
 from tests.factories import PricingPolicyFactory, ReservationFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -171,7 +171,7 @@ def test_paid_requires_checked_out_constraint(actor):
 
 
 def test_statement_carries_the_payment_after_it_is_registered(actor):
-    from hotel.serializers import build_statement
+    from hotel.reservations.serializers import build_statement
 
     reservation = t7_checked_out(actor)
     assert build_statement(reservation, service.statement(reservation))["payment"] is None

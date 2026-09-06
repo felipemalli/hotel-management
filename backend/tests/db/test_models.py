@@ -3,8 +3,8 @@ from datetime import timedelta
 import pytest
 from django.db import IntegrityError, connection, transaction
 
+from hotel.guests.normalization import normalize_document, normalize_phone
 from hotel.models import Guest, ReservationStatus
-from hotel.normalization import normalize_document, normalize_phone
 from tests.factories import GuestFactory, ReservationFactory, local_datetime
 
 pytestmark = pytest.mark.django_db

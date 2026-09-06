@@ -5,10 +5,11 @@ from zoneinfo import ZoneInfo
 import pytest
 from django.db import IntegrityError, transaction
 
+from core import errors
+from hotel.guests import services as guests_service
 from hotel.models import GUEST_DOCUMENT_UNIQUE, Guest, Reservation, ReservationStatus
-from hotel.services import errors
-from hotel.services import guests as guests_service
-from hotel.services import reservations as service
+from hotel.reservations import services as service
+from hotel.reservations.errors import ReservationError
 from tests.factories import GuestFactory, ReservationFactory, RoomFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -552,7 +553,7 @@ def test_statement_requires_checkout():
 
 def test_domain_error_carries_the_envelope_defaults():
     """SPEC 4.1: cada erro de dominio sabe o proprio `code`."""
-    error = service.ReservationError()
+    error = ReservationError()
 
     assert error.code == "INVALID_STATUS"
     assert error.detail

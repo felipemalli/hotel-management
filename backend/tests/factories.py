@@ -9,6 +9,7 @@ from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 
 from accounts.models import Role
+from hotel.billing import engine as pricing
 from hotel.models import (
     Guest,
     PricingPolicy,
@@ -17,7 +18,6 @@ from hotel.models import (
     Room,
     StatementLine,
 )
-from hotel.services import pricing
 
 CHECKIN_TIME = time(15, 0)
 CHECKOUT_TIME = time(11, 0)

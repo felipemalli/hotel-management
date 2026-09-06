@@ -1,6 +1,6 @@
 import pytest
 
-from hotel.normalization import (
+from hotel.guests.normalization import (
     ISO_3166_ALPHA2,
     normalize_country,
     normalize_document,

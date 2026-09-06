@@ -1,32 +1,6 @@
 from __future__ import annotations
 
-from drf_spectacular.utils import OpenApiExample, OpenApiResponse
-
-from core.openapi import (
-    GUESTS_TAG,
-    PERMISSION_DENIED_RESPONSE,
-    PRICING_TAG,
-    RESERVATIONS_TAG,
-    ROOMS_TAG,
-)
-from core.serializers import ErrorEnvelopeSerializer
-
-DUPLICATE_DOCUMENT_RESPONSE = OpenApiResponse(
-    response=ErrorEnvelopeSerializer,
-    description="Documento já cadastrado (D12).",
-    examples=[
-        OpenApiExample(
-            "DUPLICATE_DOCUMENT",
-            value={
-                "code": "DUPLICATE_DOCUMENT",
-                "detail": "Documento já cadastrado para outro hóspede.",
-                "extra": {},
-            },
-            response_only=True,
-        )
-    ],
-)
-
+from drf_spectacular.utils import OpenApiExample
 
 ROOM_UNAVAILABLE_EXAMPLE = OpenApiExample(
     "ROOM_UNAVAILABLE",
@@ -83,13 +57,7 @@ T7_STATEMENT_EXAMPLE = OpenApiExample(
 )
 
 __all__ = [
-    "DUPLICATE_DOCUMENT_RESPONSE",
-    "GUESTS_TAG",
     "INVALID_STATUS_EXAMPLE",
-    "PERMISSION_DENIED_RESPONSE",
-    "PRICING_TAG",
-    "ROOMS_TAG",
     "ROOM_UNAVAILABLE_EXAMPLE",
-    "RESERVATIONS_TAG",
     "T7_STATEMENT_EXAMPLE",
 ]

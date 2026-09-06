@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from hotel.services import pricing
+from hotel.billing import engine as pricing
 
 D = Decimal
 

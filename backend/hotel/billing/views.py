@@ -8,15 +8,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from accounts.permissions import IsHotelAdmin
-from hotel import selectors
+from core.openapi import PERMISSION_DENIED_RESPONSE, PRICING_TAG
+from core.serializers import ErrorEnvelopeSerializer
+from hotel.billing import selectors
+from hotel.billing import services as billing_service
+from hotel.billing.serializers import PricingPolicyCreateSerializer, PricingPolicySerializer
 from hotel.models import PricingPolicy
-from hotel.serializers import (
-    ErrorEnvelopeSerializer,
-    PricingPolicyCreateSerializer,
-    PricingPolicySerializer,
-)
-from hotel.services import catalog as catalog_service
-from hotel.views.openapi import PERMISSION_DENIED_RESPONSE, PRICING_TAG
 
 
 @extend_schema(tags=[PRICING_TAG])
@@ -86,7 +83,7 @@ class PricingPolicyViewSet(
     def create(self, request: Request, *args, **kwargs) -> Response:
         serializer = PricingPolicyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        policy = catalog_service.create_policy(
+        policy = billing_service.create_policy(
             **serializer.validated_data,
             actor=request.user,
             now=timezone.now(),

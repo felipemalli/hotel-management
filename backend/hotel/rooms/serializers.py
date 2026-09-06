@@ -32,17 +32,3 @@ class RoomCreateSerializer(serializers.ModelSerializer):
 class RoomUpdateSerializer(serializers.Serializer):
     capacity = serializers.IntegerField(min_value=1, required=False)
     is_active = serializers.BooleanField(required=False)
-
-
-class RoomAvailabilityQuerySerializer(serializers.Serializer):
-    checkin_date = serializers.DateField()
-    checkout_date = serializers.DateField()
-    people = serializers.IntegerField(min_value=1, default=1)
-
-    def validate(self, attrs: dict) -> dict:
-        # Forma, nao regra de negocio: daterange invertido levanta DataError no PG.
-        if attrs["checkout_date"] <= attrs["checkin_date"]:
-            raise serializers.ValidationError(
-                {"checkout_date": ["A data de saída deve ser posterior à de entrada."]}
-            )
-        return attrs
