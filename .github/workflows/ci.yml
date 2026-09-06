@@ -59,6 +59,9 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
+      - name: Grafo de dependencias entre apps
+        run: uv run lint-imports
+
       - name: Migracoes conferem com os models
         run: uv run python manage.py makemigrations --check --dry-run
 

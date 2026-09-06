@@ -25,6 +25,7 @@ dev = [
     "factory-boy",
     "freezegun",
     "ruff",
+    "import-linter>=2.1",
 ]
 
 [tool.ruff]
@@ -53,3 +54,25 @@ omit = ["*/migrations/*"]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
 addopts = "-ra"
+
+[tool.importlinter]
+root_packages = ["core", "accounts", "hotel", "ai", "config"]
+exclude_type_checking_imports = true
+
+[[tool.importlinter.contracts]]
+name = "DAG: ai -> reservations -> folhas -> (core | accounts)"
+type = "layers"
+layers = ["ai", "hotel.reservations", "hotel.guests | hotel.rooms | hotel.billing", "core | accounts"]
+ignore_imports = ["hotel.rooms.services -> hotel.reservations.selectors"]   # unica excecao documentada (ARQUITECTURE.md)
+
+[[tool.importlinter.contracts]]
+name = "billing nao conhece o resto do dominio"
+type = "forbidden"
+source_modules = ["hotel.billing"]
+forbidden_modules = ["hotel.guests", "hotel.rooms", "hotel.reservations", "ai"]
+
+[[tool.importlinter.contracts]]
+name = "core e accounts sao folhas; ninguem do dominio importa ai ou config"
+type = "forbidden"
+source_modules = ["core", "accounts", "hotel"]
+forbidden_modules = ["ai", "config"]
