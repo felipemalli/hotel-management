@@ -1,0 +1,1 @@
+export { IrisPage } from './IrisPage'

@@ -20,6 +20,9 @@ const PricingPage = lazy(() =>
 const RoomsPage = lazy(() =>
   import('@/pages/RoomsPage').then((module) => ({ default: module.RoomsPage })),
 )
+const IrisPage = lazy(() =>
+  import('@/pages/IrisPage').then((module) => ({ default: module.IrisPage })),
+)
 const ReservationDetailPage = lazy(() =>
   import('@/pages/ReservationDetailPage').then((module) => ({
     default: module.ReservationDetailPage,
@@ -42,6 +45,7 @@ export function AppRoutes() {
           }
         >
           <Route path={ROUTES.home} element={<DashboardPage />} />
+          <Route path={ROUTES.iris} element={<IrisPage />} />
           <Route path={ROUTES.reservations} element={<ReservationsPage />} />
           <Route path={`${ROUTES.reservations}/:id`} element={<ReservationDetailPage />} />
           <Route path={ROUTES.rooms} element={<RoomsPage />} />

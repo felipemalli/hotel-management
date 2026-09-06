@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui'
-import { AiFillGuest } from '@/features/ai/AiFillGuest'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { COUNTRY_OPTIONS } from '@/lib/format/countries'
 import { applyServerErrors } from '@/lib/forms/forms'
@@ -35,13 +34,11 @@ export interface GuestFormProps {
 export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
   const {
     control,
-    clearErrors,
     formState: { errors },
     handleSubmit,
     register,
     reset,
     setError,
-    setValue,
   } = useForm<CreateGuestPayload>({
     resolver: zodResolver(guestFormSchema),
     mode: 'onSubmit',
@@ -74,14 +71,6 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
       {rootError ? <Alert tone="error">{rootError}</Alert> : null}
 
-      <AiFillGuest
-        onFilled={(fields) => {
-          if (fields.full_name) setValue('full_name', fields.full_name)
-          if (fields.document) setValue('document', fields.document)
-          if (fields.phone) setValue('phone', fields.phone)
-          clearErrors()
-        }}
-      />
       <FormField label="Nome completo" error={errors.full_name?.message}>
         {(control) => <Input {...control} {...register('full_name')} />}
       </FormField>

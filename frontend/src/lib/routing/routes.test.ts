@@ -11,5 +11,6 @@ describe('ROUTES', () => {
     expect(ROUTES.reservations).toBe('/reservas')
     expect(ROUTES.rooms).toBe('/quartos')
     expect(ROUTES.pricing).toBe('/tarifas')
+    expect(ROUTES.iris).toBe('/iris')
   })
 })

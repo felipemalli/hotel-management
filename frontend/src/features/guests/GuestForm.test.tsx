@@ -10,7 +10,6 @@ import { GuestForm } from './GuestForm'
 import { PHONE_FORMAT_MESSAGE } from './schemas'
 
 vi.mock('@/features/guests/api')
-vi.mock('@/features/ai/api')
 
 // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
 describe('GuestForm · RF1', () => {

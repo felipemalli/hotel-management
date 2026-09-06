@@ -3,10 +3,11 @@ import { defineConfig, devices } from '@playwright/test'
 const CI = !!process.env.CI
 
 // Gunicorn (`config.wsgi`), não `runserver`. THROTTLE_LOGIN alto para o login
-// repetido; ANTHROPIC_API_KEY vazio tira o botão de IA do cadastro.
+// repetido; as chaves do Gemini vazias desligam a Íris — nenhum spec a exercita,
+// e a suíte não fala com o provedor.
 const BACKEND_COMMAND =
   '[ -f ../.env ] && . ../.env; ' +
-  'THROTTLE_LOGIN=1000/min THROTTLE_REFRESH=1000/min ANTHROPIC_API_KEY= ' +
+  'THROTTLE_LOGIN=1000/min THROTTLE_REFRESH=1000/min GEMINI_API_KEY= GEMINI_API_KEY_PAID= ' +
   'uv run gunicorn config.wsgi -b 127.0.0.1:8000'
 
 export default defineConfig({

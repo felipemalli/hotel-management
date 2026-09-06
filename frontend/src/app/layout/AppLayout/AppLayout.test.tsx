@@ -17,6 +17,7 @@ function renderLayout(route: string = ROUTES.home, page = <p>conteúdo</p>) {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path={ROUTES.home} element={page} />
+        <Route path={ROUTES.iris} element={page} />
         <Route path={ROUTES.reservations} element={page} />
         <Route path={`${ROUTES.reservations}/:id`} element={page} />
       </Route>
@@ -62,6 +63,13 @@ describe('AppLayout', () => {
     expect(screen.getByRole('link', { name: 'Hóspedes' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Reservas' })).not.toHaveAttribute('aria-current')
     expect(nav).toBeInTheDocument()
+  })
+
+  it('marca a Iris na sua rota e desmarca a recepcao', () => {
+    renderLayout(ROUTES.iris)
+
+    expect(screen.getByRole('link', { name: 'Íris' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Hóspedes' })).not.toHaveAttribute('aria-current')
   })
 
   // `end` só na Hóspedes: `/reservas/7` ainda é "Reservas".

@@ -1,4 +1,4 @@
-import { Banknote, BedDouble, CalendarCheck, ConciergeBell } from 'lucide-react'
+import { Banknote, BedDouble, CalendarCheck, ConciergeBell, Sparkles } from 'lucide-react'
 import { Suspense } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
@@ -22,6 +22,7 @@ const NAV_GROUPS = [
   {
     label: 'OPERAÇÃO',
     items: [
+      { to: ROUTES.iris, label: 'Íris', end: true, icon: Sparkles },
       { to: ROUTES.home, label: 'Hóspedes', end: true, icon: ConciergeBell },
       { to: ROUTES.reservations, label: 'Reservas', end: false, icon: CalendarCheck },
     ],
