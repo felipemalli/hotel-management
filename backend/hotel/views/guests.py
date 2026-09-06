@@ -23,7 +23,6 @@ from hotel.serializers import (
 from hotel.services import guests as guests_service
 from hotel.views.openapi import DUPLICATE_DOCUMENT_RESPONSE, GUESTS_TAG
 
-
 GUEST_SEARCH_PARAMETER = OpenApiParameter(
     name="search",
     description="Nome, documento ou telefone, por fragmento.",

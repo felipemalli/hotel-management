@@ -1,23 +1,12 @@
+"""Shim parcial: os helpers genericos vivem em `core.serializers` / `core.money`."""
+
 from __future__ import annotations
 
-from typing import Any
-
-from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from core.money import MONEY
+from core.serializers import ErrorEnvelopeSerializer, UserMinimalSerializer, money_field
 from hotel.models import Guest
-
-MONEY = {"max_digits": 10, "decimal_places": 2}
-
-
-def money_field(**kwargs: Any) -> serializers.DecimalField:
-    return serializers.DecimalField(**MONEY, **kwargs)
-
-
-class ErrorEnvelopeSerializer(serializers.Serializer):
-    code = serializers.CharField()
-    detail = serializers.CharField()
-    extra = serializers.DictField()
 
 
 class GuestMinimalSerializer(serializers.ModelSerializer):
@@ -27,8 +16,10 @@ class GuestMinimalSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class UserMinimalSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = get_user_model()
-        fields = ["id", "username"]
-        read_only_fields = fields
+__all__ = [
+    "MONEY",
+    "ErrorEnvelopeSerializer",
+    "GuestMinimalSerializer",
+    "UserMinimalSerializer",
+    "money_field",
+]

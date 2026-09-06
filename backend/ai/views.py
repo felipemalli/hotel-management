@@ -14,7 +14,7 @@ from ai.serializers import (
     ParsedGuestSerializer,
     ParseGuestRequestSerializer,
 )
-from hotel.serializers import ErrorEnvelopeSerializer
+from core.serializers import ErrorEnvelopeSerializer
 
 AI_TAG = "ai"
 

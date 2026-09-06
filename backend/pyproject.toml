@@ -34,6 +34,11 @@ target-version = "py313"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "DJ"]
 
+[tool.ruff.lint.isort]
+# `core` e `tests` sao pacotes do repositorio, nao dependencias: sem isto o
+# ruff os agruparia com os de terceiros conforme o que estiver instalado.
+known-first-party = ["accounts", "ai", "config", "core", "hotel", "tests"]
+
 [tool.ruff.lint.per-file-ignores]
 # Migracoes sao geradas pelo Django; nao se reformatam a mao.
 "*/migrations/*" = ["E501", "I001"]

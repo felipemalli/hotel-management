@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from rest_framework import status
 
-from hotel.exceptions import ApiError
+from core.exceptions import ApiError
 
 
 class AiDisabledError(ApiError):

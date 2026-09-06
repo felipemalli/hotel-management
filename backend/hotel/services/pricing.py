@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
+
+from core.money import ZERO, quantize_money
 
 CHECKIN_OPENS = time(14, 0, 0)  # permitido se hora local >= isto; 14:00:00 nao e cedo
 CHECKOUT_LIMIT = time(12, 0, 0)  # multa se hora local > isto; 12:00:00 e isento
-
-ZERO = Decimal("0.00")
-CENTS = Decimal("0.01")
 
 WEEKEND_WEEKDAYS = frozenset({5, 6})  # sabado, domingo
 WEEKDAY_LABELS = (
@@ -62,10 +61,6 @@ class Bill:
     late_fee_base: Decimal | None
     late_fee: Decimal
     total: Decimal
-
-
-def quantize_money(value: Decimal) -> Decimal:
-    return value.quantize(CENTS, rounding=ROUND_HALF_UP)
 
 
 def is_weekend(day: date) -> bool:

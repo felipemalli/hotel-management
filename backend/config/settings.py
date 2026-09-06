@@ -160,7 +160,7 @@ REST_FRAMEWORK = {
     # Default do DRF (None) usa X-Forwarded-For. Gunicorn atende direto, entao
     # o cliente inventa o IP e zera o throttle. 0 = REMOTE_ADDR, ignora o header.
     "NUM_PROXIES": int(env("NUM_PROXIES", "0")),
-    "EXCEPTION_HANDLER": "hotel.exceptions.api_exception_handler",
+    "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
 }
 
 # O `exp` carimbado no login e o teto absoluto da sessao: renovar devolve um access
