@@ -330,10 +330,10 @@ def test_is_hotel_admin_accepts_role_or_superuser(traits, expected):
     """`role == ADMIN` OU superusuario -- e `is_staff` nao conta.
 
     O `or is_superuser` nao e cortesia: quem foi criado por `createsuperuser`
-    para o /admin/ nasce com o papel default e receberia 403 nas proprias rotas
-    administrativas da API. Ja `is_staff` sozinho e recusado de proposito: ele
-    significa "entra no /admin/", e o Django admin nao e caminho de escrita
-    deste dominio.
+    nasce com o papel default e receberia 403 nas proprias rotas administrativas
+    da API. Ja `is_staff` sozinho e recusado de proposito: sem o admin do Django
+    instalado a flag nao significa nada aqui, e privilegio nao se concede por
+    coluna sem semantica.
     """
     request = APIRequestFactory().get("/api/rooms/")
     request.user = UserFactory(username=f"papel-{'-'.join(traits) or 'nenhum'}", **traits)

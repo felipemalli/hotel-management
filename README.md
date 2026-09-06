@@ -16,7 +16,6 @@ que o briefing não pede fica de fora de propósito (§ [8](#8-escopo-deliberada
 | Aplicação | <http://localhost:5173> |
 | API | <http://localhost:8000/api/> |
 | Swagger (contrato navegável) | <http://localhost:8000/api/docs/> |
-| Admin do Django | <http://localhost:8000/admin/> |
 | Credenciais do seed | `atendente` / `atendente123` · `admin` / `admin123` |
 | Atenção | O esquema mudou (quarto obrigatório, nacionalidade obrigatória): rode `docker compose down -v` antes de subir sobre um volume antigo. |
 
@@ -100,10 +99,10 @@ Atendente: atendente / atendente123 | Admin: admin / admin123 | hospedes: 4 | re
 As duas contas são credenciais de **demonstração**, e as duas são usuários
 comuns: `is_staff=False` nas duas, inclusive na de `admin`. O papel
 (`role=ATTENDANT` / `role=ADMIN`) é do produto e decide o acesso às rotas
-administrativas da API; `is_staff` decide o acesso ao `/admin/` do Django, que
-**não** é caminho de escrita deste domínio (nenhum app em `hotel/` registra admin).
-Confundir os dois daria ao administrador do hotel uma porta que grava na base
-sem passar por nenhuma regra. Para o `/admin/`, rode `createsuperuser`.
+administrativas da API — é o único permissionamento que existe aqui. **O admin
+do Django não está instalado:** ele seria uma porta que grava na base sem passar
+por service nenhum, e nenhuma regra deste domínio sobreviveria a ela. Para
+inspecionar dados, use o Swagger (`/api/docs/`) ou `docker compose exec db psql`.
 `GET /api/auth/me/` devolve `{id, username, role}`: é como o frontend sabe se
 deve oferecer o painel administrativo.
 
@@ -142,8 +141,8 @@ número de pessoas numa reserva (D17):
 
 Dois usuários: **`atendente` / `atendente123`** faz o dia do balcão, e
 **`admin` / `admin123`** é quem também cadastra quarto e publica tarifa. Os
-dois têm `is_staff=False`: o papel é do produto, e o `/admin/` do Django não é
-caminho de escrita deste domínio.
+dois têm `is_staff=False`: o papel é do produto, e o admin do Django não está
+instalado.
 
 ### 1.4 Fluxo de demonstração (≈ 5 minutos)
 
@@ -256,7 +255,7 @@ set -a && . ../.env && set +a   # o Django lê variáveis do ambiente, não do .
 uv sync
 uv run python manage.py migrate
 uv run python manage.py createcachetable          # tabela do cache: sem ela o login responde 500
-uv run python manage.py collectstatic --noinput   # CSS do /admin/ e do Swagger com DEBUG=0
+uv run python manage.py collectstatic --noinput   # CSS do Swagger com DEBUG=0
 uv run python manage.py seed_demo
 uv run python manage.py runserver 0.0.0.0:8000
 
@@ -278,8 +277,8 @@ Três notas honestas sobre esse caminho:
 - o `collectstatic` está na lista pelo mesmo motivo que está na cadeia do
   Compose: com `DEBUG=0`, quem serve estático é o WhiteNoise a partir do
   `STATIC_ROOT`, e ele monta o índice dos arquivos **na subida**. Sem esse
-  passo (ou rodando-o com o servidor já no ar), `/admin/` e `/api/docs/`
-  respondem 200 mas sem CSS.
+  passo (ou rodando-o com o servidor já no ar), `/api/docs/` responde 200 mas
+  sem CSS.
 - `runserver` é servidor de desenvolvimento, sem gunicorn: o runtime
   **entregue e testado** é o da seção 1.
 

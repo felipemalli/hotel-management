@@ -1,5 +1,4 @@
 from csp.decorators import csp_exempt
-from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
@@ -12,7 +11,6 @@ from accounts.views import (
 from config.health import health
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("api/health/", health, name="health"),
     # SimpleJWT nasce com permission_classes = (), senao IsAuthenticated tranca o login.
     path("api/auth/token/", LoginView.as_view(), name="token_obtain_pair"),

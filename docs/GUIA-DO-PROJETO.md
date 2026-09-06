@@ -20,7 +20,7 @@ repetem:
 |---|---|
 | `README.md` (raiz) | **Como rodar.** Quickstart, variáveis de ambiente, geração de chaves, mapa da API, decisões de interpretação do briefing. |
 | `docs/GUIA-DO-PROJETO.md` (este) | **Como entender e onde mexer.** |
-| `docs/ARQUITETURA-BACKEND.md` | **Onde dói quando cresce.** Análise para arquiteto sênior: 13 tensões nomeadas, 5 opções de arquitetura, recomendação. Ignore-o até ter entendido este guia; depois ele é a leitura seguinte. |
+| `ARQUITECTURE.md` (raiz) | **Como o backend está organizado.** Pacotes, grafo de dependências, invariantes por domínio, ciclo estadia × conta. Ignore-o até ter entendido este guia; depois ele é a leitura seguinte. |
 
 Toda afirmação aqui tem `arquivo:linha` conferido por leitura. Os números de
 teste e as saídas de API foram obtidos rodando, não inferidos.
@@ -189,7 +189,6 @@ Django, e a unidade da qual as migrações são derivadas.
 accounts/            # 41 linhas de código (fora a migração gerada)
 ├── models.py        # CustomUser — 5 linhas
 ├── views.py         # login e refresh com limite de taxa
-├── admin.py         # registra o usuário no /admin/
 ├── apps.py          # metadados do app
 └── migrations/0001_initial.py
 

@@ -129,12 +129,11 @@ def test_seed_is_idempotent():
 
 
 def test_seed_creates_admin_role_without_staff_flag():
-    """A credencial de demo do papel ADMIN nao entra no /admin/ do Django.
+    """A credencial de demo do papel ADMIN nasce sem as flags do Django.
 
-    `is_staff` significa "entra no /admin/", e o Django admin gravaria no
-    dominio por fora dos services -- justo o que este projeto recusa (nao
-    existe `hotel/admin.py`). O papel do produto e a coluna `role`, e confundir
-    os dois daria ao admin do hotel um caminho de escrita sem regra nenhuma.
+    O papel do produto e a coluna `role`. `is_superuser` e o que importa aqui:
+    ele curto-circuita `IsHotelAdmin`, entao uma credencial de demo com senha
+    publicada nao pode carrega-lo.
     """
     run_seed()
 
@@ -161,7 +160,7 @@ def test_seed_demotes_an_existing_privileged_attendant():
 
     `get_or_create` nao toca em linha existente, entao um banco que subiu o
     compose antes da correcao guardaria para sempre um superusuario com a senha
-    publicada no README -- e o /admin/ nao passa pelo throttle do DRF.
+    publicada no README -- e superusuario passa por `IsHotelAdmin` sem ter o papel.
     """
     user_model = get_user_model()
     user_model.objects.create_user(

@@ -1,5 +1,3 @@
-# Decisões técnicas principais - backend
-
 ## Exceptions
 
 ### Envelope único
