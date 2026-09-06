@@ -5,6 +5,7 @@ import pytest
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from core.errors import DomainValidationError
 from hotel.reservations import selectors
 from hotel.reservations import services as service
 from hotel.reservations.models import Reservation, ReservationStatus
@@ -307,6 +308,21 @@ def test_update_room_changes_capacity():
 
     room.refresh_from_db()
     assert room.capacity == 4
+
+
+def test_update_room_refuses_capacity_below_an_active_party():
+    room = RoomFactory(capacity=3)
+    reservation = ReservationFactory(room=room)
+    reservation.companions.set([GuestFactory(), GuestFactory()])
+
+    with pytest.raises(DomainValidationError) as excinfo:
+        catalog.update_room(room, capacity=2)
+
+    assert excinfo.value.extra["capacity"] == [
+        f"O quarto {room.number} tem reserva ativa para 3 pessoas."
+    ]
+    room.refresh_from_db()
+    assert room.capacity == 3
 
 
 def test_seed_dates_do_not_collide_in_the_same_room():

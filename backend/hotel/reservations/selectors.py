@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from django.db.models import Exists, OuterRef, Prefetch, Q, QuerySet
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q, QuerySet, Value
 
 from hotel.guests.models import Guest
 from hotel.guests.selectors import guest_search_predicate
@@ -113,8 +113,8 @@ def active_reservations_of(room: Room) -> QuerySet[Reservation]:
 
 def largest_active_party(room: Room) -> int:
     """Maior grupo ja aceito para o quarto; 0 sem reserva ativa."""
-    active = active_reservations_of(room)
-    return max((1 for _ in active), default=0)
+    parties = active_reservations_of(room).annotate(party=Value(1) + Count("companions"))
+    return max(parties.values_list("party", flat=True), default=0)
 
 
 def _overlapping(checkin_date: date, checkout_date: date) -> QuerySet[Reservation]:
