@@ -17,6 +17,5 @@ export function useAiStatus() {
 }
 
 export function useCopilot() {
-  // O wrapper de um argumento existe porque o v5 passa um contexto no segundo.
   return useMutation({ mutationFn: (message: string) => askCopilot(message) })
 }
