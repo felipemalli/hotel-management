@@ -140,8 +140,11 @@ def answer_call(
 
 
 def thought_step() -> dict[str, Any]:
-    """Step de raciocinio: volta assinado e o cliente o reenvia intacto."""
-    return {"type": "thought", "content": "vou procurar a reserva", "signature": "opaca-abc123"}
+    """Step de raciocinio, na forma real: so `type` e a assinatura opaca.
+
+    O conteudo nao volta; a assinatura, sim, e reenvia-la mexida e 400.
+    """
+    return {"type": "thought", "signature": "EpoCCpcCARFNMg8_GCT-Xh1Xna39mq03"}
 
 
 def model_output(text: str) -> dict[str, Any]:
@@ -153,7 +156,13 @@ def requires(*steps: dict) -> FakeResponse:
 
 
 def answered(*steps: dict) -> FakeResponse:
-    return FakeResponse(200, interaction_body(*steps, status="completed"))
+    """A rodada terminal.
+
+    `requires_action` de proposito: a API devolve esse status **mesmo** quando o
+    modelo chama a funcao terminal, entao o laco identifica o fim pelo nome da
+    funcao, nunca pelo status. Exigir `completed` aqui derrubaria toda resposta.
+    """
+    return FakeResponse(200, interaction_body(*steps))
 
 
 def find_call(status: str, query: str = "", call_id: str = "call_find") -> dict[str, Any]:
@@ -522,6 +531,18 @@ def test_copilot_answers_without_tools_when_none_is_needed(auth_client, ai_on, c
         "proposed_action": None,
     }
     assert len(calls) == 1
+
+
+def test_copilot_accepts_a_completed_status_on_the_terminal_round(auth_client, ai_on, calls):
+    """A API devolve `requires_action` na rodada terminal; `completed` tambem serve."""
+    calls.queue.append(
+        FakeResponse(200, interaction_body(answer_call("Tudo tranquilo."), status="completed"))
+    )
+
+    response = auth_client.post(COPILOT_URL, {"message": "como estamos?"}, format="json")
+
+    assert response.status_code == 200
+    assert response.data["reply"] == "Tudo tranquilo."
 
 
 def test_copilot_accepts_a_find_without_query_and_lists_everyone(auth_client, ai_on, calls, ana):
