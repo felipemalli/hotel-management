@@ -4,12 +4,27 @@ import { DEFAULT_STALE_TIME_MS } from '@/lib/api/queryClient'
 import { PRICING_ROOT } from '@/lib/api/queryKeys'
 import { useInvalidateServerState } from '@/lib/api/useInvalidateServerState'
 
-import { createPolicy, fetchCurrentPolicy, fetchPolicies } from './api'
-import type { CreatePolicyPayload, PricingPolicy } from './types'
+import { createPolicy, fetchCurrentPolicy, fetchPolicies, fetchStayQuote } from './api'
+import type { CreatePolicyPayload, PricingPolicy, StayQuoteQuery } from './types'
 
 export const pricingKeys = {
   current: [...PRICING_ROOT, 'current'] as const,
   list: (page: number) => [...PRICING_ROOT, 'list', { page }] as const,
+  quote: (query: StayQuoteQuery) => [...PRICING_ROOT, 'quote', query] as const,
+}
+
+export interface QueryOptions {
+  enabled?: boolean
+}
+
+export function useStayQuote(query: StayQuoteQuery, options?: QueryOptions) {
+  return useQuery({
+    queryKey: pricingKeys.quote(query),
+    queryFn: () => fetchStayQuote(query),
+    staleTime: DEFAULT_STALE_TIME_MS,
+    placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
+  })
 }
 
 export function useCurrentPolicy() {

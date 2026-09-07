@@ -1,7 +1,7 @@
 import { apiClient, type Paginated, parseResponse } from '@/lib/api/apiClient'
 
-import { pricingPolicyPageSchema, pricingPolicySchema } from './schemas'
-import type { CreatePolicyPayload, PricingPolicy } from './types'
+import { pricingPolicyPageSchema, pricingPolicySchema, stayQuoteSchema } from './schemas'
+import type { CreatePolicyPayload, PricingPolicy, StayQuote, StayQuoteQuery } from './types'
 
 export async function fetchPolicies(page: number): Promise<Paginated<PricingPolicy>> {
   const response = await apiClient.get<unknown>('/pricing-policies/', {
@@ -13,6 +13,11 @@ export async function fetchPolicies(page: number): Promise<Paginated<PricingPoli
 export async function fetchCurrentPolicy(): Promise<PricingPolicy> {
   const response = await apiClient.get<unknown>('/pricing-policies/current/')
   return parseResponse(pricingPolicySchema, response)
+}
+
+export async function fetchStayQuote(query: StayQuoteQuery): Promise<StayQuote> {
+  const response = await apiClient.get<unknown>('/pricing-policies/quote/', { params: query })
+  return parseResponse(stayQuoteSchema, response)
 }
 
 export async function createPolicy(payload: CreatePolicyPayload): Promise<PricingPolicy> {

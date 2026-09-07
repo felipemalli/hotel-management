@@ -18,6 +18,8 @@ import {
   Typography,
 } from '@/components/ui'
 import type { GuestRef } from '@/features/guests/types'
+import { useStayQuote } from '@/features/pricing/hooks'
+import { StayQuoteCard } from '@/features/pricing/StayQuoteCard'
 import { CompanionPicker } from '@/features/reservations/components/CompanionPicker'
 import { useCreateReservation } from '@/features/reservations/hooks'
 import { reservationFormSchema } from '@/features/reservations/schemas'
@@ -78,9 +80,14 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
 
   const checkinDate = watch('checkin_date')
   const checkoutDate = watch('checkout_date')
+  const hasVehicle = watch('has_vehicle')
 
   // Fora deste intervalo o servidor responderia 400.
   const datesValid = checkinDate >= today && checkoutDate > checkinDate
+  const quote = useStayQuote(
+    { checkin_date: checkinDate, checkout_date: checkoutDate, has_vehicle: hasVehicle },
+    { enabled: datesValid },
+  )
   const people = 1 + companionIds.field.value.length
   const availability = useAvailableRooms(
     { checkin_date: checkinDate, checkout_date: checkoutDate, people },
@@ -127,94 +134,109 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
       {rootError ? <Alert tone="error">{rootError}</Alert> : null}
 
-      <Typography as="p" variant="body" tone="muted">
-        Hóspede:{' '}
-        <Typography as="strong" variant="body">
-          {guest.full_name}
-        </Typography>
-      </Typography>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18.75rem),1fr))] items-start gap-6">
+        <div className="flex min-w-0 flex-col gap-4">
+          <Typography as="p" variant="body" tone="muted">
+            Hóspede:{' '}
+            <Typography as="strong" variant="body">
+              {guest.full_name}
+            </Typography>
+          </Typography>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Entrada" error={errors.checkin_date?.message}>
-          {(control) => (
-            <Input type="date" min={today} {...control} {...register('checkin_date')} />
-          )}
-        </FormField>
-        <FormField label="Saída" error={errors.checkout_date?.message}>
-          {(control) => (
-            <Input
-              type="date"
-              min={addDaysISO(checkinDate || today, 1)}
-              {...control}
-              {...register('checkout_date')}
-            />
-          )}
-        </FormField>
-      </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="Entrada" error={errors.checkin_date?.message}>
+              {(control) => (
+                <Input type="date" min={today} {...control} {...register('checkin_date')} />
+              )}
+            </FormField>
+            <FormField label="Saída" error={errors.checkout_date?.message}>
+              {(control) => (
+                <Input
+                  type="date"
+                  min={addDaysISO(checkinDate || today, 1)}
+                  {...control}
+                  {...register('checkout_date')}
+                />
+              )}
+            </FormField>
+          </div>
 
-      <CompanionPicker
-        holderId={guest.id}
-        value={companions}
-        error={errors.companion_ids?.message}
-        onDraftChange={(draft) => {
-          setValue('companion_draft', draft, { shouldValidate: isSubmitted })
-        }}
-        onChange={(next) => {
-          setCompanions(next)
-          companionIds.field.onChange(next.map((companion) => companion.id))
-        }}
-      />
+          <CompanionPicker
+            holderId={guest.id}
+            value={companions}
+            error={errors.companion_ids?.message}
+            onDraftChange={(draft) => {
+              setValue('companion_draft', draft, { shouldValidate: isSubmitted })
+            }}
+            onChange={(next) => {
+              setCompanions(next)
+              companionIds.field.onChange(next.map((companion) => companion.id))
+            }}
+          />
 
-      <FormField
-        label="Quarto"
-        hint={roomHint()}
-        error={
-          errors.room_id?.message ??
-          (availability.isError ? errorMessage(availability.error) : undefined)
-        }
-      >
-        {(selectControl) => (
-          <Select
-            items={roomItems}
-            value={roomId}
-            disabled={!datesValid || availability.isPending}
-            onValueChange={(value) => roomField.onChange(value)}
+          <FormField
+            label="Quarto"
+            hint={roomHint()}
+            error={
+              errors.room_id?.message ??
+              (availability.isError ? errorMessage(availability.error) : undefined)
+            }
           >
-            <SelectTrigger {...selectControl} onBlur={roomField.onBlur} className="w-full">
-              <SelectValue placeholder="Selecione um quarto" />
-            </SelectTrigger>
-            <SelectContent>
-              {roomItems.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </FormField>
+            {(selectControl) => (
+              <Select
+                items={roomItems}
+                value={roomId}
+                disabled={!datesValid || availability.isPending}
+                onValueChange={(value) => roomField.onChange(value)}
+              >
+                <SelectTrigger {...selectControl} onBlur={roomField.onBlur} className="w-full">
+                  <SelectValue placeholder="Selecione um quarto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roomItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </FormField>
 
-      <Controller
-        control={control}
-        name="has_vehicle"
-        render={({ field }) => (
-          <Field data-invalid={errors.has_vehicle ? true : undefined}>
-            <FieldLabel htmlFor="has_vehicle" className="flex-row items-center">
-              <Checkbox
-                id="has_vehicle"
-                checked={field.value}
-                onCheckedChange={(checked) => field.onChange(checked)}
-                onBlur={field.onBlur}
-                aria-invalid={errors.has_vehicle ? true : undefined}
-              />
-              Utilizará vaga de estacionamento
-            </FieldLabel>
-            {errors.has_vehicle?.message ? (
-              <FieldError>{errors.has_vehicle.message}</FieldError>
-            ) : null}
-          </Field>
-        )}
-      />
+          <Controller
+            control={control}
+            name="has_vehicle"
+            render={({ field }) => (
+              <Field data-invalid={errors.has_vehicle ? true : undefined}>
+                <FieldLabel htmlFor="has_vehicle" className="flex-row items-center">
+                  <Checkbox
+                    id="has_vehicle"
+                    checked={field.value}
+                    onCheckedChange={(checked) => field.onChange(checked)}
+                    onBlur={field.onBlur}
+                    aria-invalid={errors.has_vehicle ? true : undefined}
+                  />
+                  Utilizará vaga de estacionamento
+                </FieldLabel>
+                {errors.has_vehicle?.message ? (
+                  <FieldError>{errors.has_vehicle.message}</FieldError>
+                ) : null}
+              </Field>
+            )}
+          />
+        </div>
+
+        <StayQuoteCard
+          quote={quote.data}
+          isPending={quote.isPending}
+          isError={quote.isError}
+          error={quote.error}
+          enabled={datesValid}
+          onRetry={() => {
+            void quote.refetch()
+          }}
+        />
+      </div>
 
       <div className="flex justify-end gap-2">
         {onCancel ? (

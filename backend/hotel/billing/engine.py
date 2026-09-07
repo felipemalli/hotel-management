@@ -10,6 +10,8 @@ CHECKIN_OPENS = time(14, 0, 0)  # permitido se hora local >= isto; 14:00:00 nao 
 CHECKOUT_LIMIT = time(12, 0, 0)  # limite do dia contratado; 12:00:00 e isento
 
 WEEKEND_WEEKDAYS = frozenset({5, 6})  # sabado, domingo
+WEEKDAY_KIND = "weekday"
+WEEKEND_KIND = "weekend"
 WEEKDAY_LABELS = (
     "segunda-feira",
     "terça-feira",
@@ -72,6 +74,25 @@ class Bill:
     @property
     def late_fee_applied(self) -> bool:
         return bool(self.late_fees)
+
+
+@dataclass(frozen=True)
+class QuoteBucket:
+    kind: str
+    nights: int
+    daily_rate: Decimal
+    parking_fee: Decimal
+    subtotal_daily: Decimal
+    subtotal_parking: Decimal
+
+
+@dataclass(frozen=True)
+class StayQuote:
+    nights: int
+    buckets: tuple[QuoteBucket, ...]
+    subtotal_daily: Decimal
+    subtotal_parking: Decimal
+    total: Decimal
 
 
 def is_weekend(day: date) -> bool:
@@ -190,4 +211,51 @@ def calculate_bill(
         late_fees=fees,
         late_fee=late_fee,
         total=quantize_money(subtotal_daily + subtotal_parking + late_fee),
+    )
+
+
+def quote_scheduled_stay(
+    *,
+    checkin: date,
+    checkout: date,
+    has_vehicle: bool,
+    rates: RateTable = DEFAULT_RATES,
+) -> StayQuote:
+    """Diárias e vaga do período agendado, assumindo saída no limite — sem multa."""
+    bill = calculate_bill(
+        checkin_day=checkin,
+        checkout_day=checkout,
+        checkout_time=rates.checkout_limit,
+        booked_checkin_day=checkin,
+        booked_checkout_day=checkout,
+        has_vehicle=has_vehicle,
+        rates=rates,
+    )
+    weekday_lines = [line for line in bill.lines if not is_weekend(line.date)]
+    weekend_lines = [line for line in bill.lines if is_weekend(line.date)]
+    grouped = (
+        _quote_bucket(WEEKDAY_KIND, weekday_lines),
+        _quote_bucket(WEEKEND_KIND, weekend_lines),
+    )
+    buckets = tuple(bucket for bucket in grouped if bucket is not None)
+    return StayQuote(
+        nights=len(bill.lines),
+        buckets=buckets,
+        subtotal_daily=bill.subtotal_daily,
+        subtotal_parking=bill.subtotal_parking,
+        total=bill.total,
+    )
+
+
+def _quote_bucket(kind: str, lines: list[BillLine]) -> QuoteBucket | None:
+    if not lines:
+        return None
+    first = lines[0]
+    return QuoteBucket(
+        kind=kind,
+        nights=len(lines),
+        daily_rate=first.daily_rate,
+        parking_fee=first.parking_fee,
+        subtotal_daily=quantize_money(sum((line.daily_rate for line in lines), ZERO)),
+        subtotal_parking=quantize_money(sum((line.parking_fee for line in lines), ZERO)),
     )

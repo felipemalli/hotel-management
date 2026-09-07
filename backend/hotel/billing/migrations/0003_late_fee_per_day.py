@@ -5,23 +5,26 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('billing', '0002_account_ledger'),
+        ("billing", "0002_account_ledger"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='accountline',
-            name='accountline_one_per_kind_date',
+            model_name="accountline",
+            name="accountline_one_per_kind_date",
         ),
         migrations.RemoveConstraint(
-            model_name='accountline',
-            name='accountline_one_late_fee',
+            model_name="accountline",
+            name="accountline_one_late_fee",
         ),
         migrations.AddConstraint(
-            model_name='accountline',
-            constraint=models.UniqueConstraint(condition=models.Q(('kind__in', ['DAILY', 'PARKING', 'LATE_FEE'])), fields=('account', 'kind', 'service_date'), name='accountline_one_per_kind_date'),
+            model_name="accountline",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("kind__in", ["DAILY", "PARKING", "LATE_FEE"])),
+                fields=("account", "kind", "service_date"),
+                name="accountline_one_per_kind_date",
+            ),
         ),
     ]

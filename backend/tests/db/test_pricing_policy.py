@@ -7,7 +7,7 @@ from django.db import IntegrityError, transaction
 from hotel.billing import engine as pricing
 from hotel.billing.models import PricingPolicy
 from hotel.billing.selectors import policy_in_force
-from hotel.billing.services import create_policy, rate_table_of
+from hotel.billing.services import create_policy, quote_stay, rate_table_of
 from hotel.reservations import services as service
 from hotel.reservations.models import ReservationStatus
 from tests.factories import PricingPolicyFactory, ReservationFactory, UserFactory
@@ -240,3 +240,30 @@ def test_checkin_opens_comes_from_the_policy_in_force_not_the_bound_one(actor):
     returned = service.check_in(reservation, now=local(MARCH_7, 13, 30), actor=actor)
 
     assert returned.status == ReservationStatus.CHECKED_IN
+
+
+def test_quote_stay_uses_the_policy_in_force(actor):
+    create_policy(
+        actor=actor,
+        now=local(MARCH_7, 10),
+        weekday_rate=Decimal("150.00"),
+        weekend_rate=Decimal("220.00"),
+        weekday_park=Decimal("18.00"),
+        weekend_park=Decimal("25.00"),
+        late_fee_factor=Decimal("0.7500"),
+        checkin_opens=time(15, 0),
+        checkout_limit=time(11, 0),
+        note="alta temporada",
+    )
+
+    quote = quote_stay(
+        checkin_date=MARCH_7,
+        checkout_date=MARCH_9,
+        has_vehicle=True,
+        now=local(MARCH_7, 15),
+    )
+
+    assert quote.nights == 2
+    assert quote.subtotal_daily == Decimal("370.00")
+    assert quote.subtotal_parking == Decimal("43.00")
+    assert quote.total == Decimal("413.00")

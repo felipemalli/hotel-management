@@ -148,7 +148,7 @@ export function DashboardPage() {
 
       {current?.kind === 'reservation' ? (
         <Dialog open onOpenChange={whenClosed(close)}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[880px]">
             <DialogHeader>
               <DialogTitle>Nova reserva</DialogTitle>
               <DialogDescription>

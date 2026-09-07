@@ -13,7 +13,12 @@ from core.serializers import ErrorEnvelopeSerializer
 from hotel.billing import selectors
 from hotel.billing import services as billing_service
 from hotel.billing.models import PricingPolicy
-from hotel.billing.serializers import PricingPolicyCreateSerializer, PricingPolicySerializer
+from hotel.billing.serializers import (
+    PricingPolicyCreateSerializer,
+    PricingPolicySerializer,
+    StayQuoteQuerySerializer,
+    StayQuoteSerializer,
+)
 
 
 @extend_schema(tags=[PRICING_TAG])
@@ -106,6 +111,26 @@ class PricingPolicyViewSet(
     def current(self, request: Request) -> Response:
         policy = selectors.policy_in_force(timezone.now())
         return Response(PricingPolicySerializer(policy).data)
+
+    @extend_schema(
+        summary="Estimativa da estadia nas tarifas vigentes",
+        description=(
+            "Diárias e vaga do período `[entrada, saída)`, com a política vigente "
+            "agora. Assume saída no horário limite — sem multa. O extrato real só "
+            "fecha no checkout."
+        ),
+        parameters=[StayQuoteQuerySerializer],
+        responses={200: StayQuoteSerializer, 400: ErrorEnvelopeSerializer},
+    )
+    @action(detail=False, methods=["get"], url_path="quote")
+    def quote(self, request: Request) -> Response:
+        query = StayQuoteQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        quote = billing_service.quote_stay(
+            **query.validated_data,
+            now=timezone.now(),
+        )
+        return Response(StayQuoteSerializer(quote).data)
 
 
 __all__ = ["PricingPolicyViewSet"]

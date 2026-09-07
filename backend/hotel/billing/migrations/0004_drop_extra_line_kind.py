@@ -5,24 +5,32 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('billing', '0003_late_fee_per_day'),
+        ("billing", "0003_late_fee_per_day"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RemoveConstraint(
-            model_name='accountline',
-            name='accountline_one_per_kind_date',
+            model_name="accountline",
+            name="accountline_one_per_kind_date",
         ),
         migrations.AlterField(
-            model_name='accountline',
-            name='kind',
-            field=models.CharField(choices=[('DAILY', 'Diária'), ('PARKING', 'Vaga'), ('LATE_FEE', 'Multa de checkout tardio')], max_length=8),
+            model_name="accountline",
+            name="kind",
+            field=models.CharField(
+                choices=[
+                    ("DAILY", "Diária"),
+                    ("PARKING", "Vaga"),
+                    ("LATE_FEE", "Multa de checkout tardio"),
+                ],
+                max_length=8,
+            ),
         ),
         migrations.AddConstraint(
-            model_name='accountline',
-            constraint=models.UniqueConstraint(fields=('account', 'kind', 'service_date'), name='accountline_one_per_kind_date'),
+            model_name="accountline",
+            constraint=models.UniqueConstraint(
+                fields=("account", "kind", "service_date"), name="accountline_one_per_kind_date"
+            ),
         ),
     ]

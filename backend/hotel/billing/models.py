@@ -100,9 +100,7 @@ class Account(models.Model):
             models.CheckConstraint(
                 name=ACCOUNT_CLOSED_IS_COMPLETE,
                 condition=(
-                    Q(status="OPEN")
-                    & Q(closed_at__isnull=True)
-                    & Q(total_amount__isnull=True)
+                    Q(status="OPEN") & Q(closed_at__isnull=True) & Q(total_amount__isnull=True)
                 )
                 | (
                     Q(status__in=["CLOSED", "PAID"])

@@ -2,6 +2,10 @@
 
 > Voltar ao [README](../README.md). Feature **opcional e desacoplada**: sem
 > `OPENAI_API_KEY` ela fica desligada e o resto do sistema não muda em nada.
+>
+> Este documento é **o que** a Íris faz. Para **como** ela foi feita — o caminho
+> do código, arquivo por arquivo, na ordem em que uma requisição acontece —
+> veja [`IRIS-CODIGO.md`](IRIS-CODIGO.md).
 
 A Íris tem uma página própria (`/iris`, primeiro item de OPERAÇÃO). O atendente
 pergunta em linguagem natural — "a Ana Souza chegou", "alguém passou do horário

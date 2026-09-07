@@ -45,7 +45,7 @@ export function DateFilterField({ label, value, today, onChange, className }: Da
               aria-invalid={control['aria-invalid']}
               aria-describedby={control['aria-describedby']}
               render={
-                <Button type="button" variant="outline" className="justify-start gap-2 font-normal">
+                <Button type="button" variant="outline" className="justify-start gap-2 font-normal grow">
                   <CalendarIcon aria-hidden="true" className="size-4 text-muted-foreground" />
                   {resolved ? formatISODate(resolved) : 'Selecionar data'}
                 </Button>

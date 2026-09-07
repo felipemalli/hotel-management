@@ -22,6 +22,7 @@ EXPECTED_PATHS = [
     "/api/reservations/{id}/pay/",
     "/api/pricing-policies/",
     "/api/pricing-policies/current/",
+    "/api/pricing-policies/quote/",
     "/api/rooms/",
     "/api/rooms/{id}/",
     "/api/rooms/available/",

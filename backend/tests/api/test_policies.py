@@ -1,6 +1,8 @@
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 
 from hotel.billing.models import PricingPolicy
 
@@ -8,6 +10,7 @@ pytestmark = pytest.mark.django_db
 
 POLICY_URL = "/api/pricing-policies/"
 CURRENT_URL = "/api/pricing-policies/current/"
+QUOTE_URL = "/api/pricing-policies/quote/"
 
 HIGH_SEASON = {
     "weekday_rate": "150.00",
@@ -138,7 +141,7 @@ def test_policy_history_is_newest_first(admin_client):
 
 
 def test_policy_routes_require_authentication(api_client):
-    for url in (POLICY_URL, CURRENT_URL):
+    for url in (POLICY_URL, CURRENT_URL, QUOTE_URL):
         response = api_client.get(url)
 
         assert response.status_code == 401, url
@@ -157,3 +160,102 @@ def test_policy_has_no_update_or_delete(admin_client, default_policy):
     assert admin_client.patch(detail, {"weekday_rate": "1.00"}, format="json").status_code == 404
     assert admin_client.delete(detail).status_code == 404
     assert admin_client.get(detail).status_code == 404
+
+
+def test_quote_endpoint_groups_weekday_and_weekend_with_parking(auth_client):
+    today = timezone.localdate()
+    checkin = today
+    while checkin.weekday() != 4:  # sexta
+        checkin += timedelta(days=1)
+    checkout = checkin + timedelta(days=3)
+
+    response = auth_client.get(
+        QUOTE_URL,
+        {
+            "checkin_date": str(checkin),
+            "checkout_date": str(checkout),
+            "has_vehicle": True,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.data["nights"] == 3
+    assert response.data["buckets"] == [
+        {
+            "kind": "weekday",
+            "nights": 1,
+            "daily_rate": "120.00",
+            "parking_fee": "15.00",
+            "subtotal_daily": "120.00",
+            "subtotal_parking": "15.00",
+        },
+        {
+            "kind": "weekend",
+            "nights": 2,
+            "daily_rate": "180.00",
+            "parking_fee": "20.00",
+            "subtotal_daily": "360.00",
+            "subtotal_parking": "40.00",
+        },
+    ]
+    assert response.data["subtotal_daily"] == "480.00"
+    assert response.data["subtotal_parking"] == "55.00"
+    assert response.data["total"] == "535.00"
+
+
+def test_quote_endpoint_zeros_parking_when_there_is_no_vehicle(auth_client):
+    today = timezone.localdate()
+    checkout = today + timedelta(days=1)
+
+    response = auth_client.get(
+        QUOTE_URL,
+        {"checkin_date": str(today), "checkout_date": str(checkout)},
+    )
+
+    assert response.status_code == 200
+    assert response.data["nights"] == 1
+    assert response.data["subtotal_parking"] == "0.00"
+    assert len(response.data["buckets"]) == 1
+    assert response.data["buckets"][0]["parking_fee"] == "0.00"
+
+
+def test_quote_endpoint_uses_the_current_policy(admin_client):
+    today = timezone.localdate()
+    checkout = today + timedelta(days=1)
+
+    published = admin_client.post(POLICY_URL, HIGH_SEASON, format="json")
+    assert published.status_code == 201
+
+    response = admin_client.get(
+        QUOTE_URL,
+        {
+            "checkin_date": str(today),
+            "checkout_date": str(checkout),
+            "has_vehicle": True,
+        },
+    )
+
+    assert response.status_code == 200
+    bucket = response.data["buckets"][0]
+    weekday = today.weekday() < 5
+    assert bucket["daily_rate"] == ("150.00" if weekday else "220.00")
+    assert bucket["parking_fee"] == ("18.00" if weekday else "25.00")
+
+
+def test_quote_endpoint_rejects_an_inverted_interval(auth_client):
+    today = timezone.localdate()
+
+    response = auth_client.get(
+        QUOTE_URL,
+        {"checkin_date": str(today + timedelta(days=2)), "checkout_date": str(today)},
+    )
+
+    assert response.status_code == 400
+    assert "checkout_date" in response.data["extra"]
+
+
+def test_quote_endpoint_requires_the_dates(auth_client):
+    response = auth_client.get(QUOTE_URL)
+
+    assert response.status_code == 400
+    assert set(response.data["extra"]) == {"checkin_date", "checkout_date"}

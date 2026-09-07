@@ -165,9 +165,8 @@ def check_in(
     allow_early: bool = False,
 ) -> Reservation:
     with transaction.atomic():
-        # Trava as pessoas, nao so a reserva: "uma estadia ativa" vale entre linhas.
         people_ids = _lock_people(reservation)
-        Room.objects.select_for_update().get(pk=reservation.room_id)
+        _lock_room(reservation)
         locked = _lock(reservation)
         _assert_transition(locked, ReservationStatus.CHECKED_IN)
         _assert_no_active_stay(locked, people_ids)
@@ -189,16 +188,7 @@ def check_in(
         locked.checked_in_by = actor
         locked.policy = window.policy
         locked.account = billing.open_account(now=now)
-        with translate_integrity_error(
-            {
-                RESV_ONE_ACTIVE_PER_ROOM: lambda: RoomUnavailableError(
-                    extra={"room_id": locked.room_id},
-                )
-            }
-        ):
-            locked.save(
-                update_fields=["status", "checked_in_at", "checked_in_by", "policy", "account"]
-            )
+        locked.save(update_fields=["status", "checked_in_at", "checked_in_by", "policy", "account"])
 
     return _sync(reservation, locked)
 
@@ -363,6 +353,10 @@ def _lock_people(reservation: Reservation) -> list[int]:
     ids = sorted({reservation.guest_id, *reservation.companions.values_list("pk", flat=True)})
     list(Guest.objects.filter(pk__in=ids).order_by("pk").select_for_update())
     return ids
+
+
+def _lock_room(reservation: Reservation) -> None:
+    Room.objects.select_for_update().get(pk=reservation.room_id)
 
 
 def _assert_room_free(

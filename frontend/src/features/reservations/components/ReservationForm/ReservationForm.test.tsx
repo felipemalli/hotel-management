@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { EVA } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests } from '@/features/guests/api'
+import { WEEKDAY_NIGHT_QUOTE } from '@/features/pricing/__fixtures__/quotes'
+import { fetchStayQuote } from '@/features/pricing/api'
 import { reservation } from '@/features/reservations/__fixtures__/reservations'
 import { createReservation } from '@/features/reservations/api'
 import { COMPANION_UNRESOLVED_MESSAGE } from '@/features/reservations/schemas'
@@ -11,6 +13,7 @@ import { ROOM_101, ROOM_201 } from '@/features/rooms/__fixtures__/rooms'
 import { fetchAvailableRooms } from '@/features/rooms/api'
 import { ApiError } from '@/lib/errors/errors'
 import { addDaysISO, todayISO } from '@/lib/format/dates'
+import { formatBRL } from '@/lib/format/money'
 import { SEARCH_DEBOUNCE_MS } from '@/lib/hooks/useDebouncedValue'
 import { page } from '@/test/fixtures'
 import { renderWithProviders } from '@/test/renderWithProviders'
@@ -20,6 +23,7 @@ import { ReservationForm } from './ReservationForm'
 vi.mock('@/features/reservations/api')
 vi.mock('@/features/rooms/api')
 vi.mock('@/features/guests/api')
+vi.mock('@/features/pricing/api')
 
 const GUEST = { id: 1, full_name: 'Ana Souza' }
 
@@ -36,6 +40,7 @@ describe('ReservationForm · RF2', () => {
   beforeEach(() => {
     vi.mocked(fetchAvailableRooms).mockResolvedValue(page([ROOM_101, ROOM_201]))
     vi.mocked(fetchGuests).mockResolvedValue(page([]))
+    vi.mocked(fetchStayQuote).mockResolvedValue(WEEKDAY_NIGHT_QUOTE)
   })
 
   it('test_submits_dates_and_vehicle_flag', async () => {
@@ -99,6 +104,7 @@ describe('ReservationForm · escolha do quarto', () => {
     vi.mocked(fetchAvailableRooms).mockResolvedValue(page([ROOM_101, ROOM_201]))
     vi.mocked(fetchGuests).mockResolvedValue(page([]))
     vi.mocked(createReservation).mockResolvedValue(reservation())
+    vi.mocked(fetchStayQuote).mockResolvedValue(WEEKDAY_NIGHT_QUOTE)
   })
 
   it('exige a escolha do quarto antes de chamar a API', async () => {
@@ -177,5 +183,59 @@ describe('ReservationForm · escolha do quarto', () => {
 
     expect(createReservation).not.toHaveBeenCalled()
     expect(await screen.findByText(COMPANION_UNRESOLVED_MESSAGE)).toBeInTheDocument()
+  })
+})
+
+describe('ReservationForm · valor estimado', () => {
+  beforeEach(() => {
+    vi.mocked(fetchAvailableRooms).mockResolvedValue(page([ROOM_101, ROOM_201]))
+    vi.mocked(fetchGuests).mockResolvedValue(page([]))
+    vi.mocked(fetchStayQuote).mockResolvedValue(WEEKDAY_NIGHT_QUOTE)
+  })
+
+  it('consulta a estimativa com as datas padrao e a vaga desmarcada', async () => {
+    renderWithProviders(<ReservationForm guest={GUEST} />)
+
+    await waitFor(() =>
+      expect(fetchStayQuote).toHaveBeenCalledWith({
+        checkin_date: todayISO(),
+        checkout_date: addDaysISO(todayISO(), 1),
+        has_vehicle: false,
+      }),
+    )
+    expect(
+      await screen.findByLabelText(`Total estimado ${formatBRL(WEEKDAY_NIGHT_QUOTE.total)}`),
+    ).toBeInTheDocument()
+  })
+
+  it('reconsulta a estimativa quando o atendente marca a vaga', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<ReservationForm guest={GUEST} />)
+    await waitFor(() => expect(fetchStayQuote).toHaveBeenCalled())
+
+    await user.click(screen.getByRole('checkbox', { name: 'Utilizará vaga de estacionamento' }))
+
+    await waitFor(() =>
+      expect(fetchStayQuote).toHaveBeenCalledWith({
+        checkin_date: todayISO(),
+        checkout_date: addDaysISO(todayISO(), 1),
+        has_vehicle: true,
+      }),
+    )
+  })
+
+  it('nao consulta a estimativa com datas invalidas', async () => {
+    renderWithProviders(<ReservationForm guest={GUEST} />)
+    await waitFor(() => expect(fetchStayQuote).toHaveBeenCalled())
+    const callsBefore = vi.mocked(fetchStayQuote).mock.calls.length
+
+    const sameDay = addDaysISO(todayISO(), 2)
+    setDate('Entrada', sameDay)
+    setDate('Saída', sameDay)
+
+    expect(
+      screen.getByText('Informe entrada e saída válidas para ver o valor estimado.'),
+    ).toBeInTheDocument()
+    expect(vi.mocked(fetchStayQuote).mock.calls.length).toBe(callsBefore)
   })
 })

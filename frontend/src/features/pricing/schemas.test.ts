@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { BOOTSTRAP_POLICY, HIGH_SEASON_POLICY } from './__fixtures__/policies'
+import { FOURTEEN_NIGHTS_QUOTE, WEEKDAY_NIGHT_QUOTE } from './__fixtures__/quotes'
 import {
   CHECKOUT_LIMIT_MESSAGE,
   policyFormSchema,
   policyToFormValues,
   pricingPolicySchema,
+  stayQuoteSchema,
 } from './schemas'
 
 const FILLED = {
@@ -39,6 +41,17 @@ describe('pricingPolicySchema', () => {
     expect(pricingPolicySchema.safeParse({ ...BOOTSTRAP_POLICY, weekday_rate: 120 }).success).toBe(
       false,
     )
+  })
+})
+
+describe('stayQuoteSchema', () => {
+  it('aceita as fixtures da estimativa', () => {
+    expect(stayQuoteSchema.safeParse(WEEKDAY_NIGHT_QUOTE).success).toBe(true)
+    expect(stayQuoteSchema.safeParse(FOURTEEN_NIGHTS_QUOTE).success).toBe(true)
+  })
+
+  it('recusa dinheiro que nao veio com duas casas', () => {
+    expect(stayQuoteSchema.safeParse({ ...WEEKDAY_NIGHT_QUOTE, total: '120' }).success).toBe(false)
   })
 })
 

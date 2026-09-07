@@ -3,6 +3,7 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from core.serializers import UserMinimalSerializer, money_field
+from hotel.billing.engine import WEEKDAY_KIND, WEEKEND_KIND
 from hotel.billing.models import AccountStatus, PaymentMethod, PricingPolicy
 
 # Precisao de minuto. Sem input_formats o DRF aceita 12:00:30 e o segundo
@@ -39,6 +40,36 @@ class PricingPolicySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class StayQuoteQuerySerializer(serializers.Serializer):
+    checkin_date = serializers.DateField()
+    checkout_date = serializers.DateField()
+    has_vehicle = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs: dict) -> dict:
+        if attrs["checkout_date"] <= attrs["checkin_date"]:
+            raise serializers.ValidationError(
+                {"checkout_date": ["A data de saída deve ser posterior à de entrada."]}
+            )
+        return attrs
+
+
+class QuoteBucketSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=[WEEKDAY_KIND, WEEKEND_KIND])
+    nights = serializers.IntegerField()
+    daily_rate = money_field()
+    parking_fee = money_field()
+    subtotal_daily = money_field()
+    subtotal_parking = money_field()
+
+
+class StayQuoteSerializer(serializers.Serializer):
+    nights = serializers.IntegerField()
+    buckets = QuoteBucketSerializer(many=True)
+    subtotal_daily = money_field()
+    subtotal_parking = money_field()
+    total = money_field()
+
+
 class PricingPolicyCreateSerializer(serializers.Serializer):
     weekday_rate = money_field(min_value=0)
     weekend_rate = money_field(min_value=0)
@@ -63,4 +94,3 @@ class AccountSerializer(serializers.Serializer):
     opened_at = serializers.DateTimeField(read_only=True)
     closed_at = serializers.DateTimeField(read_only=True, allow_null=True)
     payment = PaymentSerializer(read_only=True, allow_null=True)
-

@@ -1,8 +1,16 @@
 import type { z } from 'zod'
 
-import type { pricingPolicySchema } from './schemas'
+import type { pricingPolicySchema, stayQuoteSchema } from './schemas'
 
 export type PricingPolicy = z.infer<typeof pricingPolicySchema>
+
+export type StayQuote = z.infer<typeof stayQuoteSchema>
+
+export interface StayQuoteQuery {
+  checkin_date: string
+  checkout_date: string
+  has_vehicle: boolean
+}
 
 export interface CreatePolicyPayload {
   weekday_rate: string

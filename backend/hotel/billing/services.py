@@ -10,11 +10,27 @@ from django.utils import timezone
 
 from core.errors import DomainError, DomainValidationError
 from core.money import ZERO, quantize_money
-from hotel.billing import engine
+from hotel.billing import engine, selectors
 from hotel.billing.models import Account, AccountLine, AccountStatus, Payment, PricingPolicy
 
 if TYPE_CHECKING:  # pragma: no cover
     from django.contrib.auth.models import AbstractBaseUser
+
+
+def quote_stay(
+    *,
+    checkin_date: date,
+    checkout_date: date,
+    has_vehicle: bool,
+    now: datetime,
+) -> engine.StayQuote:
+    rates = rate_table_of(selectors.policy_in_force(now))
+    return engine.quote_scheduled_stay(
+        checkin=checkin_date,
+        checkout=checkout_date,
+        has_vehicle=has_vehicle,
+        rates=rates,
+    )
 
 
 def rate_table_of(policy: PricingPolicy) -> engine.RateTable:

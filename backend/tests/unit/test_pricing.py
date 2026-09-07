@@ -417,3 +417,91 @@ def test_calculate_bill_uses_the_checkout_limit_from_the_rates():
     assert bill.late_fee_applied is False
     assert bill.late_fee == D("0.00")
     assert bill.total == D("240.00")
+
+
+def _bucket(kind, nights, daily_rate, parking_fee, subtotal_daily, subtotal_parking):
+    return pricing.QuoteBucket(
+        kind=kind,
+        nights=nights,
+        daily_rate=daily_rate,
+        parking_fee=parking_fee,
+        subtotal_daily=subtotal_daily,
+        subtotal_parking=subtotal_parking,
+    )
+
+
+def test_quote_scheduled_stay_groups_weekday_nights_like_t1():
+    quote = pricing.quote_scheduled_stay(
+        checkin=dt(3, 15).date(),
+        checkout=dt(5, 11).date(),
+        has_vehicle=False,
+    )
+
+    assert quote.nights == 2
+    assert quote.buckets == (
+        _bucket(pricing.WEEKDAY_KIND, 2, D("120.00"), D("0.00"), D("240.00"), D("0.00")),
+    )
+    assert quote.subtotal_daily == D("240.00")
+    assert quote.subtotal_parking == D("0.00")
+    assert quote.total == D("240.00")
+
+
+def test_quote_scheduled_stay_groups_weekend_nights_like_t2():
+    quote = pricing.quote_scheduled_stay(
+        checkin=dt(8, 14).date(),
+        checkout=dt(10, 10).date(),
+        has_vehicle=True,
+    )
+
+    assert quote.nights == 2
+    assert quote.buckets == (
+        _bucket(pricing.WEEKEND_KIND, 2, D("180.00"), D("20.00"), D("360.00"), D("40.00")),
+    )
+    assert quote.total == D("400.00")
+
+
+def test_quote_scheduled_stay_splits_weekday_and_weekend_like_t3():
+    quote = pricing.quote_scheduled_stay(
+        checkin=dt(7, 16).date(),
+        checkout=dt(10, 11, 30).date(),
+        has_vehicle=True,
+    )
+
+    assert quote.nights == 3
+    assert quote.buckets == (
+        _bucket(pricing.WEEKDAY_KIND, 1, D("120.00"), D("15.00"), D("120.00"), D("15.00")),
+        _bucket(pricing.WEEKEND_KIND, 2, D("180.00"), D("20.00"), D("360.00"), D("40.00")),
+    )
+    assert quote.subtotal_daily == D("480.00")
+    assert quote.subtotal_parking == D("55.00")
+    assert quote.total == D("535.00")
+
+
+def test_quote_scheduled_stay_never_includes_late_fee():
+    """Saída no limite contratado: a estimativa não antecipa multa de atraso."""
+    quote = pricing.quote_scheduled_stay(
+        checkin=dt(7, 15).date(),
+        checkout=dt(9, 12, 1).date(),
+        has_vehicle=True,
+    )
+
+    assert quote.total == D("335.00")
+    assert quote.subtotal_daily == D("300.00")
+    assert quote.subtotal_parking == D("35.00")
+
+
+def test_quote_scheduled_stay_fourteen_nights_matches_the_counter_example():
+    quote = pricing.quote_scheduled_stay(
+        checkin=date(2026, 9, 7),
+        checkout=date(2026, 9, 21),
+        has_vehicle=True,
+    )
+
+    assert quote.nights == 14
+    assert quote.buckets == (
+        _bucket(pricing.WEEKDAY_KIND, 10, D("120.00"), D("15.00"), D("1200.00"), D("150.00")),
+        _bucket(pricing.WEEKEND_KIND, 4, D("180.00"), D("20.00"), D("720.00"), D("80.00")),
+    )
+    assert quote.subtotal_daily == D("1920.00")
+    assert quote.subtotal_parking == D("230.00")
+    assert quote.total == D("2150.00")

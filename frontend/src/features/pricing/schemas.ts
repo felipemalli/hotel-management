@@ -24,6 +24,23 @@ export const pricingPolicySchema = z.object({
 
 export const pricingPolicyPageSchema = paginated(pricingPolicySchema)
 
+export const quoteBucketSchema = z.object({
+  kind: z.enum(['weekday', 'weekend']),
+  nights: z.number().int().positive(),
+  daily_rate: moneyString,
+  parking_fee: moneyString,
+  subtotal_daily: moneyString,
+  subtotal_parking: moneyString,
+})
+
+export const stayQuoteSchema = z.object({
+  nights: z.number().int().positive(),
+  buckets: z.array(quoteBucketSchema),
+  subtotal_daily: moneyString,
+  subtotal_parking: moneyString,
+  total: moneyString,
+})
+
 export const NOTE_MAX_LENGTH = 200
 
 export const CHECKOUT_LIMIT_MESSAGE =

@@ -42,7 +42,6 @@ def drop_bootstrap_policy(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -51,24 +50,56 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='PricingPolicy',
+            name="PricingPolicy",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('weekday_rate', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('weekend_rate', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('weekday_park', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('weekend_park', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('late_fee_factor', models.DecimalField(decimal_places=4, default=Decimal('0.5'), max_digits=5)),
-                ('checkin_opens', models.TimeField()),
-                ('checkout_limit', models.TimeField()),
-                ('effective_from', models.DateTimeField(db_index=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('note', models.CharField(blank=True, max_length=200)),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='pricing_policies', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("weekday_rate", models.DecimalField(decimal_places=2, max_digits=10)),
+                ("weekend_rate", models.DecimalField(decimal_places=2, max_digits=10)),
+                ("weekday_park", models.DecimalField(decimal_places=2, max_digits=10)),
+                ("weekend_park", models.DecimalField(decimal_places=2, max_digits=10)),
+                (
+                    "late_fee_factor",
+                    models.DecimalField(decimal_places=4, default=Decimal("0.5"), max_digits=5),
+                ),
+                ("checkin_opens", models.TimeField()),
+                ("checkout_limit", models.TimeField()),
+                ("effective_from", models.DateTimeField(db_index=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("note", models.CharField(blank=True, max_length=200)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="pricing_policies",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-effective_from', '-id'],
-                'constraints': [models.CheckConstraint(condition=models.Q(('weekday_rate__gte', 0), ('weekend_rate__gte', 0), ('weekday_park__gte', 0), ('weekend_park__gte', 0), ('late_fee_factor__gte', 0)), name='policy_money_non_negative'), models.CheckConstraint(condition=models.Q(('checkout_limit__lte', models.F('checkin_opens'))), name='policy_checkout_before_checkin')],
+                "ordering": ["-effective_from", "-id"],
+                "constraints": [
+                    models.CheckConstraint(
+                        condition=models.Q(
+                            ("weekday_rate__gte", 0),
+                            ("weekend_rate__gte", 0),
+                            ("weekday_park__gte", 0),
+                            ("weekend_park__gte", 0),
+                            ("late_fee_factor__gte", 0),
+                        ),
+                        name="policy_money_non_negative",
+                    ),
+                    models.CheckConstraint(
+                        condition=models.Q(("checkout_limit__lte", models.F("checkin_opens"))),
+                        name="policy_checkout_before_checkin",
+                    ),
+                ],
             },
         ),
         migrations.RunPython(create_bootstrap_policy, drop_bootstrap_policy),
