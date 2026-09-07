@@ -5,6 +5,10 @@ import { Alert, FormField } from '@/components/common'
 import {
   Button,
   Input,
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
   Select,
   SelectContent,
   SelectItem,
@@ -82,7 +86,14 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
         {(control) => <Input {...control} {...register('document')} />}
       </FormField>
       <FormField label="Telefone" hint={PHONE_HINT} error={errors.phone?.message}>
-        {(control) => <Input {...control} {...register('phone')} />}
+        {(control) => (
+          <InputGroup>
+            <InputGroupAddon>
+              <InputGroupText>+</InputGroupText>
+            </InputGroupAddon>
+            <InputGroupInput {...control} {...register('phone')} />
+          </InputGroup>
+        )}
       </FormField>
       <FormField label="Nacionalidade" error={errors.nationality?.message}>
         {(selectControl) => (

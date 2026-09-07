@@ -4,7 +4,12 @@ import { roomSummarySchema } from '@/features/rooms/schemas'
 import { isoDate, isoDateTime, paginated } from '@/lib/api/schemas'
 import { isCountryCode } from '@/lib/format/countries'
 import { requiredString } from '@/lib/forms/forms'
-import { DOCUMENT_MIN_LENGTH, isInternationalPhone, normalizeDocument } from '@/lib/forms/normalize'
+import {
+  DOCUMENT_MIN_LENGTH,
+  isInternationalPhone,
+  normalizeDocument,
+  withLeadingPlus,
+} from '@/lib/forms/normalize'
 
 import type { CreateGuestPayload } from './types'
 
@@ -41,10 +46,10 @@ export const guestPageSchema = paginated(guestSchema)
 export const guestInHotelPageSchema = paginated(guestInHotelSchema)
 export const guestPendingCheckinPageSchema = paginated(guestPendingCheckinSchema)
 
-export const PHONE_HINT = 'Com código do país, ex.: +55 21 98888-7777.'
+export const PHONE_HINT = 'Com código do país, ex.: 55 21 98888-7777.'
 
 export const PHONE_FORMAT_MESSAGE =
-  'Informe o telefone com o código do país, ex.: +55 21 98888-7777.'
+  'Informe o telefone com o código do país, ex.: 55 21 98888-7777.'
 
 export const NATIONALITY_MESSAGE = 'Selecione a nacionalidade.'
 
@@ -54,7 +59,9 @@ export const guestFormSchema = z.object({
     (value) => normalizeDocument(value).length >= DOCUMENT_MIN_LENGTH,
     { error: `Documento exige ao menos ${DOCUMENT_MIN_LENGTH} caracteres alfanuméricos.` },
   ),
-  phone: requiredString().refine(isInternationalPhone, { error: PHONE_FORMAT_MESSAGE }),
+  phone: requiredString()
+    .refine(isInternationalPhone, { error: PHONE_FORMAT_MESSAGE })
+    .transform(withLeadingPlus),
   // requiredString + refine, não z.enum: o enum listaria as 249 opções na mensagem.
   nationality: requiredString().refine(isCountryCode, { error: NATIONALITY_MESSAGE }),
 }) satisfies z.ZodType<CreateGuestPayload>

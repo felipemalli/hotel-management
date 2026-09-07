@@ -22,6 +22,13 @@ describe('guestFormSchema', () => {
     expect(guestFormSchema.safeParse(VALID).success).toBe(true)
   })
 
+  it('prefixa o mais no telefone digitado so com o DDI', () => {
+    const result = guestFormSchema.safeParse({ ...VALID, phone: '55 21 98888-7777' })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.phone).toBe('+55 21 98888-7777')
+  })
+
   it('devolve exatamente um problema por campo vazio, nunca dois', () => {
     const result = guestFormSchema.safeParse({
       full_name: '',

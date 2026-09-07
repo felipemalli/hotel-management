@@ -66,7 +66,7 @@ describe('GuestForm · RF1', () => {
     expect(screen.getByLabelText('Telefone')).toHaveAttribute('aria-invalid', 'true')
 
     await user.clear(screen.getByLabelText('Telefone'))
-    await user.type(screen.getByLabelText('Telefone'), '+55 21 98888-7777')
+    await user.type(screen.getByLabelText('Telefone'), '55 21 98888-7777')
 
     await waitFor(() => expect(screen.queryByText(PHONE_FORMAT_MESSAGE)).not.toBeInTheDocument())
     expect(screen.getByLabelText('Telefone')).not.toHaveAttribute('aria-invalid')
