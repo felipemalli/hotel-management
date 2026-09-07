@@ -1,9 +1,10 @@
 # Relia · Gestão de Hóspedes de Hotel
 
 Sistema de recepção para o balcão de um hotel: cadastro de hóspedes, reservas,
-busca por nome, documento e telefone, check-in com alerta antes das 14h e
-checkout com extrato detalhado (diárias, vaga e multa de saída após as 12h).
-Construído para o desafio descrito em [docs/CHALLENGE.md](./docs/CHALLENGE.md).
+busca por nome, documento e telefone, check-in com alerta antes das 14h,
+checkout com extrato detalhado (diárias, vaga e multa de saída após as 12h) e
+integração com LLM. Construído para o desafio descrito em
+[docs/CHALLENGE.md](./docs/CHALLENGE.md).
 
 **Stack:** Python 3.13 · Django 5.2 · DRF · PostgreSQL 17 · React 18 ·
 TypeScript · Vite · Tailwind · shadcn (Base UI) · Docker Compose · Pytest ·
@@ -54,8 +55,7 @@ docker compose up --build
 
 O Compose sobe PostgreSQL, Redis, backend (`migrate → createcachetable →
 collectstatic → seed_demo → gunicorn`, cadeia definida no próprio
-`docker-compose.yml`) e frontend (Vite). O seed cria os usuários e o cenário de
-demonstração; o log imprime as credenciais ao fim.
+`docker-compose.yml`) e frontend (Vite). O seed cria os usuários e o cenário de demonstração; o log imprime as credenciais ao fim.
 
 > Subindo sobre um volume antigo, rode `docker compose down -v` antes.
 > Opcional: `OPENAI_API_KEY` no `.env` liga a [Íris](./docs/concepts/IRIS.md).

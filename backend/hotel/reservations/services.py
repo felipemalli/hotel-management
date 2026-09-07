@@ -24,7 +24,6 @@ from hotel.reservations.errors import (
     RoomUnavailableError,
 )
 from hotel.reservations.models import (
-    RESV_ONE_ACTIVE_PER_ROOM,
     RESV_ROOM_NO_OVERLAP,
     Reservation,
     ReservationStatus,
