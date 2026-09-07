@@ -20,6 +20,7 @@ import {
   checkOut,
   fetchReservation,
   fetchReservationStatement,
+  removeReservationCompanion,
 } from '@/features/reservations/api'
 import type { Reservation } from '@/features/reservations/types'
 import { ApiError } from '@/lib/errors/errors'
@@ -61,6 +62,7 @@ describe('ReservationDetailPage', () => {
 
     const stay = screen.getByRole('region', { name: 'Hospedagem' })
     expect(within(stay).getByText('102')).toBeInTheDocument()
+    expect(within(stay).getByText('2 de 2')).toBeInTheDocument()
     expect(within(stay).getByText('Política #1')).toBeInTheDocument()
 
     const people = screen.getByRole('region', { name: 'Pessoas' })
@@ -79,13 +81,20 @@ describe('ReservationDetailPage', () => {
     const people = await screen.findByRole('region', { name: 'Pessoas' })
     expect(within(people).getByText('Sem acompanhantes')).toBeInTheDocument()
     expect(within(people).getByLabelText('Adicionar acompanhante')).toBeInTheDocument()
+    expect(
+      within(people).getByText(
+        'Ocupação: 1 de 2 no quarto 101. Só hóspedes já cadastrados podem ser adicionados.',
+      ),
+    ).toBeInTheDocument()
   })
 
-  it('nao oferece adicionar acompanhante depois do check-in', async () => {
+  it('nao oferece adicionar ou remover acompanhante depois do check-in', async () => {
     renderDetail(BRUNO_CHECKED_IN)
 
     const people = await screen.findByRole('region', { name: 'Pessoas' })
     expect(within(people).queryByLabelText('Adicionar acompanhante')).not.toBeInTheDocument()
+    expect(within(people).queryByRole('button', { name: /Remover / })).not.toBeInTheDocument()
+    expect(within(people).queryByText(/Ocupação:/)).not.toBeInTheDocument()
   })
 
   it('adiciona um acompanhante na reserva pendente', async () => {
@@ -115,6 +124,36 @@ describe('ReservationDetailPage', () => {
     const people = screen.getByRole('region', { name: 'Pessoas' })
     expect(await within(people).findByText('Eva Lima')).toBeInTheDocument()
     expect(within(people).queryByText('Sem acompanhantes')).not.toBeInTheDocument()
+  })
+
+  it('remove um acompanhante da reserva pendente', async () => {
+    const user = userEvent.setup()
+    const pending = {
+      ...ANA_PENDING,
+      companions: [{ id: EVA.id, full_name: EVA.full_name }],
+    }
+    const emptied = { ...ANA_PENDING, companions: [] }
+    vi.mocked(removeReservationCompanion).mockImplementation(async () => {
+      vi.mocked(fetchReservation).mockResolvedValue(emptied)
+      return emptied
+    })
+    renderDetail(pending)
+
+    const people = await screen.findByRole('region', { name: 'Pessoas' })
+    expect(
+      within(people).getByText(
+        'Ocupação: 2 de 2 no quarto 101. Só hóspedes já cadastrados podem ser adicionados.',
+      ),
+    ).toBeInTheDocument()
+    await user.click(within(people).getByRole('button', { name: 'Remover Eva Lima' }))
+
+    await waitFor(() =>
+      expect(removeReservationCompanion).toHaveBeenCalledWith({
+        id: ANA_PENDING.id,
+        guestId: EVA.id,
+      }),
+    )
+    expect(await within(people).findByText('Sem acompanhantes')).toBeInTheDocument()
   })
 
   it('mostra o erro de capacidade ao adicionar acompanhante', async () => {

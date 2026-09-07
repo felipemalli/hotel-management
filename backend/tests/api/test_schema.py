@@ -19,6 +19,7 @@ EXPECTED_PATHS = [
     "/api/reservations/{id}/checkout/",
     "/api/reservations/{id}/cancel/",
     "/api/reservations/{id}/companions/",
+    "/api/reservations/{id}/companions/{guest_id}/",
     "/api/reservations/{id}/pay/",
     "/api/pricing-policies/",
     "/api/pricing-policies/current/",
@@ -57,6 +58,12 @@ def test_custom_actions_are_documented(schema):
         assert operation["description"], path
         assert "200" in operation["responses"], path
         assert "409" in operation["responses"], path
+
+    remove = schema["paths"]["/api/reservations/{id}/companions/{guest_id}/"]["delete"]
+    assert remove["summary"]
+    assert remove["description"]
+    assert "200" in remove["responses"]
+    assert "409" in remove["responses"]
 
 
 def test_docs_page_renders(api_client):

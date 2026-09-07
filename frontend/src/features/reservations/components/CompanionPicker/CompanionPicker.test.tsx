@@ -90,11 +90,12 @@ describe('CompanionPicker', () => {
     expect(searchField()).toHaveValue('')
   })
 
-  it('mostra os escolhidos como etiquetas removiveis', () => {
+  it('mostra os escolhidos em linhas removiveis acima da busca', () => {
     const { onChange } = setup([EVA_REF])
 
     const chosen = screen.getByLabelText('Acompanhantes escolhidos')
     expect(within(chosen).getByText('Eva Lima')).toBeInTheDocument()
+    expect(searchField()).toHaveAttribute('placeholder', 'Nome, documento ou telefone')
 
     fireEvent.click(screen.getByRole('button', { name: 'Remover Eva Lima' }))
 

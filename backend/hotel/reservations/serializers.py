@@ -24,6 +24,15 @@ from hotel.rooms.models import Room
 from hotel.rooms.serializers import RoomSummarySerializer
 
 
+class ReservationRoomSerializer(serializers.ModelSerializer):
+    """Quarto na reserva: a ocupação da seção Pessoas precisa da capacidade."""
+
+    class Meta:
+        model = Room
+        fields = ["id", "number", "capacity"]
+        read_only_fields = fields
+
+
 class ReservationSummarySerializer(serializers.ModelSerializer):
     room = RoomSummarySerializer(read_only=True)
 
@@ -44,7 +53,7 @@ class ReservationSummarySerializer(serializers.ModelSerializer):
 
 class ReservationSerializer(serializers.ModelSerializer):
     guest_id = serializers.IntegerField(read_only=True)
-    room = RoomSummarySerializer(read_only=True)
+    room = ReservationRoomSerializer(read_only=True)
     companions = GuestMinimalSerializer(many=True, read_only=True)
     account = AccountSerializer(read_only=True, allow_null=True)
     created_by = UserMinimalSerializer(read_only=True)

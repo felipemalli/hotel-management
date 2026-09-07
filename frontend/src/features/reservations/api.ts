@@ -7,6 +7,7 @@ import type {
   CheckoutStatement,
   CreateReservationPayload,
   PayReservationPayload,
+  RemoveCompanionPayload,
   Reservation,
   ReservationListParams,
 } from './types'
@@ -23,6 +24,14 @@ export async function addReservationCompanions({
   const response = await apiClient.post<unknown>(`/reservations/${id}/companions/`, {
     companion_ids,
   })
+  return parseResponse(reservationSchema, response)
+}
+
+export async function removeReservationCompanion({
+  id,
+  guestId,
+}: RemoveCompanionPayload): Promise<Reservation> {
+  const response = await apiClient.delete<unknown>(`/reservations/${id}/companions/${guestId}/`)
   return parseResponse(reservationSchema, response)
 }
 

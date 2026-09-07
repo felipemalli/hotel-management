@@ -175,4 +175,10 @@ describe('reservationSchema', () => {
       reservationSchema.safeParse({ ...PENDING, created_at: '2026-09-01T10:00:00' }).success,
     ).toBe(false)
   })
+
+  it('exige a capacidade do quarto na reserva', () => {
+    const room = { id: PENDING.room.id, number: PENDING.room.number }
+
+    expect(reservationSchema.safeParse({ ...PENDING, room }).success).toBe(false)
+  })
 })

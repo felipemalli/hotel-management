@@ -66,6 +66,11 @@ export interface AddCompanionsPayload {
   companion_ids: number[]
 }
 
+export interface RemoveCompanionPayload {
+  id: number
+  guestId: number
+}
+
 export interface CheckInPayload {
   id: number
   allow_early: boolean

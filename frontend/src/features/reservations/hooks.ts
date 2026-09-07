@@ -14,6 +14,7 @@ import {
   fetchReservations,
   fetchReservationStatement,
   payReservation,
+  removeReservationCompanion,
 } from './api'
 import type {
   AddCompanionsPayload,
@@ -21,6 +22,7 @@ import type {
   CheckoutStatement,
   CreateReservationPayload,
   PayReservationPayload,
+  RemoveCompanionPayload,
   Reservation,
   ReservationListParams,
 } from './types'
@@ -49,6 +51,20 @@ export function useAddReservationCompanions(options?: { onSuccess?: (r: Reservat
 
   return useMutation({
     mutationFn: (payload: AddCompanionsPayload) => addReservationCompanions(payload),
+    onSuccess: (reservation) => {
+      invalidateServerState()
+      queryClient.setQueryData(reservationKeys.detail(reservation.id), reservation)
+      options?.onSuccess?.(reservation)
+    },
+  })
+}
+
+export function useRemoveReservationCompanion(options?: { onSuccess?: (r: Reservation) => void }) {
+  const invalidateServerState = useInvalidateServerState()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: RemoveCompanionPayload) => removeReservationCompanion(payload),
     onSuccess: (reservation) => {
       invalidateServerState()
       queryClient.setQueryData(reservationKeys.detail(reservation.id), reservation)

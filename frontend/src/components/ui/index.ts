@@ -84,7 +84,14 @@ export {
   InputGroupTextarea,
 } from './InputGroup'
 export { Label } from './Label'
-export { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from './Popover'
+export {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from './Popover'
 export {
   Select,
   SelectContent,

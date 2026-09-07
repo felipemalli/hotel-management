@@ -52,6 +52,10 @@ def companions_url(reservation: Reservation) -> str:
     return f"/api/reservations/{reservation.pk}/companions/"
 
 
+def companion_url(reservation: Reservation, guest_id: int) -> str:
+    return f"/api/reservations/{reservation.pk}/companions/{guest_id}/"
+
+
 def detail_url(reservation: Reservation) -> str:
     return f"/api/reservations/{reservation.pk}/"
 
@@ -88,6 +92,7 @@ def test_create_reservation_persists_pending(auth_client):
     stored = Reservation.objects.get(pk=response.data["id"])
     assert stored.guest_id == guest.pk
     assert stored.status == ReservationStatus.PENDING
+    assert response.data["room"]["capacity"] == stored.room.capacity
 
 
 def test_create_reservation_in_the_past_returns_400(auth_client):
@@ -798,3 +803,39 @@ def test_add_companions_rejects_an_unknown_guest(auth_client):
 
     assert response.status_code == 400
     assert "companion_ids" in response.data["extra"]
+
+
+def test_remove_companion_from_pending_reservation(auth_client):
+    eva, davi = GuestFactory(), GuestFactory()
+    reservation = ReservationFactory(room=RoomFactory(capacity=4))
+    reservation.companions.add(eva, davi)
+
+    response = auth_client.delete(companion_url(reservation, eva.pk))
+
+    assert response.status_code == 200
+    assert response.data["companions"] == [{"id": davi.pk, "full_name": davi.full_name}]
+    assert set(reservation.companions.values_list("pk", flat=True)) == {davi.pk}
+
+
+def test_remove_companion_rejects_someone_not_listed(auth_client):
+    reservation = ReservationFactory()
+    eva = GuestFactory()
+
+    response = auth_client.delete(companion_url(reservation, eva.pk))
+
+    assert response.status_code == 400
+    assert "companion_ids" in response.data["extra"]
+
+
+def test_remove_companion_rejects_checked_in(auth_client):
+    reservation = t7_reservation()
+    eva = GuestFactory()
+    reservation.companions.add(eva)
+
+    with freeze_time(local(MARCH_7, 15, 0)):
+        auth_client.post(checkin_url(reservation), {}, format="json")
+    response = auth_client.delete(companion_url(reservation, eva.pk))
+
+    assert response.status_code == 409
+    assert response.data["code"] == "INVALID_STATUS"
+    assert eva.pk in set(reservation.companions.values_list("pk", flat=True))

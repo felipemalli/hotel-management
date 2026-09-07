@@ -69,30 +69,27 @@ export function ReservationFilters({
             </Select>
           )}
         </FormField>
-     </div>
+      </div>
 
-<div className='flex gap-4 flex-wrap'>
-<div className='w-full sm:w-72'>
-
- <DateFilterField
-        label="Entrada"
-        value={filters.checkinDate}
-        today={today}
-        onChange={onCheckinDateChange}
-        />
-
-</div>
-
-     
-<div className='w-full sm:w-72'>
-      <DateFilterField
-        label="Saída"
-        value={filters.checkoutDate}
-        today={today}
-        onChange={onCheckoutDateChange}
-        />
-</div>
+      <div className="flex flex-wrap gap-4">
+        <div className="w-full sm:w-72">
+          <DateFilterField
+            label="Entrada"
+            value={filters.checkinDate}
+            today={today}
+            onChange={onCheckinDateChange}
+          />
         </div>
+
+        <div className="w-full sm:w-72">
+          <DateFilterField
+            label="Saída"
+            value={filters.checkoutDate}
+            today={today}
+            onChange={onCheckoutDateChange}
+          />
+        </div>
+      </div>
 
       {/* Só em CHECKED_OUT: antes do checkout o filtro de pagamento mentiria. */}
       {filters.status === 'CHECKED_OUT' ? (

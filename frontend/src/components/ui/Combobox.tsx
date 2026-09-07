@@ -21,7 +21,10 @@ function ComboboxTrigger({ className, children, ...props }: ComboboxPrimitive.Tr
       {...props}
     >
       {children}
-      <ChevronDownIcon aria-hidden="true" className="pointer-events-none size-4 text-muted-foreground" />
+      <ChevronDownIcon
+        aria-hidden="true"
+        className="pointer-events-none size-4 text-muted-foreground"
+      />
     </ComboboxPrimitive.Trigger>
   )
 }
@@ -80,7 +83,10 @@ function ComboboxContent({
   anchor,
   ...props
 }: ComboboxPrimitive.Popup.Props &
-  Pick<ComboboxPrimitive.Positioner.Props, 'side' | 'align' | 'sideOffset' | 'alignOffset' | 'anchor'>) {
+  Pick<
+    ComboboxPrimitive.Positioner.Props,
+    'side' | 'align' | 'sideOffset' | 'alignOffset' | 'anchor'
+  >) {
   return (
     <ComboboxPrimitive.Portal>
       <ComboboxPrimitive.Positioner
@@ -130,7 +136,9 @@ function ComboboxItem({ className, children, ...props }: ComboboxPrimitive.Item.
     >
       {children}
       <ComboboxPrimitive.ItemIndicator
-        render={<span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />}
+        render={
+          <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />
+        }
       >
         <CheckIcon aria-hidden="true" className="pointer-events-none" />
       </ComboboxPrimitive.ItemIndicator>
@@ -200,10 +208,12 @@ function ComboboxChip({
   children,
   showRemove = true,
   removeLabel,
+  removeClassName,
   ...props
 }: ComboboxPrimitive.Chip.Props & {
   showRemove?: boolean
   removeLabel?: string
+  removeClassName?: string
 }) {
   return (
     <ComboboxPrimitive.Chip
@@ -218,7 +228,7 @@ function ComboboxChip({
       {showRemove && (
         <ComboboxPrimitive.ChipRemove
           render={<Button type="button" variant="ghost" size="icon-xs" />}
-          className="-ml-1 opacity-50 hover:opacity-100"
+          className={cn('-ml-1 opacity-50 hover:opacity-100', removeClassName)}
           data-slot="combobox-chip-remove"
           aria-label={removeLabel}
         >
@@ -231,7 +241,11 @@ function ComboboxChip({
 
 function ComboboxChipsInput({ className, ...props }: ComboboxPrimitive.Input.Props) {
   return (
-    <ComboboxPrimitive.Input data-slot="combobox-chip-input" className={cn('min-w-16 flex-1 outline-none', className)} {...props} />
+    <ComboboxPrimitive.Input
+      data-slot="combobox-chip-input"
+      className={cn('min-w-16 flex-1 outline-none', className)}
+      {...props}
+    />
   )
 }
 

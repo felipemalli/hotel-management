@@ -221,7 +221,7 @@ def quote_scheduled_stay(
     has_vehicle: bool,
     rates: RateTable = DEFAULT_RATES,
 ) -> StayQuote:
-    """Diárias e vaga do período agendado, assumindo saída no limite — sem multa."""
+    """Diárias e vaga do período agendado, assumindo saída no limite, sem multa."""
     bill = calculate_bill(
         checkin_day=checkin,
         checkout_day=checkout,
@@ -248,6 +248,7 @@ def quote_scheduled_stay(
 
 
 def _quote_bucket(kind: str, lines: list[BillLine]) -> QuoteBucket | None:
+    """A unitária sai da primeira linha: a RateTable tem uma faixa por tipo de dia."""
     if not lines:
         return None
     first = lines[0]

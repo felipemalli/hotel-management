@@ -305,3 +305,32 @@ def test_add_companions_rejects_anything_but_pending(actor):
         service.add_companions(reservation, companions=[eva])
 
     assert excinfo.value.extra["status"] == ReservationStatus.CHECKED_IN
+
+
+def test_remove_companion_from_pending_reservation(actor):
+    eva, davi = GuestFactory(), GuestFactory()
+    reservation = book(actor=actor, companions=[eva, davi])
+
+    updated = service.remove_companion(reservation, companion_id=eva.pk)
+
+    assert set(updated.companions.all()) == {davi}
+
+
+def test_remove_companion_rejects_someone_not_listed(actor):
+    reservation = book(actor=actor)
+
+    with pytest.raises(service.DomainValidationError) as excinfo:
+        service.remove_companion(reservation, companion_id=GuestFactory().pk)
+
+    assert "companion_ids" in excinfo.value.extra
+
+
+def test_remove_companion_rejects_anything_but_pending(actor):
+    eva = GuestFactory()
+    reservation = book(actor=actor, companions=[eva])
+    service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
+
+    with pytest.raises(service.InvalidStatusError) as excinfo:
+        service.remove_companion(reservation, companion_id=eva.pk)
+
+    assert excinfo.value.extra["status"] == ReservationStatus.CHECKED_IN

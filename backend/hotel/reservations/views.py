@@ -200,6 +200,46 @@ class ReservationViewSet(
         return Response(ReservationSerializer(reservation).data)
 
     @extend_schema(
+        summary="Remove um acompanhante de uma reserva pendente",
+        description=(
+            "Só `PENDING`. O hóspede precisa já estar na lista; o titular não se remove "
+            "por aqui. A capacidade deixa de ser um freio — só a lista encolhe."
+        ),
+        parameters=[
+            OpenApiParameter(
+                name="guest_id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Id do hóspede a tirar da lista de acompanhantes.",
+            ),
+        ],
+        request=None,
+        responses={
+            200: ReservationSerializer,
+            400: ErrorEnvelopeSerializer,
+            409: OpenApiResponse(
+                response=ErrorEnvelopeSerializer,
+                description="Reserva não está `PENDING`.",
+                examples=[INVALID_STATUS_EXAMPLE],
+            ),
+            404: ErrorEnvelopeSerializer,
+        },
+    )
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path=r"companions/(?P<guest_id>[0-9]+)",
+    )
+    def remove_companion(
+        self, request: Request, pk: str | None = None, guest_id: str | None = None
+    ) -> Response:
+        reservation = reservations_service.remove_companion(
+            self.get_object(),
+            companion_id=int(guest_id),
+        )
+        return Response(ReservationSerializer(reservation).data)
+
+    @extend_schema(
         summary="Efetiva o check-in",
         description=(
             "Antes das 14:00 locais responde `409 EARLY_CHECKIN` com o horário do "

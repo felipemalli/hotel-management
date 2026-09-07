@@ -6,9 +6,13 @@ import { Typography } from '@/components/ui'
 import type { Guest } from '@/features/guests/types'
 import { CompanionPicker } from '@/features/reservations/components/CompanionPicker'
 import { describeEntry, historyEntries } from '@/features/reservations/history'
-import { useAddReservationCompanions } from '@/features/reservations/hooks'
+import {
+  useAddReservationCompanions,
+  useRemoveReservationCompanion,
+} from '@/features/reservations/hooks'
 import { PAYMENT_METHOD_LABELS } from '@/features/reservations/payment'
-import type { CheckoutStatement, Reservation } from '@/features/reservations/types'
+import { peopleCount } from '@/features/reservations/status'
+import type { CheckoutStatement, GuestRef, Reservation } from '@/features/reservations/types'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { countryName } from '@/lib/format/countries'
 import { formatISODate } from '@/lib/format/dates'
@@ -36,12 +40,17 @@ function money(value: string | null): string {
   return value === null ? '—' : formatBRL(value)
 }
 
+function partyVsCapacity(reservation: Reservation): string {
+  return `${peopleCount(reservation)} de ${reservation.room.capacity}`
+}
+
 export function ReservationStaySection({ reservation }: { reservation: Reservation }) {
   return (
     <Section title="Hospedagem">
       <DescriptionList
         items={[
           { label: 'Quarto', value: reservation.room.number },
+          { label: 'Pessoas', value: partyVsCapacity(reservation) },
           { label: 'Entrada', value: formatISODate(reservation.checkin_date) },
           { label: 'Saída', value: formatISODate(reservation.checkout_date) },
           { label: 'Vaga', value: formatYesNo(reservation.has_vehicle) },
@@ -64,7 +73,7 @@ export function ReservationPeopleSection({
 }) {
   return (
     <Section title="Pessoas">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-8 gap-y-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-x-8 gap-y-5">
         <div className="flex flex-col gap-2">
           <Typography as="p" variant="overline">
             Titular
@@ -93,11 +102,20 @@ export function ReservationPeopleSection({
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2.5">
           <Typography as="p" variant="overline">
             Acompanhantes
           </Typography>
-          {reservation.companions.length === 0 ? (
+          {reservation.status === 'PENDING' ? (
+            <>
+              {reservation.companions.length === 0 ? (
+                <Typography as="p" variant="body" tone="mutedLight">
+                  Sem acompanhantes
+                </Typography>
+              ) : null}
+              <EditCompanions reservation={reservation} />
+            </>
+          ) : reservation.companions.length === 0 ? (
             <Typography as="p" variant="body" tone="muted">
               Sem acompanhantes
             </Typography>
@@ -110,9 +128,6 @@ export function ReservationPeopleSection({
               ))}
             </ul>
           )}
-          {reservation.status === 'PENDING' ? (
-            <AddCompanionField reservation={reservation} />
-          ) : null}
         </div>
       </div>
     </Section>
@@ -127,28 +142,54 @@ function companionFieldError(error: unknown): string {
   return errorMessage(error)
 }
 
-function AddCompanionField({ reservation }: { reservation: Reservation }) {
+function occupancyHint(reservation: Reservation): string {
+  return (
+    `Ocupação: ${partyVsCapacity(reservation)} no quarto ${reservation.room.number}. ` +
+    'Só hóspedes já cadastrados podem ser adicionados.'
+  )
+}
+
+function EditCompanions({ reservation }: { reservation: Reservation }) {
   const add = useAddReservationCompanions()
+  const remove = useRemoveReservationCompanion()
   const [error, setError] = useState<string>()
+  const current = reservation.companions
+  const busy = add.isPending || remove.isPending
+
+  function persist(next: GuestRef[]) {
+    const currentIds = new Set(current.map((companion) => companion.id))
+    const nextIds = new Set(next.map((companion) => companion.id))
+    const added = next.filter((companion) => !currentIds.has(companion.id))
+    const removed = current.filter((companion) => !nextIds.has(companion.id))
+    const handlers = {
+      onSuccess: () => setError(undefined),
+      onError: (cause: unknown) => setError(companionFieldError(cause)),
+    }
+
+    if (added.length > 0) {
+      add.mutate(
+        { id: reservation.id, companion_ids: added.map((companion) => companion.id) },
+        handlers,
+      )
+    }
+    const dropped = removed[0]
+    if (dropped !== undefined) {
+      remove.mutate({ id: reservation.id, guestId: dropped.id }, handlers)
+    }
+  }
 
   return (
     <CompanionPicker
       holderId={reservation.guest_id}
-      value={[]}
-      excludeIds={reservation.companions.map((companion) => companion.id)}
+      value={current}
       label="Adicionar acompanhante"
+      hideLabel
+      hint={occupancyHint(reservation)}
+      hintClassName="text-xs leading-4"
       error={error}
+      disabled={busy}
       onDraftChange={() => setError(undefined)}
-      onChange={(next) => {
-        if (next.length === 0) return
-        add.mutate(
-          { id: reservation.id, companion_ids: next.map((companion) => companion.id) },
-          {
-            onSuccess: () => setError(undefined),
-            onError: (cause) => setError(companionFieldError(cause)),
-          },
-        )
-      }}
+      onChange={persist}
     />
   )
 }

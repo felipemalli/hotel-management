@@ -67,8 +67,13 @@ export function StayQuoteCard({
 function QuoteBreakdown({ quote }: { quote: StayQuote }) {
   return (
     <div>
-      <table className="w-full">
+      <table className="w-full table-fixed">
         <caption className="sr-only">Composição do valor estimado</caption>
+        <colgroup>
+          <col />
+          <col className="w-[7rem]" />
+          <col className="w-[7rem]" />
+        </colgroup>
         <thead>
           <tr className="border-b border-border bg-background">
             <th scope="col" className="px-4 py-2.5 text-left">
@@ -76,12 +81,12 @@ function QuoteBreakdown({ quote }: { quote: StayQuote }) {
                 Noites
               </Typography>
             </th>
-            <th scope="col" className="px-4 py-2.5 text-right">
+            <th scope="col" className="px-3 py-2.5 text-right">
               <Typography as="span" variant="overline">
                 Diária
               </Typography>
             </th>
-            <th scope="col" className="min-w-[68px] px-4 py-2.5 text-right">
+            <th scope="col" className="px-3 py-2.5 text-right">
               <Typography as="span" variant="overline">
                 Vaga
               </Typography>
@@ -93,7 +98,7 @@ function QuoteBreakdown({ quote }: { quote: StayQuote }) {
             const parkingIsZero = bucket.parking_fee === ZERO_MONEY
             return (
               <tr key={bucket.kind} className="border-b border-border/60 bg-background">
-                <th scope="row" className="px-4 py-2.5 text-left font-normal">
+                <th scope="row" className="min-w-0 px-4 py-2.5 text-left font-normal">
                   <Typography as="p" variant="body">
                     {bucket.nights}x {BUCKET_RANGE[bucket.kind]}
                   </Typography>
@@ -101,12 +106,12 @@ function QuoteBreakdown({ quote }: { quote: StayQuote }) {
                     {bucketDetail(bucket.nights, bucket.daily_rate, bucket.parking_fee)}
                   </Typography>
                 </th>
-                <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                <td className="px-3 py-2.5 text-right tabular-nums">
                   <Typography as="span" variant="mono">
                     {formatBRL(bucket.subtotal_daily)}
                   </Typography>
                 </td>
-                <td className="min-w-[68px] px-4 py-2.5 text-right whitespace-nowrap">
+                <td className="px-3 py-2.5 text-right tabular-nums">
                   <Typography as="span" variant="mono" tone={parkingIsZero ? 'muted' : 'default'}>
                     {formatBRL(bucket.subtotal_parking)}
                   </Typography>

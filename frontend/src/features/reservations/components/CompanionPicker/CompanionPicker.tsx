@@ -25,7 +25,11 @@ export interface CompanionPickerProps {
   onDraftChange?: (draft: string) => void
   excludeIds?: readonly number[]
   label?: string
+  hideLabel?: boolean
+  hint?: string
+  hintClassName?: string
   error?: string
+  disabled?: boolean
 }
 
 export function CompanionPicker({
@@ -35,7 +39,11 @@ export function CompanionPicker({
   onDraftChange,
   excludeIds = [],
   label = 'Acompanhantes',
+  hideLabel,
+  hint = 'Só hóspedes já cadastrados podem ser adicionados.',
+  hintClassName,
   error,
+  disabled,
 }: CompanionPickerProps) {
   const [search, setSearch] = useState('')
   const debounced = useDebouncedValue(search, SEARCH_DEBOUNCE_MS)
@@ -55,12 +63,19 @@ export function CompanionPicker({
   }
 
   return (
-    <FormField label={label} hint="Só hóspedes já cadastrados podem ser adicionados." error={error}>
+    <FormField
+      label={label}
+      hideLabel={hideLabel}
+      hint={hint}
+      hintClassName={hintClassName}
+      error={error}
+    >
       {(control) => (
         <Combobox
           items={candidates}
           multiple
           value={[...value]}
+          disabled={disabled}
           onValueChange={(next) => {
             onChange(next.map((guest) => ({ id: guest.id, full_name: guest.full_name })))
             setDraft('')
@@ -84,7 +99,7 @@ export function CompanionPicker({
         >
           <div className="relative">
             <ComboboxChips
-              className="w-full"
+              className="flex min-h-0 w-full flex-col flex-nowrap items-stretch gap-1.5 rounded-none border-0 bg-transparent p-0 shadow-none ring-0 focus-within:border-transparent focus-within:ring-0 has-aria-invalid:border-transparent has-aria-invalid:ring-0 has-data-[slot=combobox-chip]:px-0 dark:bg-transparent"
               aria-label={value.length > 0 ? 'Acompanhantes escolhidos' : undefined}
             >
               <ComboboxValue>
@@ -95,16 +110,20 @@ export function CompanionPicker({
                       removeLabel={`Remover ${companion.full_name}`}
                       aria-label={companion.full_name}
                       aria-description="Pressione Backspace ou Delete para remover"
+                      className="h-9 w-full max-w-none justify-between gap-2.5 rounded-lg border border-border bg-card px-3 py-0 text-sm font-normal has-data-[slot=combobox-chip-remove]:pr-1.5"
+                      removeClassName="size-[1.625rem] rounded-md opacity-45 hover:bg-destructive/10 hover:opacity-100"
                     >
-                      {companion.full_name}
+                      <span className="min-w-0 flex-1 truncate">{companion.full_name}</span>
                     </ComboboxChip>
                   ))
                 }
               </ComboboxValue>
               <ComboboxChipsInput
                 {...control}
-                placeholder={value.length > 0 ? 'Adicionar…' : 'Nome, documento ou telefone'}
+                placeholder="Nome, documento ou telefone"
                 autoComplete="off"
+                disabled={disabled}
+                className="h-9 min-w-0 flex-none rounded-lg border border-input bg-card px-3 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && query.length > 0 && candidates.length === 0) {
                     event.preventDefault()

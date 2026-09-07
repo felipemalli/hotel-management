@@ -30,7 +30,13 @@ function localDateToISO(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-export function DateFilterField({ label, value, today, onChange, className }: DateFilterFieldProps) {
+export function DateFilterField({
+  label,
+  value,
+  today,
+  onChange,
+  className,
+}: DateFilterFieldProps) {
   const [open, setOpen] = useState(false)
   const isToday = value === TODAY
   const resolved = isToday ? today : value
@@ -45,7 +51,11 @@ export function DateFilterField({ label, value, today, onChange, className }: Da
               aria-invalid={control['aria-invalid']}
               aria-describedby={control['aria-describedby']}
               render={
-                <Button type="button" variant="outline" className="justify-start gap-2 font-normal grow">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="grow justify-start gap-2 font-normal"
+                >
                   <CalendarIcon aria-hidden="true" className="size-4 text-muted-foreground" />
                   {resolved ? formatISODate(resolved) : 'Selecionar data'}
                 </Button>

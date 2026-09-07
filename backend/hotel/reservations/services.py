@@ -132,6 +132,23 @@ def add_companions(reservation: Reservation, *, companions: Sequence[Guest]) -> 
     return selectors.reservation_queryset().get(pk=reservation.pk)
 
 
+def remove_companion(reservation: Reservation, *, companion_id: int) -> Reservation:
+    with transaction.atomic():
+        locked = _lock(reservation)
+        if locked.status != ReservationStatus.PENDING:
+            raise InvalidStatusError(
+                "Acompanhantes só podem ser removidos enquanto a reserva está pendente.",
+                extra={"status": locked.status},
+            )
+        if not locked.companions.filter(pk=companion_id).exists():
+            raise DomainValidationError(
+                "companion_ids", "Este hóspede não é acompanhante desta reserva."
+            )
+        locked.companions.remove(companion_id)
+
+    return selectors.reservation_queryset().get(pk=reservation.pk)
+
+
 @dataclass(frozen=True)
 class CheckinWindow:
     """A politica vigente e o que ela diz sobre a hora de agora."""

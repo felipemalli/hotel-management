@@ -72,6 +72,11 @@ export function reservationColumns({
         </Typography>
       ),
     }),
+    helper.display({
+      id: 'people',
+      header: 'Pessoas',
+      cell: ({ row }) => peopleCount(row.original),
+    }),
     helper.accessor('checkin_date', {
       ...sortable('checkin_date', 'Entrada'),
       cell: ({ getValue }) => (
@@ -100,11 +105,6 @@ export function reservationColumns({
       id: 'status',
       header: 'Status',
       cell: ({ row }) => <ReservationStatusBadge status={row.original.status} />,
-    }),
-    helper.display({
-      id: 'people',
-      header: 'Pessoas',
-      cell: ({ row }) => peopleCount(row.original),
     }),
     helper.display({
       id: 'vehicle',

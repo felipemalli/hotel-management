@@ -12,6 +12,7 @@ export interface FormFieldControl {
 export interface FormFieldProps {
   label: string
   hint?: string
+  hintClassName?: string
   error?: string
   htmlFor?: string
   hideLabel?: boolean
@@ -19,7 +20,15 @@ export interface FormFieldProps {
 }
 
 // O field vendorizado não liga aria-describedby/aria-invalid sozinho.
-export function FormField({ label, hint, error, htmlFor, hideLabel, children }: FormFieldProps) {
+export function FormField({
+  label,
+  hint,
+  hintClassName,
+  error,
+  htmlFor,
+  hideLabel,
+  children,
+}: FormFieldProps) {
   const generatedId = useId()
   const id = htmlFor ?? generatedId
   const hintId = `${id}-hint`
@@ -39,7 +48,7 @@ export function FormField({ label, hint, error, htmlFor, hideLabel, children }: 
       </FieldLabel>
       {children(control)}
       {hint ? (
-        <FieldDescription id={hintId} className={hideLabel ? 'sr-only' : undefined}>
+        <FieldDescription id={hintId} className={hintClassName}>
           {hint}
         </FieldDescription>
       ) : null}

@@ -41,7 +41,7 @@ export const reservationSchema = z.object({
   id: z.number().int(),
   guest_id: z.number().int(),
   companions: z.array(guestRefSchema),
-  room: roomSummarySchema,
+  room: roomSummarySchema.extend({ capacity: z.number().int() }),
   policy_id: z.number().int().nullable(),
   checkin_date: isoDate,
   checkout_date: isoDate,
