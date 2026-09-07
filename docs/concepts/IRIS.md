@@ -1,11 +1,11 @@
 # Íris — o copiloto do hotel
 
-> Voltar ao [README](../README.md). Feature **opcional e desacoplada**: sem
-> `OPENAI_API_KEY` ela fica desligada e o resto do sistema não muda em nada.
+> Feature **opcional e desacoplada**: sem `OPENAI_API_KEY` ela fica desligada e
+> o resto do sistema não muda em nada.
 >
 > Este documento é **o que** a Íris faz. Para **como** ela foi feita — o caminho
 > do código, arquivo por arquivo, na ordem em que uma requisição acontece —
-> veja [`IRIS-CODIGO.md`](IRIS-CODIGO.md).
+> veja [`IRIS-CODE.md`](../code/IRIS-CODE.md).
 
 A Íris tem uma página própria (`/iris`, primeiro item de OPERAÇÃO). O atendente
 pergunta em linguagem natural — "a Ana Souza chegou", "alguém passou do horário
@@ -57,7 +57,7 @@ docker compose up -d --build backend
 ```
 
 Para conferir que a chave pegou, sem abrir o navegador (é a única forma de exercitar
-o provedor — **nenhum teste automatizado chama a API**, [`QUALIDADE.md`](QUALIDADE.md)):
+o provedor — **nenhum teste automatizado chama a API**, [`QUALITY.md`](QUALITY.md)):
 
 ```bash
 docker compose exec -T backend uv run python manage.py shell -c "

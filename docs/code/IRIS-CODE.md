@@ -1,9 +1,8 @@
 # Íris — o código, passo a passo
 
-> Voltar ao [README](../README.md) · A visão de produto da feature está em
-> [`IRIS.md`](IRIS.md): **o que** ela faz, como ligar, o que sai para o
-> provedor. Este documento é o complemento: **como** ela foi feita, arquivo por
-> arquivo, na ordem em que uma requisição acontece.
+> Este documento é o **como**: o caminho do código, arquivo por arquivo, na
+> ordem em que uma requisição acontece. O **o que** da feature (como ligar, o
+> que sai para o provedor) fica fora dele.
 
 A Íris responde ao atendente em linguagem natural consultando o próprio banco.
 O que a diferencia de um chat colado no produto é quem faz as consultas: **o
@@ -25,14 +24,14 @@ Duas ideias sustentam o resto, e vale fixá-las antes de descer ao código:
 
 | Arquivo | Responsabilidade | O que **não** faz |
 | --- | --- | --- |
-| [`ai/urls.py`](../backend/ai/urls.py) | Duas rotas | — |
-| [`ai/config.py`](../backend/ai/config.py) | Chave, modelo, os três tetos | Não conhece HTTP |
-| [`ai/serializers.py`](../backend/ai/serializers.py) | Contrato de entrada e saída do endpoint | Não conhece o provedor |
-| [`ai/views.py`](../backend/ai/views.py) | HTTP: portão, validação, relógio, throttle, OpenAPI | Nenhuma regra de negócio |
-| [`ai/copilot.py`](../backend/ai/copilot.py) | Orquestração: instruções + sessão + validação final | Não fala HTTP com o provedor |
-| [`ai/client.py`](../backend/ai/client.py) | O laço de *tool use* e o transporte | Não conhece hotel nenhum |
-| [`ai/tools.py`](../backend/ai/tools.py) | As cinco ferramentas: declaração, validação, execução, recorte | Não conhece o provedor |
-| [`ai/exceptions.py`](../backend/ai/exceptions.py) | Os dois erros de domínio da feature | — |
+| [`ai/urls.py`](../../backend/ai/urls.py) | Duas rotas | — |
+| [`ai/config.py`](../../backend/ai/config.py) | Chave, modelo, os três tetos | Não conhece HTTP |
+| [`ai/serializers.py`](../../backend/ai/serializers.py) | Contrato de entrada e saída do endpoint | Não conhece o provedor |
+| [`ai/views.py`](../../backend/ai/views.py) | HTTP: portão, validação, relógio, throttle, OpenAPI | Nenhuma regra de negócio |
+| [`ai/copilot.py`](../../backend/ai/copilot.py) | Orquestração: instruções + sessão + validação final | Não fala HTTP com o provedor |
+| [`ai/client.py`](../../backend/ai/client.py) | O laço de *tool use* e o transporte | Não conhece hotel nenhum |
+| [`ai/tools.py`](../../backend/ai/tools.py) | As cinco ferramentas: declaração, validação, execução, recorte | Não conhece o provedor |
+| [`ai/exceptions.py`](../../backend/ai/exceptions.py) | Os dois erros de domínio da feature | — |
 
 A fronteira que importa: **`client.py` não sabe o que é um hotel e `tools.py`
 não sabe o que é a OpenAI.** `converse()` recebe `tools`, `run_tool` e
@@ -43,8 +42,8 @@ provedor é reescrever um arquivo de 111 linhas, sem tocar no domínio.
 
 ## 1. A rota
 
-[`config/urls.py`](../backend/config/urls.py) monta o app sob um prefixo, e
-[`ai/urls.py`](../backend/ai/urls.py) declara as duas rotas:
+[`config/urls.py`](../../backend/config/urls.py) monta o app sob um prefixo, e
+[`ai/urls.py`](../../backend/ai/urls.py) declara as duas rotas:
 
 ```python
 # config/urls.py
@@ -64,7 +63,7 @@ externo — resolve.
 
 ## 2. O portão: a feature é opcional por construção
 
-[`ai/config.py`](../backend/ai/config.py) é o arquivo mais curto e o mais
+[`ai/config.py`](../../backend/ai/config.py) é o arquivo mais curto e o mais
 importante para a narrativa da feature:
 
 ```python
@@ -89,7 +88,7 @@ laço. Daí o orçamento global — §7.
 
 ## 3. O contrato de entrada e de saída
 
-[`ai/serializers.py`](../backend/ai/serializers.py), 28 linhas:
+[`ai/serializers.py`](../../backend/ai/serializers.py), 28 linhas:
 
 ```python
 class CopilotRequestSerializer(serializers.Serializer):
@@ -119,7 +118,7 @@ consumidores.
 
 ## 4. A view: onde o relógio entra no sistema
 
-[`ai/views.py`](../backend/ai/views.py) — a view inteira tem sete linhas de
+[`ai/views.py`](../../backend/ai/views.py) — a view inteira tem sete linhas de
 código sob cerca de cem de documentação OpenAPI:
 
 ```python
@@ -138,7 +137,7 @@ def copilot(request: Request) -> Response:
 
 Quatro decisões em sete linhas:
 
-**`timezone.now()` só aparece aqui.** É invariante do projeto (`README.md` §7):
+**`timezone.now()` só aparece aqui.** É invariante do projeto:
 relógio injetável. `answer()` recebe `now` por parâmetro e, dali para baixo,
 tudo é determinístico — não há um `now()` escondido no meio da cadeia. É o que
 permite congelar o relógio no teste e assertar a frase exata que foi para o
@@ -161,7 +160,7 @@ mantém o Swagger honesto quando o código muda.
 
 ## 5. As instruções carregam o relógio **do domínio**
 
-Aqui começa [`ai/copilot.py`](../backend/ai/copilot.py):
+Aqui começa [`ai/copilot.py`](../../backend/ai/copilot.py):
 
 ```python
 def system_instruction(now: datetime) -> str:
@@ -189,7 +188,7 @@ horário diferente do que o sistema vai cobrar. O teste cria uma política com
 `checkin_opens=15:00`, congela o relógio em 13:45 e assere a string dentro de
 `body["instructions"]`.
 
-O prompt tem nove regras. As que carregam engenharia, não estilo:
+O prompt tem onze regras. As que carregam engenharia, não estilo:
 
 | Regra | O que ela evita |
 | --- | --- |
@@ -216,7 +215,7 @@ def answer(message: str, *, now: datetime) -> dict[str, Any]:
     )
 ```
 
-`ToolSession` ([`ai/tools.py`](../backend/ai/tools.py)) nasce **uma por
+`ToolSession` ([`ai/tools.py`](../../backend/ai/tools.py)) nasce **uma por
 requisição** e carrega três coisas:
 
 ```python
@@ -239,7 +238,7 @@ Esses dois conjuntos são o modelo de segurança da feature (§10).
 
 ## 7. O laço de *tool use* (o coração)
 
-[`ai/client.py`](../backend/ai/client.py):
+[`ai/client.py`](../../backend/ai/client.py):
 
 ```python
 def converse(*, system, message, tools, run_tool, terminal) -> dict[str, Any]:
@@ -631,7 +630,7 @@ Três níveis, e a distinção é deliberada:
 | Feature desligada | `AiDisabledError` | HTTP | **`503`** `AI_DISABLED` |
 | Provedor inutilizável | `AiUpstreamError` | HTTP | **`502`** `AI_UPSTREAM_ERROR` |
 
-[`ai/exceptions.py`](../backend/ai/exceptions.py) tem 17 linhas porque cada erro
+[`ai/exceptions.py`](../../backend/ai/exceptions.py) tem 17 linhas porque cada erro
 herda de `ApiError` e só declara três atributos:
 
 ```python
@@ -642,7 +641,7 @@ class AiUpstreamError(ApiError):
 ```
 
 E o `EXCEPTION_HANDLER` global (`core/exceptions.py`) transforma isso no mesmo
-envelope de **toda** a API (`README.md` §6):
+envelope de **toda** a API:
 
 ```json
 { "code": "AI_UPSTREAM_ERROR", "detail": "...", "extra": {} }
@@ -661,7 +660,7 @@ atendente estava boa).
 
 ## 12. O frontend: o contrato espelhado
 
-**1 · O contrato, em Zod** — [`features/ai/schemas.ts`](../frontend/src/features/ai/schemas.ts):
+**1 · O contrato, em Zod** — [`features/ai/schemas.ts`](../../frontend/src/features/ai/schemas.ts):
 
 ```ts
 export const proposedActionSchema = z.object({
@@ -677,10 +676,10 @@ export const copilotReplySchema = z.object({
 ```
 
 Espelho exato do `CopilotReplySerializer`. E os tipos TypeScript são
-**derivados** dele via `z.infer` em [`types.ts`](../frontend/src/features/ai/types.ts)
+**derivados** dele via `z.infer` em [`types.ts`](../../frontend/src/features/ai/types.ts)
 — uma fonte de verdade, não um schema mais uma interface para manter em sincronia.
 
-**2 · Validação em runtime** — [`features/ai/api.ts`](../frontend/src/features/ai/api.ts):
+**2 · Validação em runtime** — [`features/ai/api.ts`](../../frontend/src/features/ai/api.ts):
 
 ```ts
 export async function askCopilot(message: string): Promise<CopilotReply> {
@@ -692,7 +691,7 @@ export async function askCopilot(message: string): Promise<CopilotReply> {
 `<unknown>`, não `<CopilotReply>`: o tipo vem do `parseResponse`, **depois** da
 validação. Confiar num `as` sobre a resposta da rede é mentir para o compilador.
 
-**3 · Os hooks** — [`features/ai/hooks.ts`](../frontend/src/features/ai/hooks.ts):
+**3 · Os hooks** — [`features/ai/hooks.ts`](../../frontend/src/features/ai/hooks.ts):
 
 ```ts
 export function useAiStatus() {
@@ -715,7 +714,7 @@ export function useCopilot() {
 false` é o lado cliente do portão: `/ai/status/` falhando mostra "desligada" em
 vez de estourar no Error Boundary.
 
-**4 · A página** — [`pages/IrisPage/IrisPage.tsx`](../frontend/src/pages/IrisPage/IrisPage.tsx):
+**4 · A página** — [`pages/IrisPage/IrisPage.tsx`](../../frontend/src/pages/IrisPage/IrisPage.tsx):
 
 ```tsx
 const enabled = status.data?.enabled === true
@@ -727,7 +726,7 @@ const action = done === null ? (answer?.proposed_action ?? null) : null
 `action` só existe enquanto `done === null` — depois de executar, o botão dá
 lugar ao texto de confirmação e não há como clicar duas vezes.
 
-**5 · A ação** — [`pages/IrisPage/IrisAction.tsx`](../frontend/src/pages/IrisPage/IrisAction.tsx),
+**5 · A ação** — [`pages/IrisPage/IrisAction.tsx`](../../frontend/src/pages/IrisPage/IrisAction.tsx),
 onde o argumento fecha:
 
 ```tsx
@@ -750,7 +749,7 @@ pelo caminho auditado de sempre, com `select_for_update`, locks e transações.
 
 ## 13. Como isso é testado sem nunca chamar o provedor
 
-[`tests/api/test_ai.py`](../backend/tests/api/test_ai.py) tem 829 linhas e
+[`tests/api/test_ai.py`](../../backend/tests/api/test_ai.py) tem 829 linhas e
 **zero** chamadas de rede. A técnica é um dublê do transporte:
 
 ```python
@@ -800,7 +799,7 @@ gastar dinheiro. O segundo, que a chave real nunca está visível em teste.
 
 ## 14. Removível por construção, e o CI cobra
 
-Contratos do **import-linter** em [`backend/pyproject.toml`](../backend/pyproject.toml):
+Contratos do **import-linter** em [`backend/pyproject.toml`](../../backend/pyproject.toml):
 
 ```toml
 [[tool.importlinter.contracts]]
@@ -829,8 +828,7 @@ Some a isso: o pacote não entra em `INSTALLED_APPS` (não tem models nem
 migrações) e nada do resto do frontend importa `features/ai/`.
 
 **"É removível" deixa de ser promessa em prosa e passa a ser regra que quebra o
-build.** O inventário completo do que a feature ocupa está em
-[`IRIS.md`](IRIS.md).
+build.**
 
 ---
 
@@ -858,10 +856,4 @@ pelos endpoints de sempre, com os mesmos locks e diálogos.
 E a feature é opcional por construção: sem `OPENAI_API_KEY` ela se desliga e o
 produto segue 100% funcional. O import-linter cobra no CI que nenhum app do
 domínio importe `ai/` — "é removível" é uma regra que quebra o build, não uma
-promessa no README.
-
----
-
-**Voltar para o [README](../README.md)** · Visão de produto da feature:
-[`IRIS.md`](IRIS.md) · Camadas e grafo fiscalizado:
-[`ARCHITECTURE.md`](../ARCHITECTURE.md)
+promessa em prosa.

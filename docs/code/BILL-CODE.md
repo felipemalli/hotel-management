@@ -23,10 +23,10 @@ Bill(
 
 A saída contratada era 15/09 e o hóspede vagou o quarto às 12:30. A multa é do dia da saída, não das `lines`: 15/09 não gera diária nem vaga (o período cobrado é semiaberto), só os 50% da tarifa do próprio dia.
 
-As `lines` e `late_fees` ficam em uma tabela separada (`billing_accountline`).
+As `lines` e `late_fees` ficam em uma tabela separada (`billing_accountline`). A ideia é que novos gastos podem ser adicionados durante a estadia (frigobar, restaurantes, danos... etc).
 
 Elas nascem no checkout porque só ali existe o que as define. `calculate_bill` exige o dia e a hora da saída real, e é a saída real que decide **quantas** linhas são: o período cobrado vai até `max(saída real, saída contratada)`, então cada dia de permanência além do contratado acrescenta uma diária, uma vaga e uma multa. No exemplo acima, sair em 17/09 às 13:00 daria 7 diárias, 7 vagas e 3 multas em vez de 5, 5 e 1. No check-in nada disso é conhecido, e a conta é aberta vazia.
 
-Inserir cedo e corrigir depois também não seria só um `UPDATE` extra: a `UniqueConstraint` `accountline_one_per_kind_date` é por (`account`, `kind`, `service_date`), então relançar no checkout colidiria com o que já estivesse lá. Do jeito atual, `post_lines` é um lock e um `bulk_create` — o checkout de N noites não trava N vezes.
+Inserir cedo e corrigir depois também não seria só um `UPDATE` extra: a `UniqueConstraint` `accountline_one_per_kind_date` é por (`account`, `kind`, `service_date`), então relançar no checkout colidiria com o que já estivesse lá. Do jeito atual, `post_lines` é um lock e um `bulk_create` (o checkout de N noites não trava N vezes).
 
 Cancelamento não entra na justificativa: a conta só passa a existir no check-in, que é quem chama `open_account`, e de `CHECKED_IN` só se sai para `CHECKED_OUT` (`ALLOWED_TRANSITIONS`). A CHECK `resv_account_matches_status` fecha isso no banco, exigindo `account IS NULL` em `PENDING` e `CANCELLED`. Reserva cancelada nunca teve conta, logo nunca houve linha para excluir.

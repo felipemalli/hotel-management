@@ -1,10 +1,10 @@
-## Autenticação
+# Autenticação
 
-O padrão adotado foi híbrido: Access Token mantido em memória no frontend e Refresh Token armazenado em um Cookie HttpOnly e Secure.
+O padrão adotado foi híbrido: Access Token mantido em memória no frontend e Refresh Token armazenado em um Cookie HttpOnly, SameSite=Strict e Secure. A flag Secure segue `COOKIE_SECURE` (padrão `not DEBUG`); o `.env.example` e os dois compose a deixam em 0 porque a demo roda sobre http, e atrás de TLS ela deve ser 1.
 
 Com o Access Token na memória, as rotas de negócio da API são autenticadas explicitamente via header Authorization: Bearer. Como o navegador nunca anexa headers customizados de forma automática em requisições cross-origin, a API de negócio fica imune a ataques de CSRF por construção, eliminando a complexidade de gerenciar tokens CSRF em toda requisição.
 
-O cookie entra apenas onde a persistência de longa duração é necessária (na rota de renovação /refresh). Como esse cookie é HttpOnly, scripts maliciosos não conseguem ler nem exfiltrar a credencial de longa duração caso ocorra um XSS.
+O cookie entra apenas nas duas rotas que precisam da credencial de longa duração, renovação (`/api/auth/token/refresh/`) e logout (`/api/auth/logout/`), e é emitido com `path=/api/auth/`, então o navegador nunca o anexa às rotas de negócio. Como esse cookie é HttpOnly, scripts maliciosos não conseguem ler nem exfiltrar a credencial de longa duração caso ocorra um XSS.
 
 Colocar o Access Token também em cookie traria a complexidade de CSRF para todas as rotas da API em troca de um ganho marginal de segurança. Se a decisão fosse autenticar 100% via cookie, faria mais sentido abandonar o JWT e adotar sessões tradicionais no servidor.
 

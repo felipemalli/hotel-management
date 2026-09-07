@@ -8,9 +8,9 @@ paths: frontend/src/**/*.test.{ts,tsx}, frontend/src/test/**, frontend/vite.conf
 
 ## Não-negociáveis
 
-- **Único mock permitido em teste de integração: `@/features/<feature>/api`** (`vi.mock`). Nunca mockar um hook, o axios ou o router. MSW foi avaliado e recusado (README §3) — ele dublaria a mesma camada mais abaixo, sem provar nada a mais.
-- **Os ids de `it(...)` na matriz RF/RN do RESUMO-DO-PROJETO.md §10 (local) são imutáveis.** O arquivo pode mudar de pasta; o nome do arquivo e o id do caso não mudam sem que a matriz mude primeiro. O CI tem um guard (`ci.yml` job `frontend`) que falha se um id sumir.
-- **`__fixtures__/bills.ts` (T1–T9) é intocável.** Dinheiro em teste é sempre a string literal da fixture (`'R$ 425,00'`), nunca uma conta feita no teste — o cálculo mora no backend. A única edição já feita foi a chave `payment.paid_by` → `payment.received_by` no T7 pago (2026-09): nenhum número mudou. O extrato da API também traz `extras` e `subtotal_extras`, que o zod não-strict descarta — o frontend ainda não os modela.
+- **Único mock permitido em teste de integração: `@/features/<feature>/api`** (`vi.mock`). Nunca mockar um hook, o axios ou o router. MSW foi avaliado e recusado (`docs/concepts/QUALITY.md` §2) — ele dublaria a mesma camada mais abaixo, sem provar nada a mais.
+- **Os ids de `it(...)` na matriz RF/RN de `docs/CHALLENGE.md` §2 são imutáveis.** O arquivo pode mudar de pasta; o nome do arquivo e o id do caso não mudam sem que a matriz mude primeiro. O CI tem um guard (`ci.yml` job `frontend`) que falha se um id sumir.
+- **`__fixtures__/bills.ts` (T1–T9) é intocável.** Dinheiro em teste é sempre a string literal da fixture (`'R$ 425,00'`), nunca uma conta feita no teste — o cálculo mora no backend. A única edição já feita foi a chave `payment.paid_by` → `payment.received_by` no T7 pago (2026-09): nenhum número mudou.
 - **Componente vendorizado (`src/components/ui/**`) nunca ganha teste próprio.** Ele testa o Base UI, não o produto.
 
 ## Qual teste para quê
@@ -54,7 +54,7 @@ describe('RoomDeactivateDialog', () => {
 
 ## Helpers que existem de verdade
 
-- `@/test/renderWithProviders` → `renderWithProviders(ui, options?)`, `signInForTest(username?)`, `resetGlobalStores()`.
+- `@/test/renderWithProviders` → `renderWithProviders(ui, options?)`, `signInForTest()` (grava um access token fixo na `session`), `resetGlobalStores()`.
 - `@/test/renderPage` → `renderPage(page, { route, path?, queryClient? })`.
 - `@/test/fixtures` → `page(results)` (envelope DRF), `elementAt(list, index)` (acessa um índice de uma `NodeList`/array com erro legível em vez de `undefined`).
 - Não existem `select.ts`/`table.ts` dedicados em `src/test/` — o padrão estabelecido é `within(table).getAllByRole('row')` + `elementAt(rows, i)` direto no teste. Se você extrair um helper, documente aqui.
@@ -71,7 +71,7 @@ Vale: contrato consumido fielmente (schema, formatação), a consequência visí
 - `Toaster` não é montado por `renderPage`; afirme toast via `toastStore.getSnapshot()` (`@/lib/notify/toast`), não pela tela.
 - Toasts somem sozinhos após alguns segundos — afirme logo após o clique, não deixe o teste "esperar" por eles.
 - `e2e/**` fica fora do Vitest por construção (`vite.config.ts`: `test.include` é `src/**/*.test.{ts,tsx}`) — um `.spec.ts` em `e2e/` nunca roda pelo Vitest, e um `.test.ts` em `src/` nunca roda pelo Playwright.
-- Pinos de cobertura 100% (`money.ts`, `dates.ts`, `normalize.ts`) e 95/90 (`features/*/schemas.ts`) são alarme, não meta — não invente teste só para subir percentual; a rastreabilidade RF/RN (README §3.1) é a prova real.
+- Pinos de cobertura 100% (`money.ts`, `dates.ts`, `normalize.ts`) e 95/90 (`features/*/schemas.ts`) são alarme, não meta — não invente teste só para subir percentual; a rastreabilidade RF/RN (`docs/CHALLENGE.md` §2) é a prova real.
 - Nunca faça spread/destructure de `row`/`cell` do TanStack Table v9 — os métodos (`row.original`, `row.getAllCells()`) são de protótipo e desaparecem no spread.
 
 ## Antes de terminar

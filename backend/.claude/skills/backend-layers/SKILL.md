@@ -73,10 +73,10 @@ statement_from_lines(lines, total=account.total_amount)
 - **Service interpreta o `now` injetado, não lê o relógio.** `timezone.localtime(now)` / `timezone.localdate(now)` sim; `timezone.now()` / `timezone.localdate()` sem argumento não.
 - **Ordem de lock:** Guest (pk asc) → Room → Reservation → Account. `filter(pk__in=ids)` **sem join** no M2M (`FOR UPDATE` recusa outer join); `list(...)` para o queryset executar. `create_reservation` não trava: a autoridade é o `EXCLUDE` sob savepoint.
 - **Nome da constraint é contrato** (`GUEST_DOCUMENT_UNIQUE`, `RESV_ROOM_NO_OVERLAP`, …). `translate_integrity_error` precisa do atomic interno — senão o 409 vira 500.
-- **Códigos de domínio** (README §6; código novo é contrato com o frontend): `VALIDATION_ERROR` 400; `INVALID_STATUS`, `ROOM_UNAVAILABLE`, `EARLY_CHECKIN`, `DUPLICATE_DOCUMENT` 409. `extra` estruturado (`paid_at`, `opens_at`, `room_id`, campo) — o cliente não parseia `detail`.
+- **Códigos de domínio** (`docs/ARCHITECTURE.md` §7; código novo é contrato com o frontend): `VALIDATION_ERROR` 400; `INVALID_STATUS`, `ROOM_UNAVAILABLE`, `EARLY_CHECKIN`, `DUPLICATE_DOCUMENT` 409. `extra` estruturado (`paid_at`, `opens_at`, `room_id`, campo) — o cliente não parseia `detail`.
 - **Dinheiro:** `Decimal` + `quantize_money` (único arredondamento). API via `money_field()`. O CI recusa `float(` em `hotel/`, `accounts/`, `core/`, `ai/`.
-- **`calculate_bill` tem três chamadores:** `check_out`, `preview_checkout` e `quote_scheduled_stay`. Não acrescente um quarto que escreva. Política da estadia é a **amarrada no check-in** (D15), não a vigente na saída.
-- **PII:** `Guest.save()` normaliza; `bulk_create` está bloqueado. Telefone E.164 e nacionalidade ISO valem no service (D9). Sem log de payload de hóspede.
+- **`calculate_bill` tem três chamadores:** `check_out`, `preview_checkout` e `quote_scheduled_stay`. Não acrescente um quarto que escreva. Política da estadia é a **amarrada no check-in** (RN13 em `docs/BUSINESS_RULE.md`), não a vigente na saída.
+- **PII:** `Guest.save()` normaliza; `bulk_create` está bloqueado. Telefone E.164 e nacionalidade ISO valem no service (RN24). Sem log de payload de hóspede.
 - **Admin do Django não está instalado** — seria escrita fora do service.
 - **Não compre hexagonal/CQRS.** `engine.py` já é o hexágono; o resto é orquestração de transação.
 - OpenAPI: tag em `core.openapi`, erros com `ErrorEnvelopeSerializer`. Strings visíveis em português.
