@@ -2,7 +2,6 @@ import { ROOM_101 } from '@/features/rooms/__fixtures__/rooms'
 
 import type { Guest, GuestInHotel, GuestPendingCheckin, ReservationSummary } from '../types'
 
-// Telefone E.164 sem `+`, nacionalidade ISO alpha-2: o que a coluna guarda.
 export const ANA: Guest = {
   id: 1,
   full_name: 'Ana Souza',

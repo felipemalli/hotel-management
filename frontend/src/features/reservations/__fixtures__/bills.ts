@@ -1,6 +1,5 @@
 import type { CheckoutStatement } from '../types'
 
-// T1: seg–qua, sem vaga, sem multa = 240,00
 export const T1_STATEMENT: CheckoutStatement = {
   reservation_id: 1,
   guest: { id: 101, full_name: 'Ana Souza' },
@@ -27,7 +26,6 @@ export const T1_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T2: sáb–seg, com vaga, sem multa = 400,00
 export const T2_STATEMENT: CheckoutStatement = {
   reservation_id: 2,
   guest: { id: 102, full_name: 'Bruno Lima' },
@@ -54,7 +52,6 @@ export const T2_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T3: sex–seg, com vaga, três tarifas = 535,00
 export const T3_STATEMENT: CheckoutStatement = {
   reservation_id: 3,
   guest: { id: 103, full_name: 'Carla Nunes' },
@@ -87,7 +84,6 @@ export const T3_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T4: ter–qui 11:59, sem vaga, antes das 12h = 240,00
 export const T4_STATEMENT: CheckoutStatement = {
   reservation_id: 4,
   guest: { id: 104, full_name: 'Davi Rocha' },
@@ -114,7 +110,6 @@ export const T4_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T5: ter–qui 12:01, sem vaga, multa útil 60,00 = 300,00
 export const T5_STATEMENT: CheckoutStatement = {
   reservation_id: 5,
   guest: { id: 105, full_name: 'Elisa Prado' },
@@ -145,7 +140,6 @@ export const T5_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T6: sex–dom 11:59, sem vaga, antes das 12h = 300,00
 export const T6_STATEMENT: CheckoutStatement = {
   reservation_id: 6,
   guest: { id: 106, full_name: 'Fabio Moraes' },
@@ -172,7 +166,6 @@ export const T6_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T7: sex–dom 12:01, com vaga, multa 90,00 = 425,00
 export const T7_STATEMENT: CheckoutStatement = {
   reservation_id: 7,
   guest: { id: 107, full_name: 'Gabriela Reis' },
@@ -203,7 +196,6 @@ export const T7_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T8: 12:00:00 exatas, igualdade isenta = 240,00
 export const T8_STATEMENT: CheckoutStatement = {
   reservation_id: 8,
   guest: { id: 108, full_name: 'Heitor Campos' },
@@ -230,7 +222,6 @@ export const T8_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// T9: day-use, mínimo 1 diária = 195,00
 export const T9_STATEMENT: CheckoutStatement = {
   reservation_id: 9,
   guest: { id: 109, full_name: 'Iris Tavares' },
@@ -255,7 +246,7 @@ export const T9_STATEMENT: CheckoutStatement = {
   payment: null,
 }
 
-// Mesma conta de T7, agora paga — o extrato não muda.
+// Paga: o extrato não muda.
 export const PAID_T7_STATEMENT: CheckoutStatement = {
   ...T7_STATEMENT,
   payment: {

@@ -1,14 +1,8 @@
 import type { ReactNode } from 'react'
 
 import { Badge, Typography } from '@/components/ui'
-
-function initialsOf(fullName: string): string {
-  return fullName
-    .split(' ')
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join('')
-}
+import { formatISODate } from '@/lib/format/dates'
+import { initialsOf } from '@/lib/format/text'
 
 // Nome no próprio texto: o selo de acompanhante não entra na busca.
 export function NameCell({ fullName, isCompanion }: { fullName: string; isCompanion: boolean }) {
@@ -22,6 +16,14 @@ export function NameCell({ fullName, isCompanion }: { fullName: string; isCompan
       </Typography>
       {isCompanion ? <Badge variant="info">Acompanhante</Badge> : null}
     </span>
+  )
+}
+
+export function StayCell({ checkin, checkout }: { checkin: string; checkout: string }) {
+  return (
+    <Typography as="span" variant="caption" className="whitespace-nowrap">
+      {formatISODate(checkin)} → {formatISODate(checkout)}
+    </Typography>
   )
 }
 

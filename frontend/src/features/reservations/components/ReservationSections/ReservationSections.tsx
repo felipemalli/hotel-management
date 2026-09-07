@@ -4,13 +4,14 @@ import { DescriptionList, ErrorState } from '@/components/common'
 import { Typography } from '@/components/ui'
 import type { Guest } from '@/features/guests/types'
 import { describeEntry, historyEntries } from '@/features/reservations/history'
-import { PAYMENT_METHOD_LABELS } from '@/features/reservations/status'
+import { PAYMENT_METHOD_LABELS } from '@/features/reservations/payment'
 import type { CheckoutStatement, Reservation } from '@/features/reservations/types'
 import { errorMessage } from '@/lib/errors/errors'
 import { countryName } from '@/lib/format/countries'
 import { formatISODate } from '@/lib/format/dates'
 import { formatBRL } from '@/lib/format/money'
 import { formatDocument, formatPhone } from '@/lib/format/pii'
+import { formatYesNo, initialsOf } from '@/lib/format/text'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const id = `secao-${title.toLowerCase().replace(/\s+/g, '-')}`
@@ -27,14 +28,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function initialsOf(fullName: string): string {
-  return fullName
-    .split(' ')
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join('')
-}
-
 // Ausência é travessão, nunca R$ 0,00 (zero é valor cobrado).
 function money(value: string | null): string {
   return value === null ? '—' : formatBRL(value)
@@ -48,7 +41,7 @@ export function ReservationStaySection({ reservation }: { reservation: Reservati
           { label: 'Quarto', value: reservation.room.number },
           { label: 'Entrada', value: formatISODate(reservation.checkin_date) },
           { label: 'Saída', value: formatISODate(reservation.checkout_date) },
-          { label: 'Vaga', value: reservation.has_vehicle ? 'Sim' : 'Não' },
+          { label: 'Vaga', value: formatYesNo(reservation.has_vehicle) },
           {
             label: 'Tarifa aplicada',
             value: reservation.policy_id === null ? '—' : `Política #${reservation.policy_id}`,

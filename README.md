@@ -213,7 +213,9 @@ min, **em memória no cliente**). O refresh não trafega em JSON: sai num cookie
 autenticam por esse cookie exigem `X-CSRFToken`; as de negócio não, porque
 header não é credencial ambiente. Datas `YYYY-MM-DD`; dinheiro sempre **string
 decimal** (`"120.00"`) — o frontend formata, nunca calcula. Paginação DRF
-(`page_size=20`).
+(`page_size=20`). A listagem de reservas ordena por `ordering=` — `checkin_date`
+ou `checkout_date`, com `-` para inverter — e desempata por id, para a paginação
+não repetir nem perder linha sobre datas iguais.
 
 | Método & rota                                       | Auth      | Função                                                       |
 | --------------------------------------------------- | --------- | ------------------------------------------------------------ |
@@ -226,7 +228,7 @@ decimal** (`"120.00"`) — o frontend formata, nunca calcula. Paginação DRF
 | `GET /api/guests/{id}/`                             | ✔         | Detalhe (valor gravado, não mascarado)                       |
 | `GET /api/guests/in-hotel/`                         | ✔         | **RF4** — `CHECKED_IN`; `?search=` compõe com o status       |
 | `GET /api/guests/pending-checkin/`                  | ✔         | **RF5** — `PENDING`, inclui vencidas (D14)                   |
-| `GET /api/reservations/` · `POST`                   | ✔         | Lista (`?status=&guest=&paid=&search=`) / criação            |
+| `GET /api/reservations/` · `POST`                   | ✔         | Lista (`?status=&guest=&paid=&search=&checkin_date=&checkout_date=&ordering=`) / criação |
 | `GET /api/reservations/{id}/`                       | ✔         | Detalhe, com a conta aninhada em `account`                   |
 | `POST /api/reservations/{id}/check-in/`             | ✔         | **RF6** — `{allow_early}` (D4)                               |
 | `POST /api/reservations/{id}/checkout/`             | ✔         | **RF7** — efetiva e devolve o extrato (**RN6**)              |
@@ -292,7 +294,7 @@ backend/
 frontend/src/
 ├── app/          casca: providers, router, AppLayout, SessionGate
 ├── pages/        uma pasta por rota (Página.tsx + testes + index.ts)
-├── lib/          sem UI: api, auth, errors, format, forms, a11y, notify, routing
+├── lib/          sem UI: api, auth, errors, format, forms, notify, routing
 ├── components/   ui/ (shadcn vendorizado) · common/ (DataTable, PageHeader, …)
 └── features/     {auth,guests,reservations,rooms,pricing,ai}: api · hooks · schemas · components
 ```

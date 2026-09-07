@@ -18,18 +18,57 @@ import {
   GuestTable,
 } from '@/features/guests/components/GuestTable'
 import { GuestForm } from '@/features/guests/GuestForm'
+import type { GuestRef } from '@/features/guests/types'
 import { CancelReservationDialog } from '@/features/reservations/components/CancelReservationDialog'
 import { CheckoutStatementDialog } from '@/features/reservations/components/CheckoutStatementDialog'
-import { ReservationActions } from '@/features/reservations/components/ReservationActions'
+import {
+  ReservationActions,
+  type ReservationActionState,
+} from '@/features/reservations/components/ReservationActions'
 import { ReservationForm } from '@/features/reservations/components/ReservationForm'
+import type { CheckoutStatement } from '@/features/reservations/types'
 import { errorMessage } from '@/lib/errors/errors'
+import { useDialogState } from '@/lib/hooks/useDialogState'
+import { whenClosed } from '@/lib/hooks/useDismissibleOpen'
 import { notifySuccess } from '@/lib/notify/toast'
 
-import { useDashboardDialog } from './useDashboardDialog'
+type DashboardDialog =
+  | { kind: 'guest' }
+  | { kind: 'reservation'; guest: GuestRef }
+  | { kind: 'cancel'; reservationId: number; guestName: string }
+  | { kind: 'statement'; statement: CheckoutStatement }
+
+type ReservationRow = GuestInHotelRow | GuestPendingRow
+
+function DashboardReservationActions({
+  row,
+  state,
+  onOpen,
+}: {
+  row: ReservationRow
+  state: ReservationActionState
+  onOpen: (dialog: DashboardDialog) => void
+}) {
+  return (
+    <ReservationActions
+      reservationId={row.reservation.id}
+      guestName={row.guest.full_name}
+      state={state}
+      onCheckedOut={(statement) => onOpen({ kind: 'statement', statement })}
+      onRequestCancel={() =>
+        onOpen({
+          kind: 'cancel',
+          reservationId: row.reservation.id,
+          guestName: row.guest.full_name,
+        })
+      }
+    />
+  )
+}
 
 // Dialogs na página, não na linha: checkout/cancel desmontam a linha.
 export function DashboardPage() {
-  const { current, open, close } = useDashboardDialog()
+  const { current, open, close } = useDialogState<DashboardDialog>()
 
   // Referência estável: senão a linha remonta debaixo do diálogo e perde o foco.
   const renderNewReservation = useCallback(
@@ -47,38 +86,14 @@ export function DashboardPage() {
 
   const renderInHotelActions = useCallback(
     (row: GuestInHotelRow) => (
-      <ReservationActions
-        reservationId={row.reservation.id}
-        guestName={row.guest.full_name}
-        state="CHECKED_IN"
-        onCheckedOut={(statement) => open({ kind: 'statement', statement })}
-        onRequestCancel={() =>
-          open({
-            kind: 'cancel',
-            reservationId: row.reservation.id,
-            guestName: row.guest.full_name,
-          })
-        }
-      />
+      <DashboardReservationActions row={row} state="CHECKED_IN" onOpen={open} />
     ),
     [open],
   )
 
   const renderPendingActions = useCallback(
     (row: GuestPendingRow) => (
-      <ReservationActions
-        reservationId={row.reservation.id}
-        guestName={row.guest.full_name}
-        state="PENDING"
-        onCheckedOut={(statement) => open({ kind: 'statement', statement })}
-        onRequestCancel={() =>
-          open({
-            kind: 'cancel',
-            reservationId: row.reservation.id,
-            guestName: row.guest.full_name,
-          })
-        }
-      />
+      <DashboardReservationActions row={row} state="PENDING" onOpen={open} />
     ),
     [open],
   )
@@ -113,10 +128,7 @@ export function DashboardPage() {
         <GuestTable headerActions={headerActions} renderActions={renderActions} />
       </ErrorBoundary>
 
-      <Dialog
-        open={current?.kind === 'guest'}
-        onOpenChange={(next) => (next ? undefined : close())}
-      >
+      <Dialog open={current?.kind === 'guest'} onOpenChange={whenClosed(close)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Novo hóspede</DialogTitle>
@@ -135,7 +147,7 @@ export function DashboardPage() {
       </Dialog>
 
       {current?.kind === 'reservation' ? (
-        <Dialog open onOpenChange={(next) => (next ? undefined : close())}>
+        <Dialog open onOpenChange={whenClosed(close)}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Nova reserva</DialogTitle>

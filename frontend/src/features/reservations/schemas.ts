@@ -10,6 +10,14 @@ export const reservationStatusSchema = z.enum(['PENDING', 'CHECKED_IN', 'CHECKED
 
 export const paymentMethodSchema = z.enum(['CASH', 'CARD', 'PIX', 'OTHER'])
 
+// Espelha `RESERVATION_ORDERINGS` do servidor; a ordenação é dele, não da tabela.
+export const reservationOrderingSchema = z.enum([
+  'checkin_date',
+  '-checkin_date',
+  'checkout_date',
+  '-checkout_date',
+])
+
 export const guestRefSchema = z.object({ id: z.number().int(), full_name: z.string() })
 
 export const accountStatusSchema = z.enum(['OPEN', 'CLOSED', 'PAID'])
@@ -20,7 +28,6 @@ export const paymentSchema = z.object({
   received_by: userRefSchema,
 })
 
-// Toda a conta da estadia: aberta no check-in, fechada no checkout, paga depois.
 export const accountSchema = z.object({
   id: z.number().int(),
   status: accountStatusSchema,
@@ -30,7 +37,6 @@ export const accountSchema = z.object({
   payment: paymentSchema.nullable(),
 })
 
-// Monetário é string decimal ("120.00"), nunca number.
 export const reservationSchema = z.object({
   id: z.number().int(),
   guest_id: z.number().int(),
@@ -99,7 +105,7 @@ export const checkoutStatementSchema = z.object({
 
 export const ROOM_REQUIRED_MESSAGE = 'Escolha um quarto.'
 
-// today vem do chamador. Datas YYYY-MM-DD comparadas lexicalmente (ver lib/format/dates).
+// `today` vem do chamador: datas YYYY-MM-DD comparam-se lexicalmente.
 export function reservationFormSchema(today: string) {
   return z
     .object({

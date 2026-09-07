@@ -1,5 +1,9 @@
 export { Alert, type AlertProps, type AlertTone } from './Alert'
 export {
+  ConfirmDestructiveDialog,
+  type ConfirmDestructiveDialogProps,
+} from './ConfirmDestructiveDialog'
+export {
   DataTable,
   type DataTableColumnMeta,
   type DataTableColumns,
@@ -7,7 +11,11 @@ export {
   type DataTableProps,
   DataTableSkeleton,
   type DataTableSkeletonProps,
+  SortableHeader,
+  type SortableHeaderProps,
+  type SortDirection,
 } from './DataTable'
+export { DateFilterField, type DateFilterFieldProps } from './DateFilterField'
 export {
   DescriptionList,
   type DescriptionListItem,

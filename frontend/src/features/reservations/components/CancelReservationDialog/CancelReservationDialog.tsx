@@ -1,17 +1,5 @@
-import { useState } from 'react'
-
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui'
+import { ConfirmDestructiveDialog } from '@/components/common'
 import { useCancelReservation } from '@/features/reservations/hooks'
-import { focusMainContent } from '@/lib/a11y/focus'
 
 export interface CancelReservationDialogProps {
   reservationId: number
@@ -27,41 +15,16 @@ export function CancelReservationDialog({
   onCancelled,
 }: CancelReservationDialogProps) {
   const cancel = useCancelReservation({ onSuccess: onCancelled })
-  // open=false antes de desmontar: o Base UI restaura o foco nessa transição.
-  const [open, setOpen] = useState(true)
-  // Só a confirmação usa finalFocus: a linha desmonta com a reserva cancelada.
-  const [confirmed, setConfirmed] = useState(false)
 
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={setOpen}
-      onOpenChangeComplete={(next) => (next ? undefined : onClose())}
-    >
-      <AlertDialogContent
-        size="sm"
-        finalFocus={confirmed ? () => focusMainContent() ?? true : undefined}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle>Cancelar reserva</AlertDialogTitle>
-          <AlertDialogDescription>
-            A reserva de {guestName} será cancelada. A ação não pode ser desfeita.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={cancel.isPending}>Voltar</AlertDialogCancel>
-          <AlertDialogAction
-            variant="destructive"
-            disabled={cancel.isPending}
-            onClick={() => {
-              setConfirmed(true)
-              cancel.mutate(reservationId)
-            }}
-          >
-            {cancel.isPending ? 'Cancelando…' : 'Cancelar reserva'}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <ConfirmDestructiveDialog
+      title="Cancelar reserva"
+      description={`A reserva de ${guestName} será cancelada. A ação não pode ser desfeita.`}
+      pending={cancel.isPending}
+      confirmLabel="Cancelar reserva"
+      pendingLabel="Cancelando…"
+      onClose={onClose}
+      onConfirm={() => cancel.mutate(reservationId)}
+    />
   )
 }

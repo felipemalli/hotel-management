@@ -2,7 +2,7 @@ import type { VariantProps } from 'class-variance-authority'
 
 import type { badgeVariants } from '@/components/ui'
 
-import type { PaymentMethod, Reservation, ReservationStatus } from './types'
+import type { Reservation, ReservationStatus } from './types'
 
 export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   PENDING: 'Pendente',
@@ -20,13 +20,6 @@ export const RESERVATION_STATUS_TONES: Record<ReservationStatus, BadgeVariant> =
   CANCELLED: 'destructive',
 }
 
-export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  CASH: 'Dinheiro',
-  CARD: 'Cartão',
-  PIX: 'Pix',
-  OTHER: 'Outro',
-}
-
 export function peopleCount(reservation: Reservation): number {
   return 1 + reservation.companions.length
 }
@@ -35,4 +28,35 @@ export function peopleCount(reservation: Reservation): number {
 export function paymentLabel(reservation: Reservation): string {
   if (reservation.status !== 'CHECKED_OUT') return '—'
   return reservation.account?.status === 'PAID' ? 'Pago' : 'Em aberto'
+}
+
+export type CheckoutAlert = 'due' | 'overdue'
+
+export const CHECKOUT_ALERT_LABELS: Record<CheckoutAlert, string> = {
+  due: 'Sai hoje',
+  overdue: 'Saída atrasada',
+}
+
+export const CHECKOUT_ALERT_TONES: Record<CheckoutAlert, BadgeVariant> = {
+  due: 'warning',
+  overdue: 'destructive',
+}
+
+export interface CheckoutClock {
+  today: string
+  /** Hora local `HH:MM:SS`; `checkoutLimit` vem `HH:MM` da política vigente. */
+  time: string
+  checkoutLimit: string
+}
+
+// Só CHECKED_IN: outro status pintaria a lista sem quarto a devolver.
+export function checkoutAlert(
+  reservation: Reservation,
+  clock: CheckoutClock | null,
+): CheckoutAlert | null {
+  if (clock === null || reservation.status !== 'CHECKED_IN') return null
+  if (reservation.checkout_date < clock.today) return 'overdue'
+  if (reservation.checkout_date !== clock.today) return null
+  // 12:00:00 em ponto ainda é isento: o vermelho só passa do limite.
+  return clock.time > `${clock.checkoutLimit}:00` ? 'overdue' : 'due'
 }

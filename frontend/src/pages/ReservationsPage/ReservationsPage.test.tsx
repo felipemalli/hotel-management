@@ -1,13 +1,17 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { act } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ATTENDANT } from '@/features/auth/__fixtures__/users'
 import { fetchCurrentUser } from '@/features/auth/api'
+import { BOOTSTRAP_POLICY } from '@/features/pricing/__fixtures__/policies'
+import { fetchCurrentPolicy } from '@/features/pricing/api'
 import {
   ALL_RESERVATIONS,
+  BRUNO_CHECKED_IN,
   CARLA_CHECKED_OUT,
+  reservation,
 } from '@/features/reservations/__fixtures__/reservations'
 import { fetchReservations } from '@/features/reservations/api'
 import { RESERVATION_STATUS_LABELS } from '@/features/reservations/status'
@@ -21,7 +25,18 @@ import { signInForTest } from '@/test/renderWithProviders'
 import { ReservationsPage } from './ReservationsPage'
 
 vi.mock('@/features/reservations/api')
+vi.mock('@/features/pricing/api')
 vi.mock('@/features/auth/api')
+
+// 05/09/2026 10:00 em São Paulo. Só o Date é falso: os timers do userEvent
+// continuam reais.
+const MORNING = '2026-09-05T13:00:00Z'
+const AFTER_LIMIT = '2026-09-05T15:30:00Z'
+
+function freezeHotelClock(instant: string) {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(instant))
+}
 
 function renderReservations(route: string = ROUTES.reservations) {
   signInForTest()
@@ -32,6 +47,11 @@ describe('ReservationsPage', () => {
   beforeEach(() => {
     vi.mocked(fetchCurrentUser).mockResolvedValue(ATTENDANT)
     vi.mocked(fetchReservations).mockResolvedValue(page(ALL_RESERVATIONS))
+    vi.mocked(fetchCurrentPolicy).mockResolvedValue(BOOTSTRAP_POLICY)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('lista as reservas e anuncia a contagem', async () => {
@@ -108,6 +128,65 @@ describe('ReservationsPage', () => {
     const table = await screen.findByRole('table', { name: 'Reservas' })
     expect(within(table).getByText('R$ 425,00')).toBeInTheDocument()
     expect(within(table).getByText('Em aberto')).toBeInTheDocument()
+  })
+
+  it('resolve o preset hoje na data do hotel antes de consultar', async () => {
+    freezeHotelClock(MORNING)
+    renderReservations(`${ROUTES.reservations}?checkout=today`)
+
+    await waitFor(() =>
+      expect(fetchReservations).toHaveBeenCalledWith({ checkout_date: '2026-09-05' }),
+    )
+  })
+
+  it('manda ao servidor a data escolhida e a ordenacao lidas da URL', async () => {
+    renderReservations(`${ROUTES.reservations}?checkin=2026-09-10&ordering=-checkout_date`)
+
+    await waitFor(() =>
+      expect(fetchReservations).toHaveBeenCalledWith({
+        checkin_date: '2026-09-10',
+        ordering: '-checkout_date',
+      }),
+    )
+  })
+
+  it('filtra pela saida de hoje pelo botao do proprio campo', async () => {
+    freezeHotelClock(MORNING)
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    renderReservations()
+    await screen.findByRole('table', { name: 'Reservas' })
+
+    await user.click(screen.getByRole('button', { name: 'Hoje em saída' }))
+
+    await waitFor(() =>
+      expect(fetchReservations).toHaveBeenLastCalledWith({ checkout_date: '2026-09-05' }),
+    )
+  })
+
+  it('ordena no servidor ao clicar no cabecalho da coluna', async () => {
+    const user = userEvent.setup()
+    renderReservations()
+    await screen.findByRole('table', { name: 'Reservas' })
+
+    await user.click(screen.getByRole('button', { name: /^Saída/ }))
+
+    await waitFor(() =>
+      expect(fetchReservations).toHaveBeenLastCalledWith({ ordering: 'checkout_date' }),
+    )
+  })
+
+  it('alerta a saida de hoje e a acusa de atrasada depois do limite da politica', async () => {
+    const leavingToday = reservation({ ...BRUNO_CHECKED_IN, checkout_date: '2026-09-05' })
+    vi.mocked(fetchReservations).mockResolvedValue(page([leavingToday]))
+
+    freezeHotelClock(MORNING)
+    const { unmount } = renderReservations()
+    expect(await screen.findByText('Sai hoje')).toBeInTheDocument()
+    unmount()
+
+    freezeHotelClock(AFTER_LIMIT)
+    renderReservations()
+    expect(await screen.findByText('Saída atrasada')).toBeInTheDocument()
   })
 
   it('busca por reserva, hospede ou quarto no servidor, com debounce', async () => {

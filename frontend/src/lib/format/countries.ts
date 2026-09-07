@@ -1,4 +1,3 @@
-// Espelho da lista ISO do backend.
 export const COUNTRY_CODES = [
   'AD',
   'AE',
@@ -279,7 +278,6 @@ export interface CountryOption {
   name: string
 }
 
-// BR primeiro; o resto em ordem alfabética do nome em português.
 export function buildCountryOptions(names: RegionNames = REGION_NAMES): readonly CountryOption[] {
   const collator = new Intl.Collator('pt-BR')
   const others = COUNTRY_CODES.filter((code) => code !== 'BR')

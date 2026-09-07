@@ -20,6 +20,7 @@ import { useCurrentPolicy } from '@/features/pricing/hooks'
 import { PolicyForm } from '@/features/pricing/PolicyForm'
 import { errorMessage } from '@/lib/errors/errors'
 import { formatISODateTime } from '@/lib/format/dates'
+import { whenClosed } from '@/lib/hooks/useDismissibleOpen'
 import { notifySuccess } from '@/lib/notify/toast'
 import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
 
@@ -36,7 +37,6 @@ export function PricingPage() {
       <PageHeader
         title="Tarifas"
         titleId="tarifas-titulo"
-        breadcrumb="Hotel Vila Marés"
         description="A tarifa é amarrada à estadia no check-in: publicar uma nova muda o futuro e nunca o extrato de quem já entrou."
         actions={
           isAdmin && current.data ? (
@@ -76,7 +76,7 @@ export function PricingPage() {
       </section>
 
       {publishing && current.data ? (
-        <Dialog open onOpenChange={(next) => (next ? undefined : setPublishing(false))}>
+        <Dialog open onOpenChange={whenClosed(() => setPublishing(false))}>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Publicar nova tarifa</DialogTitle>

@@ -150,7 +150,6 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
       <PageHeader
         title="Hóspedes"
         titleId="recepcao-titulo"
-        breadcrumb="Hotel Vila Marés"
         description="Hóspedes cadastrados, quem está no hotel agora e os check-ins previstos."
         actions={headerActions}
         updating={query.isFetching && !query.isPending}

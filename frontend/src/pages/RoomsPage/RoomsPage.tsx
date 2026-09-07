@@ -23,11 +23,13 @@ import { RoomForm } from '@/features/rooms/RoomForm'
 import type { Room } from '@/features/rooms/types'
 import { errorMessage } from '@/lib/errors/errors'
 import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
+import { useDialogState } from '@/lib/hooks/useDialogState'
+import { whenClosed } from '@/lib/hooks/useDismissibleOpen'
 import { notifySuccess } from '@/lib/notify/toast'
 import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
 
 type RoomsDialog =
-  { kind: 'create' } | { kind: 'capacity'; room: Room } | { kind: 'deactivate'; room: Room } | null
+  { kind: 'create' } | { kind: 'capacity'; room: Room } | { kind: 'deactivate'; room: Room }
 
 // is_active=false AMPLIA a listagem no servidor (nome da API, não da tela).
 const INACTIVE_PARAM = 'is_active'
@@ -35,16 +37,12 @@ const INACTIVE_PARAM = 'is_active'
 export function RoomsPage() {
   const isAdmin = useIsAdmin()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [dialog, setDialog] = useState<RoomsDialog>(null)
+  const { current: dialog, open, close } = useDialogState<RoomsDialog>()
   const [roomQuery, setRoomQuery] = useState('')
   const debouncedRoomQuery = useDebouncedValue(roomQuery, SEARCH_DEBOUNCE_MS)
 
   const includeInactive = searchParams.get(INACTIVE_PARAM) === 'false'
   const page = pageFromSearchParams(searchParams)
-
-  function close() {
-    setDialog(null)
-  }
 
   function toggleInactive(checked: boolean) {
     setSearchParams((previous) => {
@@ -66,11 +64,11 @@ export function RoomsPage() {
     (room: Room) => (
       <RoomActions
         room={room}
-        onEditCapacity={(chosen) => setDialog({ kind: 'capacity', room: chosen })}
-        onRequestDeactivate={(chosen) => setDialog({ kind: 'deactivate', room: chosen })}
+        onEditCapacity={(chosen) => open({ kind: 'capacity', room: chosen })}
+        onRequestDeactivate={(chosen) => open({ kind: 'deactivate', room: chosen })}
       />
     ),
-    [],
+    [open],
   )
 
   return (
@@ -78,11 +76,10 @@ export function RoomsPage() {
       <PageHeader
         title="Quartos"
         titleId="quartos-titulo"
-        breadcrumb="Hotel Vila Marés"
         description="Cadastro de unidades, capacidade e disponibilidade operacional."
         actions={
           isAdmin ? (
-            <Button onClick={() => setDialog({ kind: 'create' })}>
+            <Button onClick={() => open({ kind: 'create' })}>
               <PlusIcon className="size-4" aria-hidden="true" />
               Novo quarto
             </Button>
@@ -124,10 +121,7 @@ export function RoomsPage() {
         />
       </ErrorBoundary>
 
-      <Dialog
-        open={dialog?.kind === 'create'}
-        onOpenChange={(next) => (next ? undefined : close())}
-      >
+      <Dialog open={dialog?.kind === 'create'} onOpenChange={whenClosed(close)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Novo quarto</DialogTitle>

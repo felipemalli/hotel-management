@@ -29,7 +29,6 @@ test.describe(
 
       const dailyTable = statement.getByRole('table', { name: 'Diárias cobradas' })
       const dailyRows = dailyTable.getByRole('row')
-      // Cabeçalho + sexta + sábado.
       await expect(dailyRows).toHaveCount(3)
 
       const friday = dailyRows.filter({ hasText: 'sexta-feira' })

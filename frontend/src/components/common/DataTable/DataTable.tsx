@@ -19,7 +19,6 @@ export interface DataTableProps<Row extends RowData> {
   isLoading?: boolean
   emptyMessage?: string
   rowProps?: (row: Row) => HTMLAttributes<HTMLTableRowElement> | undefined
-  // Rodapé de paginação embutido no mesmo card — nunca solto abaixo dele.
   pagination?: PaginationProps
 }
 
@@ -58,6 +57,7 @@ export function DataTable<Row extends RowData>({
                     <th
                       key={header.id}
                       scope="col"
+                      aria-sort={meta?.sort}
                       className={cn(
                         'h-10 px-4 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground',
                         meta?.align === 'end' && 'text-right',
@@ -72,29 +72,36 @@ export function DataTable<Row extends RowData>({
             ))}
           </thead>
           <tbody className="[&_tr:last-child]:border-0">
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className="border-b border-border last:border-0 hover:bg-muted/30"
-                {...rowProps?.(row.original)}
-              >
-                {row.getAllCells().map((cell) => {
-                  const meta = cell.column.columnDef.meta
-                  return (
-                    <td
-                      key={cell.id}
-                      className={cn(
-                        'px-4 py-3.5 align-middle',
-                        meta?.align === 'end' && 'text-right',
-                        meta?.cellClassName,
-                      )}
-                    >
-                      <table.FlexRender cell={cell} />
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
+            {table.getRowModel().rows.map((row) => {
+              // className por último: o spread cru apagaria a borda e o hover da linha.
+              const { className: rowClassName, ...extraRowProps } = rowProps?.(row.original) ?? {}
+              return (
+                <tr
+                  key={row.id}
+                  {...extraRowProps}
+                  className={cn(
+                    'border-b border-border last:border-0 hover:bg-muted/30',
+                    rowClassName,
+                  )}
+                >
+                  {row.getAllCells().map((cell) => {
+                    const meta = cell.column.columnDef.meta
+                    return (
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          'px-4 py-3.5 align-middle',
+                          meta?.align === 'end' && 'text-right',
+                          meta?.cellClassName,
+                        )}
+                      >
+                        <table.FlexRender cell={cell} />
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

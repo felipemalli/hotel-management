@@ -44,7 +44,6 @@ export default defineConfig({
         'src/components/ui/**',
         // Única costura dublada da suíte; o e2e exercita o api.ts de ponta a ponta.
         'src/features/**/api.ts',
-        // Barrels e esqueletos sem ramo que justifique limiar.
         'src/**/index.ts',
         'src/**/*Skeleton.tsx',
       ],

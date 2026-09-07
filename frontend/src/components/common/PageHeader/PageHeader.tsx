@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
 
 import { Typography } from '@/components/ui'
+import { HOTEL_NAME } from '@/lib/brand'
 
 export interface PageHeaderProps {
   title: string
   titleId?: string
-  // Trilha acima do título, ex. "Hotel Vila Marés"; opcional — nem toda página tem.
   breadcrumb?: ReactNode
   description?: string
   badge?: ReactNode
@@ -14,12 +14,10 @@ export interface PageHeaderProps {
   updating?: boolean
 }
 
-// Só título/trilha/descrição/ação: filtros e abas ficam no corpo da página,
-// logo abaixo — o cabeçalho não é onde a listagem vive.
 export function PageHeader({
   title,
   titleId,
-  breadcrumb,
+  breadcrumb = HOTEL_NAME,
   description,
   badge,
   actions,

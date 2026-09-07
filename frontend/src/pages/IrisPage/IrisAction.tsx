@@ -50,9 +50,7 @@ export function IrisAction({ action, onDone, onStatement }: IrisActionProps) {
       </Button>
 
       <EarlyCheckinDialog
-        open={flow.early !== null}
-        serverTime={flow.early?.serverTime ?? ''}
-        opensAt={flow.early?.opensAt ?? ''}
+        early={flow.early}
         guestName={guestName}
         pending={flow.isPending}
         onConfirm={flow.confirmEarly}

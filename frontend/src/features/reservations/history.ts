@@ -1,6 +1,6 @@
 import { formatISODateTime } from '@/lib/format/dates'
 
-import { PAYMENT_METHOD_LABELS } from './status'
+import { PAYMENT_METHOD_LABELS } from './payment'
 import type { Reservation, UserRef } from './types'
 
 export interface HistoryEntry {

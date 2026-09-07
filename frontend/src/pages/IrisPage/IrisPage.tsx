@@ -13,8 +13,7 @@ import { IrisAction } from './IrisAction'
 
 const TITLE_ID = 'iris-title'
 
-const DESCRIPTION =
-  'Copiloto de dados do hotel. Pergunte em linguagem natural — a Íris consulta reservas, quartos, hóspedes e a tarifa vigente, e devolve a ação quando houver uma.'
+const DESCRIPTION = 'Copiloto de dados do hotel. Pergunte em linguagem natural.'
 
 const DISABLED = 'A Íris está desligada neste servidor: configure OPENAI_API_KEY para ativá-la.'
 
@@ -38,12 +37,7 @@ export function IrisPage() {
 
   return (
     <section aria-labelledby={TITLE_ID} className="flex flex-col gap-4.5">
-      <PageHeader
-        titleId={TITLE_ID}
-        breadcrumb="Hotel Vila Marés"
-        title="Íris"
-        description={DESCRIPTION}
-      />
+      <PageHeader titleId={TITLE_ID} title="Íris" description={DESCRIPTION} />
 
       {enabled ? (
         <div className="flex max-w-[840px] flex-col gap-4.5">

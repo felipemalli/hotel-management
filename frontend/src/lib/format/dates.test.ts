@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { addDaysISO, formatISODate, formatISODateTime, todayISO } from './dates'
+import {
+  addDaysISO,
+  formatISODate,
+  formatISODateTime,
+  isISODate,
+  nowTimeISO,
+  todayISO,
+} from './dates'
 
 // TZ fixo: o invariante tem de valer em qualquer máquina, não só em UTC-3.
 process.env.TZ = 'America/Sao_Paulo'
@@ -64,5 +71,39 @@ describe('todayISO', () => {
   it('formata a data injetada, sem ler o relogio do sistema', () => {
     expect(todayISO(new Date(2026, 0, 5))).toBe('2026-01-05')
     expect(todayISO(new Date(2026, 11, 31))).toBe('2026-12-31')
+  })
+
+  // 02:00 UTC do dia 1º ainda é o dia 31 no hotel: o navegador do balcão pode
+  // estar em qualquer fuso, e a regra é decidida em hora de São Paulo.
+  it('devolve o dia do hotel, e nao o dia do navegador', () => {
+    expect(todayISO(new Date('2026-01-01T02:00:00Z'))).toBe('2025-12-31')
+    expect(todayISO(new Date('2026-01-01T03:00:00Z'))).toBe('2026-01-01')
+  })
+})
+
+describe('nowTimeISO', () => {
+  it('devolve a hora do hotel com segundos, em h23', () => {
+    expect(nowTimeISO(new Date('2026-01-01T02:00:00Z'))).toBe('23:00:00')
+    expect(nowTimeISO(new Date('2026-01-01T15:00:01Z'))).toBe('12:00:01')
+    expect(nowTimeISO(new Date('2026-01-01T03:00:00Z'))).toBe('00:00:00')
+  })
+})
+
+describe('isISODate', () => {
+  it('aceita a data que existe no calendario', () => {
+    expect(isISODate('2026-09-07')).toBe(true)
+    expect(isISODate('2024-02-29')).toBe(true)
+  })
+
+  it('recusa o dia que nao existe, e nao o normaliza para o mes seguinte', () => {
+    expect(isISODate('2026-02-31')).toBe(false)
+    expect(isISODate('2026-13-01')).toBe(false)
+    expect(isISODate('2025-02-29')).toBe(false)
+  })
+
+  it('recusa o que nao esta em AAAA-MM-DD', () => {
+    expect(isISODate('07/09/2026')).toBe(false)
+    expect(isISODate('2026-9-7')).toBe(false)
+    expect(isISODate('')).toBe(false)
   })
 })

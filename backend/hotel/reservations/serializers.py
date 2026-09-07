@@ -17,6 +17,7 @@ from hotel.reservations.selectors import (
     ACTIVE_RESERVATIONS_ATTR,
     PENDING_COMPANION_RESERVATIONS_ATTR,
     PENDING_RESERVATIONS_ATTR,
+    RESERVATION_ORDERINGS,
 )
 from hotel.reservations.statement import Statement
 from hotel.rooms.models import Room
@@ -136,6 +137,19 @@ class ReservationListQuerySerializer(serializers.Serializer):
         required=False,
         allow_blank=True,
         help_text="Nº da reserva (com ou sem '#'), titular ou quarto, por fragmento.",
+    )
+    checkin_date = serializers.DateField(
+        required=False,
+        help_text="Só as reservas com esta data de entrada (YYYY-MM-DD).",
+    )
+    checkout_date = serializers.DateField(
+        required=False,
+        help_text="Só as reservas com esta data de saída (YYYY-MM-DD).",
+    )
+    ordering = serializers.ChoiceField(
+        choices=RESERVATION_ORDERINGS,
+        required=False,
+        help_text="Ordena por entrada ou saída; o prefixo `-` inverte. Padrão: entrada crescente.",
     )
 
 

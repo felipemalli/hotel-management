@@ -115,7 +115,7 @@ describe('AppLayout', () => {
     expect(screen.getByRole('heading', { name: 'Relia' })).toBeInTheDocument()
   })
 
-  it('oferece o atalho para o conteudo, que e o alvo do foco apos os dialogos', () => {
+  it('oferece o atalho para o conteudo', () => {
     renderLayout()
 
     expect(screen.getByRole('link', { name: 'Ir para o conteúdo' })).toHaveAttribute(

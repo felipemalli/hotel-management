@@ -27,7 +27,7 @@ Se o que você precisa já existe num desses dois lugares, use — não escreva 
 | Estado de carregamento                               | `<Componente>Skeleton` ao lado do componente (ou `DataTableSkeleton` para tabela) | `role="status" aria-live="polite" aria-busy="true"` + texto `sr-only`               |
 | Lista vazia ou erro de leitura                       | `EmptyState` / `ErrorState` (`components/common`)                                 | `ErrorState` sempre com `onRetry`                                                   |
 | Ação secundária numa linha, ou o menu da sessão      | `DropdownMenu` (`components/ui`)                                                  | ver gotcha de jsdom abaixo antes de escrever o teste                                |
-| Confirmação de ação destrutiva (desativar, cancelar) | `AlertDialog` + `finalFocus` (`components/ui` + `@/lib/a11y/focus`)               | ver padrão `open`/`confirmed` abaixo                                                |
+| Confirmação de ação destrutiva (desativar, cancelar) | `AlertDialog` (`components/ui`)                                                   | estado local `open` fecha o popup antes de `onClose` desmontar                      |
 
 ## Exemplos
 
@@ -69,7 +69,6 @@ import { Typography } from '@/components/ui'
 - `cn()` vem de `@/lib/utils`, nunca de um pacote chamado `cn`. O Prettier (`prettier-plugin-tailwindcss`, `tailwindFunctions: ["cn","cva"]`) ordena as classes automaticamente dentro de `cn(...)`/`cva(...)` — não reordene à mão.
 - `Checkbox` **não é um `<input>` nativo** (é `<span role="checkbox">` + input oculto): em RHF, ligue por `Controller`/`useController` com `checked`/`onCheckedChange`, nunca `register()` direto.
 - **`Select` e `DropdownMenu` nunca abrem em jsdom** (trava o teste, não só falha) — isso não muda como você escreve o componente, mas muda como você o testa: veja a skill `testing-frontend`.
-- Diálogo cujo gatilho pode desmontar (checkout tira a linha da tabela, desativar tira o quarto da lista): `finalFocus={confirmed ? () => focusMainContent() ?? true : undefined}`, com um estado local `confirmed` que só vira `true` na ação destrutiva — assim "Voltar"/Escape cai no default do Base UI (devolve foco ao próprio gatilho, que ainda existe), e só a confirmação usa o fallback para `<main>`.
 - `caption` do `DataTable` é o nome acessível da tabela — sem ele, `getByRole('table', { name: ... })` não encontra nada.
 - Arrays/fábricas de colunas em **camelCase** (`roomColumns`, não `ROOM_COLUMNS`) — o regex de componente do `react-refresh` casa `UPPER_SNAKE` e reclama de mistura com o resto do arquivo.
 - Uma única `<p aria-live="polite" class="sr-only">` de status por página, **fora** de qualquer painel de `Tabs` que desmonta (o padrão default do `TabsContent` desmonta o painel inativo).

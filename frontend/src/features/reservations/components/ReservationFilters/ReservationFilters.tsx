@@ -1,9 +1,10 @@
-import { FormField, SearchField } from '@/components/common'
+import { DateFilterField, FormField, SearchField } from '@/components/common'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui'
 import type { ReservationFilters as Filters } from '@/features/reservations/filters'
 import { reservationStatusSchema } from '@/features/reservations/schemas'
 import { RESERVATION_STATUS_LABELS } from '@/features/reservations/status'
 import type { ReservationStatus } from '@/features/reservations/types'
+import type { DateFilter } from '@/lib/routing/dateFilter'
 
 const STATUS_ITEMS: readonly { value: ReservationStatus | null; label: string }[] = [
   { value: null, label: 'Todos' },
@@ -21,23 +22,28 @@ const PAID_ITEMS: readonly { value: boolean | null; label: string }[] = [
 
 export interface ReservationFiltersProps {
   filters: Filters
-  // Valor imediato (não debounced) do campo de busca — a query em si usa
-  // `filters.search`, que só chega depois do debounce em `ReservationsPage`.
+  // Imediato no campo; a query usa o debounce da página.
   searchValue: string
+  today: string
   onSearchChange: (search: string) => void
   onStatusChange: (status: ReservationStatus | null) => void
   onPaidChange: (paid: boolean | null) => void
+  onCheckinDateChange: (value: DateFilter) => void
+  onCheckoutDateChange: (value: DateFilter) => void
 }
 
 export function ReservationFilters({
   filters,
   searchValue,
+  today,
   onSearchChange,
   onStatusChange,
   onPaidChange,
+  onCheckinDateChange,
+  onCheckoutDateChange,
 }: ReservationFiltersProps) {
   return (
-    <div className="flex flex-wrap items-center gap-4">
+    <div className="flex flex-wrap items-end gap-4">
       <SearchField
         label="Buscar reserva"
         placeholder="Nº da reserva, hóspede ou quarto"
@@ -63,6 +69,24 @@ export function ReservationFilters({
             </Select>
           )}
         </FormField>
+      </div>
+
+      <div className="w-full sm:w-72">
+        <DateFilterField
+          label="Entrada"
+          value={filters.checkinDate}
+          today={today}
+          onChange={onCheckinDateChange}
+        />
+      </div>
+
+      <div className="w-full sm:w-72">
+        <DateFilterField
+          label="Saída"
+          value={filters.checkoutDate}
+          today={today}
+          onChange={onCheckoutDateChange}
+        />
       </div>
 
       {/* Só em CHECKED_OUT: antes do checkout o filtro de pagamento mentiria. */}

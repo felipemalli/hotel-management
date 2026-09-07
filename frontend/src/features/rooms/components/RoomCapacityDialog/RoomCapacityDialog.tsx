@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 
 import { FormField } from '@/components/common'
@@ -17,6 +16,7 @@ import { useUpdateRoom } from '@/features/rooms/hooks'
 import { roomCapacitySchema } from '@/features/rooms/schemas'
 import type { Room } from '@/features/rooms/types'
 import { applyServerErrors } from '@/lib/forms/forms'
+import { useDismissibleOpen } from '@/lib/hooks/useDismissibleOpen'
 
 interface CapacityForm {
   capacity: number
@@ -42,8 +42,7 @@ export function RoomCapacityDialog({ room, onClose, onUpdated }: RoomCapacityDia
   })
 
   const updateRoom = useUpdateRoom({ onSuccess: onUpdated })
-  // open=false antes de desmontar: o Base UI restaura o foco nessa transição.
-  const [open, setOpen] = useState(true)
+  const { open, setOpen, onOpenChange, onOpenChangeComplete } = useDismissibleOpen(onClose)
 
   const submit = handleSubmit((values) => {
     updateRoom.mutate(
@@ -57,11 +56,7 @@ export function RoomCapacityDialog({ room, onClose, onUpdated }: RoomCapacityDia
   })
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={setOpen}
-      onOpenChangeComplete={(next) => (next ? undefined : onClose())}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{`Editar capacidade — quarto ${room.number}`}</DialogTitle>

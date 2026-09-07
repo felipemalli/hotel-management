@@ -4,10 +4,11 @@ import type { ReactNode } from 'react'
 import { type DataTableColumns, type dataTableFeatures } from '@/components/common'
 import { Typography } from '@/components/ui'
 import { countryName } from '@/lib/format/countries'
-import { formatISODate, formatISODateTime } from '@/lib/format/dates'
+import { formatISODateTime } from '@/lib/format/dates'
 import { formatDocument, formatPhone } from '@/lib/format/pii'
+import { formatYesNo } from '@/lib/format/text'
 
-import { Mono, NameCell } from './cells'
+import { Mono, NameCell, StayCell } from './cells'
 import type { GuestAllRow, GuestInHotelRow, GuestPendingRow } from './rows'
 
 const allHelper = createColumnHelper<typeof dataTableFeatures, GuestAllRow>()
@@ -106,16 +107,16 @@ export function inHotelColumns(
       id: 'stay',
       header: 'Estadia',
       cell: ({ row }) => (
-        <Typography as="span" variant="caption" className="whitespace-nowrap">
-          {formatISODate(row.original.reservation.checkin_date)} →{' '}
-          {formatISODate(row.original.reservation.checkout_date)}
-        </Typography>
+        <StayCell
+          checkin={row.original.reservation.checkin_date}
+          checkout={row.original.reservation.checkout_date}
+        />
       ),
     }),
     inHotelHelper.display({
       id: 'vehicle',
       header: 'Vaga',
-      cell: ({ row }) => (row.original.reservation.has_vehicle ? 'Sim' : 'Não'),
+      cell: ({ row }) => formatYesNo(row.original.reservation.has_vehicle),
     }),
     inHotelHelper.display({
       id: 'checked_in_at',
@@ -177,16 +178,16 @@ export function pendingColumns(
       id: 'stay',
       header: 'Estadia',
       cell: ({ row }) => (
-        <Typography as="span" variant="caption" className="whitespace-nowrap">
-          {formatISODate(row.original.reservation.checkin_date)} →{' '}
-          {formatISODate(row.original.reservation.checkout_date)}
-        </Typography>
+        <StayCell
+          checkin={row.original.reservation.checkin_date}
+          checkout={row.original.reservation.checkout_date}
+        />
       ),
     }),
     pendingHelper.display({
       id: 'vehicle',
       header: 'Vaga',
-      cell: ({ row }) => (row.original.reservation.has_vehicle ? 'Sim' : 'Não'),
+      cell: ({ row }) => formatYesNo(row.original.reservation.has_vehicle),
     }),
     pendingHelper.display({
       id: 'actions',

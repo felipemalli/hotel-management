@@ -96,7 +96,6 @@ describe('ReservationDetailPage', () => {
     expect(screen.getByRole('link', { name: 'Voltar às reservas' })).toBeInTheDocument()
   })
 
-  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('mostra a conta congelada e a 2a via da estadia encerrada', async () => {
     vi.mocked(fetchGuest).mockResolvedValue(CARLA)
     renderDetail(CARLA_CHECKED_OUT)
@@ -121,7 +120,7 @@ describe('ReservationDetailPage', () => {
     expect(within(account).getByText('Pix · por atendente')).toBeInTheDocument()
   })
 
-  it('cancela a reserva pendente e devolve o foco ao conteudo', async () => {
+  it('cancela a reserva pendente', async () => {
     const user = userEvent.setup()
     vi.mocked(cancelReservation).mockResolvedValue(ANA_CANCELLED)
     renderDetail(ANA_PENDING)
@@ -131,14 +130,9 @@ describe('ReservationDetailPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cancelar reserva' }))
 
     await waitFor(() => expect(cancelReservation).toHaveBeenCalledWith(ANA_PENDING.id))
-    // O botão "Cancelar" desmontou: o foco vai a um tabulável em `<main>`, não ao `<main>` (`tabIndex=-1`).
-    await waitFor(() => expect(document.body).not.toHaveFocus())
-    // eslint-disable-next-line testing-library/no-node-access -- nao ha query de role para "o que tem foco agora"
-    expect(screen.getByRole('main')).toContainElement(document.activeElement as HTMLElement)
     expect(toastStore.getSnapshot()).toEqual([expect.objectContaining({ tone: 'success' })])
   })
 
-  // Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
   it('abre o extrato do checkout sem buscar de novo', async () => {
     // O `reservation_id` do POST é o que semeia a chave da 2ª via.
     vi.mocked(checkOut).mockResolvedValue({

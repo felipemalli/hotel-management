@@ -11,11 +11,16 @@ import type {
   lateFeeSchema,
   paymentMethodSchema,
   paymentSchema,
+  reservationOrderingSchema,
   reservationSchema,
   reservationStatusSchema,
 } from './schemas'
 
 export type ReservationStatus = z.infer<typeof reservationStatusSchema>
+
+export type ReservationOrdering = z.infer<typeof reservationOrderingSchema>
+
+export type ReservationSortField = 'checkin_date' | 'checkout_date'
 
 export type Reservation = z.infer<typeof reservationSchema>
 
@@ -64,7 +69,9 @@ export interface CheckInPayload {
 export interface ReservationListParams {
   status?: ReservationStatus
   paid?: boolean
-  // Nº da reserva (com ou sem '#'), titular ou quarto, por fragmento — no servidor.
   search?: string
+  checkin_date?: string
+  checkout_date?: string
+  ordering?: ReservationOrdering
   page?: number
 }

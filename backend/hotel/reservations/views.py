@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.utils import timezone
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import (
     OpenApiExample,
     OpenApiParameter,
@@ -68,6 +69,27 @@ from hotel.rooms.serializers import RoomSerializer
                 required=False,
                 type=str,
             ),
+            OpenApiParameter(
+                name="checkin_date",
+                description="Só as reservas com esta data de entrada.",
+                required=False,
+                type=OpenApiTypes.DATE,
+            ),
+            OpenApiParameter(
+                name="checkout_date",
+                description="Só as reservas com esta data de saída.",
+                required=False,
+                type=OpenApiTypes.DATE,
+            ),
+            OpenApiParameter(
+                name="ordering",
+                description=(
+                    "Ordena por entrada ou saída; o prefixo `-` inverte. "
+                    "Padrão: entrada crescente."
+                ),
+                required=False,
+                enum=list(selectors.RESERVATION_ORDERINGS),
+            ),
         ],
         responses={200: ReservationSerializer(many=True), 400: ErrorEnvelopeSerializer},
     ),
@@ -130,6 +152,9 @@ class ReservationViewSet(
             guest_id=query.validated_data.get("guest"),
             paid=query.validated_data.get("paid"),
             search=query.validated_data.get("search"),
+            checkin_date=query.validated_data.get("checkin_date"),
+            checkout_date=query.validated_data.get("checkout_date"),
+            ordering=query.validated_data.get("ordering"),
         )
 
     def create(self, request: Request, *args, **kwargs) -> Response:

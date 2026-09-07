@@ -17,13 +17,12 @@ import {
   SelectValue,
   Typography,
 } from '@/components/ui'
-import type { GuestRef as GuestSummary } from '@/features/guests/types'
+import type { GuestRef } from '@/features/guests/types'
 import { CompanionPicker } from '@/features/reservations/components/CompanionPicker'
 import { useCreateReservation } from '@/features/reservations/hooks'
 import { reservationFormSchema } from '@/features/reservations/schemas'
 import type {
   CreateReservationPayload,
-  GuestRef,
   Reservation,
   ReservationFormValues,
 } from '@/features/reservations/types'
@@ -37,7 +36,7 @@ import { applyServerErrors } from '@/lib/forms/forms'
 const FIELDS = ['checkin_date', 'checkout_date', 'has_vehicle', 'room_id', 'companion_ids'] as const
 
 export interface ReservationFormProps {
-  guest: GuestSummary
+  guest: GuestRef
   onSuccess?: (reservation: Reservation) => void
   onCancel?: () => void
 }

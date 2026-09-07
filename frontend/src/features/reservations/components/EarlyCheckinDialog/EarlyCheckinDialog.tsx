@@ -9,12 +9,11 @@ import {
   AlertDialogTitle,
   Typography,
 } from '@/components/ui'
+import type { EarlyCheckinInfo } from '@/lib/errors/errors'
+import { whenClosed } from '@/lib/hooks/useDismissibleOpen'
 
 export interface EarlyCheckinDialogProps {
-  open: boolean
-  serverTime: string
-  // Horário da política vigente, não de constante.
-  opensAt: string
+  early: EarlyCheckinInfo | null
   guestName: string
   pending?: boolean
   onConfirm: () => void
@@ -22,21 +21,19 @@ export interface EarlyCheckinDialogProps {
 }
 
 export function EarlyCheckinDialog({
-  open,
-  serverTime,
-  opensAt,
+  early,
   guestName,
   pending = false,
   onConfirm,
   onCancel,
 }: EarlyCheckinDialogProps) {
   return (
-    <AlertDialog open={open} onOpenChange={(next) => (next ? undefined : onCancel())}>
+    <AlertDialog open={early !== null} onOpenChange={whenClosed(onCancel)}>
       <AlertDialogContent size="sm">
         <AlertDialogHeader>
-          <AlertDialogTitle>{`Check-in antes das ${opensAt}`}</AlertDialogTitle>
+          <AlertDialogTitle>{`Check-in antes das ${early?.opensAt ?? ''}`}</AlertDialogTitle>
           <AlertDialogDescription>
-            {`São ${serverTime} — o check-in abre às ${opensAt}. Confirmar mesmo assim?`}
+            {`São ${early?.serverTime ?? ''} — o check-in abre às ${early?.opensAt ?? ''}. Confirmar mesmo assim?`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <Typography as="p" variant="body" tone="muted">

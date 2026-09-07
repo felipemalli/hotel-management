@@ -14,7 +14,6 @@ export const ROOM_103: Room = { ...ROOM_101, id: 3, number: '103', capacity: 3 }
 
 export const ROOM_201: Room = { ...ROOM_101, id: 4, number: '201', capacity: 4 }
 
-// Fora do seed: desativado, capacidade 1 (singular).
 export const ROOM_301_INACTIVE: Room = {
   ...ROOM_101,
   id: 5,

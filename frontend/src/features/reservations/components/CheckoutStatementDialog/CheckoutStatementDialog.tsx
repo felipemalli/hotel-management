@@ -19,13 +19,13 @@ import {
   Typography,
 } from '@/components/ui'
 import { usePayReservation, useReservationStatement } from '@/features/reservations/hooks'
-import { PAYMENT_METHODS } from '@/features/reservations/payment'
-import { PAYMENT_METHOD_LABELS } from '@/features/reservations/status'
+import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/features/reservations/payment'
 import type { BillLine, CheckoutStatement, PaymentMethod } from '@/features/reservations/types'
-import { focusMainContent } from '@/lib/a11y/focus'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { formatISODate, formatISODateTime } from '@/lib/format/dates'
 import { formatBRL } from '@/lib/format/money'
+import { useDismissibleOpen } from '@/lib/hooks/useDismissibleOpen'
+import { cn } from '@/lib/utils'
 
 const dailyLineHelper = createColumnHelper<typeof dataTableFeatures, BillLine>()
 
@@ -69,10 +69,10 @@ function SummaryRow({
 }) {
   return (
     <div
-      className={[
+      className={cn(
         'flex items-baseline justify-between gap-4 py-1.5',
-        emphasis ? 'border-t border-slate-300 pt-3' : '',
-      ].join(' ')}
+        emphasis && 'border-t border-slate-300 pt-3',
+      )}
     >
       <Typography
         as="span"
@@ -94,13 +94,14 @@ export function CheckoutStatementDialog({
   onClose,
   allowPayment = false,
 }: CheckoutStatementDialogProps) {
-  // open=false antes de desmontar: o Base UI restaura o foco nessa transição.
-  const [open, setOpen] = useState(openProp)
+  const { open, setOpen, onOpenChange, onOpenChangeComplete } = useDismissibleOpen(
+    onClose,
+    openProp,
+  )
   const pay = usePayReservation()
   const [stale, setStale] = useState(false)
   const refreshed = useReservationStatement(statement.reservation_id, { enabled: stale })
 
-  // Precedência: mutation, depois releitura, depois o extrato do checkout.
   const shown = pay.data ?? refreshed.data ?? statement
   const { late_fee: lateFee, payment } = shown
   const [method, setMethod] = useState<PaymentMethod | null>(null)
@@ -126,12 +127,8 @@ export function CheckoutStatementDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={setOpen}
-      onOpenChangeComplete={(next) => (next ? undefined : onClose())}
-    >
-      <DialogContent className="sm:max-w-2xl" finalFocus={() => focusMainContent() ?? true}>
+    <Dialog open={open} onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete}>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Extrato de checkout</DialogTitle>
           <DialogDescription>

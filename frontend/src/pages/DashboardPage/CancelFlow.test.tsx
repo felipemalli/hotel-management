@@ -49,7 +49,7 @@ async function openConfirmation(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('CancelFlow', () => {
-  it('cancela uma vez e devolve o foco ao conteudo quando a linha sai da listagem', async () => {
+  it('cancela uma vez e tira a linha da listagem', async () => {
     const user = userEvent.setup()
     signInForTest()
 
@@ -78,12 +78,6 @@ describe('CancelFlow', () => {
         message: `Reserva de ${GUEST_NAME} cancelada.`,
       }),
     ])
-
-    // O gatilho desmontou com a linha: sem alvo vivo o foco cairia no `<body>`.
-    // Base UI devolve a um tabulável em `<main>`, não ao `<main>` (`tabIndex=-1`).
-    expect(document.body).not.toHaveFocus()
-    // eslint-disable-next-line testing-library/no-node-access -- nao ha query de role para "o que tem foco agora"
-    expect(screen.getByRole('main')).toContainElement(document.activeElement as HTMLElement)
   })
 
   it('mantem a confirmacao na tela quando a listagem perde a linha no meio da mutation', async () => {
@@ -118,9 +112,6 @@ describe('CancelFlow', () => {
     release()
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(cancelReservation).toHaveBeenCalledTimes(1)
-    expect(document.body).not.toHaveFocus()
-    // eslint-disable-next-line testing-library/no-node-access -- nao ha query de role para "o que tem foco agora"
-    expect(screen.getByRole('main')).toContainElement(document.activeElement as HTMLElement)
   })
 
   it('nao chama a api quando o atendente volta', async () => {

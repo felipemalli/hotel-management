@@ -411,9 +411,53 @@ def test_list_reservations_filters_by_search(auth_client):
     assert ids({"search": "inexistente"}) == set()
 
 
+def test_list_reservations_filters_by_stay_dates(auth_client):
+    arriving = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
+    leaving = ReservationFactory(checkin_date=MARCH_9, checkout_date=MARCH_7 + timedelta(days=7))
+
+    def ids(params: dict) -> set[int]:
+        results = auth_client.get("/api/reservations/", params).data["results"]
+        return {item["id"] for item in results}
+
+    assert ids({"checkin_date": MARCH_7.isoformat()}) == {arriving.pk}
+    assert ids({"checkout_date": MARCH_9.isoformat()}) == {arriving.pk}
+    assert ids({"checkin_date": MARCH_9.isoformat()}) == {leaving.pk}
+    assert ids({"checkin_date": MARCH_7.isoformat(), "checkout_date": MARCH_7.isoformat()}) == set()
+
+
+def test_list_reservations_orders_by_stay_dates(auth_client):
+    early = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_7 + timedelta(days=10))
+    late = ReservationFactory(checkin_date=MARCH_9, checkout_date=MARCH_9 + timedelta(days=1))
+
+    def ids(ordering: str) -> list[int]:
+        results = auth_client.get("/api/reservations/", {"ordering": ordering}).data["results"]
+        return [item["id"] for item in results]
+
+    assert ids("checkin_date") == [early.pk, late.pk]
+    assert ids("-checkin_date") == [late.pk, early.pk]
+    assert ids("checkout_date") == [late.pk, early.pk]
+    assert ids("-checkout_date") == [early.pk, late.pk]
+
+
+def test_list_reservations_breaks_date_ties_by_id(auth_client):
+    """Sem ordem total, a mesma linha reaparece (ou some) ao virar a pagina."""
+    first, second, third = (
+        ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9) for _ in range(3)
+    )
+    response = auth_client.get("/api/reservations/", {"ordering": "-checkin_date"})
+
+    assert [item["id"] for item in response.data["results"]] == [first.pk, second.pk, third.pk]
+
+
 @pytest.mark.parametrize(
     ("params", "field"),
-    [({"status": "SLEEPING"}, "status"), ({"guest": "abc"}, "guest")],
+    [
+        ({"status": "SLEEPING"}, "status"),
+        ({"guest": "abc"}, "guest"),
+        ({"ordering": "guest"}, "ordering"),
+        ({"checkin_date": "ontem"}, "checkin_date"),
+        ({"checkout_date": "31/12/2026"}, "checkout_date"),
+    ],
 )
 def test_list_reservations_rejects_bad_filters(auth_client, params, field):
     response = auth_client.get("/api/reservations/", params)

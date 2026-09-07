@@ -1,5 +1,4 @@
 import { ArrowLeftIcon } from 'lucide-react'
-import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { Alert, EmptyState, ErrorState, PageHeader } from '@/components/common'
@@ -17,20 +16,22 @@ import {
 import { ReservationStatusBadge } from '@/features/reservations/components/ReservationStatusBadge'
 import { parseReservationId } from '@/features/reservations/filters'
 import { useReservation, useReservationStatement } from '@/features/reservations/hooks'
+import { HOTEL_NAME } from '@/lib/brand'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
+import { useDialogState } from '@/lib/hooks/useDialogState'
 import { notifySuccess } from '@/lib/notify/toast'
 import { ROUTES } from '@/lib/routing/routes'
 
 import { ReservationDetailPageSkeleton } from './ReservationDetailPageSkeleton'
 
-type DetailDialog = 'statement' | 'cancel' | null
+type DetailDialog = 'statement' | 'cancel'
 
 export function ReservationDetailPage() {
   const { id: rawId } = useParams()
   const id = parseReservationId(rawId)
   const reservation = useReservation(id)
   const guest = useGuest(reservation.data?.guest_id)
-  const [dialog, setDialog] = useState<DetailDialog>(null)
+  const { current: dialog, open, close } = useDialogState<DetailDialog>()
   // Checkout já semeou esta chave: a 2ª via e a seção Conta não refazem o GET.
   const statement = useReservationStatement(id ?? 0, {
     enabled: dialog === 'statement' || reservation.data?.status === 'CHECKED_OUT',
@@ -52,17 +53,13 @@ export function ReservationDetailPage() {
   const current = reservation.data
   const guestName = guest.data?.full_name ?? `reserva #${current.id}`
 
-  function close() {
-    setDialog(null)
-  }
-
   return (
     <article className="flex flex-col gap-6">
       <PageHeader
         title={`Reserva #${current.id}`}
         breadcrumb={
           <>
-            Hotel Vila Marés{' '}
+            {HOTEL_NAME}{' '}
             <Link to={ROUTES.reservations} className="underline decoration-border">
               Reservas
             </Link>
@@ -90,13 +87,13 @@ export function ReservationDetailPage() {
             reservationId={current.id}
             guestName={guestName}
             state={current.status}
-            onCheckedOut={() => setDialog('statement')}
-            onRequestCancel={() => setDialog('cancel')}
+            onCheckedOut={() => open('statement')}
+            onRequestCancel={() => open('cancel')}
           />
         ) : null}
 
         {current.status === 'CHECKED_OUT' ? (
-          <Button variant="outline" onClick={() => setDialog('statement')}>
+          <Button variant="outline" onClick={() => open('statement')}>
             Ver extrato
           </Button>
         ) : null}
@@ -125,7 +122,7 @@ export function ReservationDetailPage() {
       ) : null}
 
       {dialog === 'statement' && statement.isError ? (
-        <Alert tone="error" onDismiss={() => setDialog(null)}>
+        <Alert tone="error" onDismiss={close}>
           {errorMessage(statement.error)}
         </Alert>
       ) : null}

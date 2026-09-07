@@ -21,6 +21,13 @@ PENDING_COMPANION_RESERVATIONS_ATTR = "pending_companion_reservations"
 
 OCCUPYING_STATUSES = (ReservationStatus.PENDING, ReservationStatus.CHECKED_IN)
 
+RESERVATION_ORDERINGS = (
+    "checkin_date",
+    "-checkin_date",
+    "checkout_date",
+    "-checkout_date",
+)
+
 # Tudo que ReservationSerializer le fora da linha. Sem isto, 20 linhas x 6
 # relacoes = 120 consultas.
 RESERVATION_RELATIONS = (
@@ -88,12 +95,19 @@ def list_reservations(
     guest_id: int | None = None,
     paid: bool | None = None,
     search: str | None = None,
+    checkin_date: date | None = None,
+    checkout_date: date | None = None,
+    ordering: str | None = None,
 ):
     queryset = reservation_queryset()
     if status:
         queryset = queryset.filter(status=status)
     if guest_id is not None:
         queryset = queryset.filter(guest_id=guest_id)
+    if checkin_date is not None:
+        queryset = queryset.filter(checkin_date=checkin_date)
+    if checkout_date is not None:
+        queryset = queryset.filter(checkout_date=checkout_date)
     if paid is not None:
         # `paid=false` inclui reserva sem conta: em aberto e tudo que nao esta pago.
         queryset = (
@@ -103,6 +117,10 @@ def list_reservations(
         )
     if search:
         queryset = queryset.filter(_reservation_search_predicate(search))
+    if ordering:
+        # Desempate por id: sobre datas repetidas, a paginacao sem ordem total
+        # repete e some com linhas entre uma pagina e a seguinte.
+        queryset = queryset.order_by(ordering, "id")
     return queryset
 
 

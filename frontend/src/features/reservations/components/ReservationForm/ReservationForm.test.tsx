@@ -26,7 +26,6 @@ function roomTrigger() {
   return screen.getByRole('combobox', { name: 'Quarto' })
 }
 
-// Select do Base UI não abre em jsdom (floating-ui); ver src/test/setup.ts.
 // `type="date"` não se digita tecla a tecla: o browser entrega o valor inteiro.
 function setDate(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } })

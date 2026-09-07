@@ -10,8 +10,7 @@ import testingLibrary from 'eslint-plugin-testing-library'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
-// Camadas: lib → components → features → pages; só `app` conhece tudo.
-// Testes ficam de fora: montam a árvore real e compartilham fixtures.
+// Testes ficam de fora destas regras: montam a árvore real e compartilham fixtures.
 const layer = (name, groups) => ({
   message: `A camada ${name} nao importa desta pasta (veja as camadas no GUIA).`,
   group: groups.flatMap((prefix) => [prefix, `${prefix}/**`]),

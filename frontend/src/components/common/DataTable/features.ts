@@ -5,6 +5,8 @@ export interface DataTableColumnMeta {
   align?: 'start' | 'end'
   headClassName?: string
   cellClassName?: string
+  // Vira o aria-sort do <th>; a ordenação em si é do servidor, não da tabela.
+  sort?: 'ascending' | 'descending' | 'none'
 }
 
 export const dataTableFeatures = tableFeatures({

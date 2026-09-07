@@ -5,7 +5,6 @@ import type { Account, Reservation } from '../types'
 
 export const ATTENDANT_REF = { id: 1, username: 'atendente' }
 
-// PENDING: transições ainda nulas, como sai de `create_reservation`.
 const BASE: Reservation = {
   id: 1,
   guest_id: ANA.id,
@@ -36,7 +35,6 @@ const OPEN_ACCOUNT: Account = {
   payment: null,
 }
 
-// Totais de T7: 425,00 em aberto (mesma conta do seed).
 const CLOSED_ACCOUNT: Account = {
   id: 2,
   status: 'CLOSED',

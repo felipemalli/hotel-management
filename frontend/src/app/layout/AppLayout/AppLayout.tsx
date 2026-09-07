@@ -7,15 +7,13 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Typography } from '@/components/ui'
 import { useCurrentUser } from '@/features/auth/hooks'
 import { useAuth } from '@/features/auth/useAuth'
-import { MAIN_CONTENT_ID } from '@/lib/a11y/focus'
+import { HOTEL_NAME } from '@/lib/brand'
 import { errorMessage } from '@/lib/errors/errors'
 import { toastStore } from '@/lib/notify/toast'
 import { ROUTES } from '@/lib/routing/routes'
 
 import { PageFallback } from '../PageFallback'
 import { SessionMenu } from '../SessionMenu'
-
-const HOTEL_NAME = 'Hotel Vila Marés'
 
 // end só na recepção: /reservas/7 ainda é "Reservas".
 const NAV_GROUPS = [
@@ -61,7 +59,7 @@ export function AppLayout() {
   return (
     <div className="flex min-h-screen bg-[#FAFAFA]">
       <a
-        href={`#${MAIN_CONTENT_ID}`}
+        href="#main"
         className="sr-only rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50"
       >
         Ir para o conteúdo
@@ -79,7 +77,7 @@ export function AppLayout() {
             <Typography
               as="span"
               variant="mono"
-              className="leading-none tracking-[0.12em] text-muted-foreground uppercase"
+              className="pl-[1px] leading-none tracking-[0.12em] text-muted-foreground uppercase"
             >
               Hotel PMS
             </Typography>
@@ -126,11 +124,7 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <main
-        id={MAIN_CONTENT_ID}
-        tabIndex={-1}
-        className="flex min-w-0 flex-1 flex-col focus:outline-none"
-      >
+      <main id="main" tabIndex={-1} className="flex min-w-0 flex-1 flex-col focus:outline-none">
         {/* Boundary por página: uma quebra na tela deixa a barra lateral de pé. */}
         <ErrorBoundary
           scope="page"
