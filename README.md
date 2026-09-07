@@ -58,7 +58,7 @@ collectstatic → seed_demo → gunicorn`, cadeia definida no próprio
 `docker-compose.yml`) e frontend (Vite). O seed cria os usuários e o cenário de demonstração; o log imprime as credenciais ao fim.
 
 > Subindo sobre um volume antigo, rode `docker compose down -v` antes.
-> Opcional: `OPENAI_API_KEY` no `.env` liga a [Íris](./docs/concepts/IRIS.md).
+> Opcional: `OPENAI_API_KEY` no `.env` liga a Íris.
 
 ## Execução
 
