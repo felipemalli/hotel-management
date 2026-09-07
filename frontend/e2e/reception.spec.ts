@@ -19,8 +19,8 @@ test.describe(
       const guestDialog = page.getByRole('dialog', { name: 'Novo hóspede' })
       await guestDialog.getByLabel('Nome completo').fill(guestName)
       await guestDialog.getByLabel('Documento').fill(document)
-      await guestDialog.getByLabel('Telefone').fill('55 21 98888-0000')
       await selectFirstOption(page, 'Nacionalidade')
+      await guestDialog.getByLabel('Telefone').fill('55 (21) 98888-0000')
       await guestDialog.getByRole('button', { name: 'Cadastrar hóspede' }).click()
 
       const reservationDialog = page.getByRole('dialog', { name: 'Nova reserva' })

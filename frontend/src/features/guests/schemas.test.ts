@@ -26,7 +26,14 @@ describe('guestFormSchema', () => {
     const result = guestFormSchema.safeParse({ ...VALID, phone: '55 21 98888-7777' })
 
     expect(result.success).toBe(true)
-    if (result.success) expect(result.data.phone).toBe('+55 21 98888-7777')
+    if (result.success) expect(result.data.phone).toBe('+55 (21) 98888-7777')
+  })
+
+  it('aceita a mascara nacional quando a nacionalidade e Brasil', () => {
+    const result = guestFormSchema.safeParse({ ...VALID, phone: '(21) 98888-7777' })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.phone).toBe('+55 (21) 98888-7777')
   })
 
   it('devolve exatamente um problema por campo vazio, nunca dois', () => {
@@ -57,7 +64,11 @@ describe('guestFormSchema', () => {
   })
 
   it('barra telefone sem o codigo do pais com a frase do servidor', () => {
-    const result = guestFormSchema.safeParse({ ...VALID, phone: '(21) 98888-7777' })
+    const result = guestFormSchema.safeParse({
+      ...VALID,
+      nationality: 'PT',
+      phone: '(21) 98888-7777',
+    })
 
     expect(result.success).toBe(false)
     expect(result.error?.issues[0]?.message).toBe(PHONE_FORMAT_MESSAGE)

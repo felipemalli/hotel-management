@@ -61,13 +61,21 @@ export function LoginPage() {
         <form className="mt-6 flex flex-col gap-4" onSubmit={submit} noValidate>
           {rootError ? <Alert tone="error">{rootError}</Alert> : null}
           <FormField label="Usuário" error={errors.username?.message}>
-            {(control) => <Input autoComplete="username" {...control} {...register('username')} />}
+            {(control) => (
+              <Input
+                autoComplete="username"
+                placeholder="atendente"
+                {...control}
+                {...register('username')}
+              />
+            )}
           </FormField>
           <FormField label="Senha" error={errors.password?.message}>
             {(control) => (
               <Input
                 type="password"
                 autoComplete="current-password"
+                placeholder="••••••••"
                 {...control}
                 {...register('password')}
               />

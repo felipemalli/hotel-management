@@ -58,7 +58,7 @@ describe('GuestForm · RF1', () => {
 
     await user.type(screen.getByLabelText('Nome completo'), 'Ana Souza')
     await user.type(screen.getByLabelText('Documento'), '123.456.789-01')
-    await user.type(screen.getByLabelText('Telefone'), '(21) 98888-7777')
+    await user.type(screen.getByLabelText('Telefone'), '98888-7777')
     await user.click(screen.getByRole('button', { name: 'Cadastrar hóspede' }))
 
     expect(createGuest).not.toHaveBeenCalled()

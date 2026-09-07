@@ -18,12 +18,13 @@ import {
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { COUNTRY_OPTIONS } from '@/lib/format/countries'
 import { applyServerErrors } from '@/lib/forms/forms'
+import { applyBrPhoneMask, brPhoneToInternational } from '@/lib/forms/normalize'
 
 import { useCreateGuest } from './hooks'
-import { guestFormSchema, PHONE_HINT } from './schemas'
+import { BR_PHONE_HINT, guestFormSchema, PHONE_HINT } from './schemas'
 import type { CreateGuestPayload, Guest } from './types'
 
-const FIELDS = ['full_name', 'document', 'phone', 'nationality'] as const
+const FIELDS = ['full_name', 'document', 'nationality', 'phone'] as const
 
 const NATIONALITY_ITEMS = COUNTRY_OPTIONS.map((option) => ({
   value: option.code,
@@ -43,6 +44,9 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
     register,
     reset,
     setError,
+    setValue,
+    getValues,
+    watch,
   } = useForm<CreateGuestPayload>({
     resolver: zodResolver(guestFormSchema),
     mode: 'onSubmit',
@@ -69,6 +73,8 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
     })
   })
 
+  const nationality = watch('nationality')
+  const isBrazil = nationality === 'BR'
   const rootError = errors.root?.server?.message
 
   return (
@@ -76,23 +82,15 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
       {rootError ? <Alert tone="error">{rootError}</Alert> : null}
 
       <FormField label="Nome completo" error={errors.full_name?.message}>
-        {(control) => <Input {...control} {...register('full_name')} />}
+        {(control) => <Input placeholder="Ana Souza" {...control} {...register('full_name')} />}
       </FormField>
       <FormField
         label="Documento"
         hint="CPF, RG ou passaporte — com ou sem pontuação."
         error={errors.document?.message}
       >
-        {(control) => <Input {...control} {...register('document')} />}
-      </FormField>
-      <FormField label="Telefone" hint={PHONE_HINT} error={errors.phone?.message}>
         {(control) => (
-          <InputGroup>
-            <InputGroupAddon>
-              <InputGroupText>+</InputGroupText>
-            </InputGroupAddon>
-            <InputGroupInput {...control} {...register('phone')} />
-          </InputGroup>
+          <Input placeholder="123.456.789-01" {...control} {...register('document')} />
         )}
       </FormField>
       <FormField label="Nacionalidade" error={errors.nationality?.message}>
@@ -104,7 +102,18 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
               <Select
                 items={NATIONALITY_ITEMS}
                 value={field.value === '' ? null : field.value}
-                onValueChange={(value) => field.onChange(value ?? '')}
+                onValueChange={(value) => {
+                  const next = value ?? ''
+                  field.onChange(next)
+                  const phone = getValues('phone')
+                  if (next === 'BR') {
+                    setValue('phone', applyBrPhoneMask(phone) || '55')
+                    return
+                  }
+                  if (field.value === 'BR' && phone) {
+                    setValue('phone', brPhoneToInternational(phone).replace(/^\+/, ''))
+                  }
+                }}
               >
                 <SelectTrigger {...selectControl} onBlur={field.onBlur} className="w-full">
                   <SelectValue placeholder="Selecione…" />
@@ -117,6 +126,37 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
                   ))}
                 </SelectContent>
               </Select>
+            )}
+          />
+        )}
+      </FormField>
+      <FormField
+        label="Telefone"
+        hint={isBrazil ? BR_PHONE_HINT : PHONE_HINT}
+        error={errors.phone?.message}
+      >
+        {(fieldControl) => (
+          <Controller
+            control={control}
+            name="phone"
+            render={({ field }) => (
+              <InputGroup>
+                <InputGroupAddon>
+                  <InputGroupText>+</InputGroupText>
+                </InputGroupAddon>
+                <InputGroupInput
+                  {...fieldControl}
+                  placeholder={isBrazil ? '55 (21) 98888-7777' : '55 21 98888-7777'}
+                  value={field.value}
+                  name={field.name}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  onChange={(event) => {
+                    const raw = event.target.value
+                    field.onChange(isBrazil ? applyBrPhoneMask(raw) || '55' : raw)
+                  }}
+                />
+              </InputGroup>
             )}
           />
         )}

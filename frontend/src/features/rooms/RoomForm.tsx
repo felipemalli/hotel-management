@@ -58,7 +58,9 @@ export function RoomForm({ onSuccess, onCancel }: RoomFormProps) {
         hint="Até 10 caracteres — “101”, “12A”."
         error={errors.number?.message}
       >
-        {(control) => <Input autoComplete="off" {...control} {...register('number')} />}
+        {(control) => (
+          <Input autoComplete="off" placeholder="101" {...control} {...register('number')} />
+        )}
       </FormField>
       <FormField
         label="Capacidade"

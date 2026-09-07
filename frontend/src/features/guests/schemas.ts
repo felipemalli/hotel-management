@@ -5,7 +5,9 @@ import { isoDate, isoDateTime, paginated } from '@/lib/api/schemas'
 import { isCountryCode } from '@/lib/format/countries'
 import { requiredString } from '@/lib/forms/forms'
 import {
+  brPhoneToInternational,
   DOCUMENT_MIN_LENGTH,
+  isCompleteBrNationalPhone,
   isInternationalPhone,
   normalizeDocument,
   withLeadingPlus,
@@ -48,20 +50,38 @@ export const guestPendingCheckinPageSchema = paginated(guestPendingCheckinSchema
 
 export const PHONE_HINT = 'Com código do país, ex.: 55 21 98888-7777.'
 
+export const BR_PHONE_HINT = 'DDI 55, DDD e número, ex.: 55 (21) 98888-7777.'
+
 export const PHONE_FORMAT_MESSAGE =
   'Informe o telefone com o código do país, ex.: 55 21 98888-7777.'
 
 export const NATIONALITY_MESSAGE = 'Selecione a nacionalidade.'
 
-export const guestFormSchema = z.object({
-  full_name: requiredString(),
-  document: requiredString().refine(
-    (value) => normalizeDocument(value).length >= DOCUMENT_MIN_LENGTH,
-    { error: `Documento exige ao menos ${DOCUMENT_MIN_LENGTH} caracteres alfanuméricos.` },
-  ),
-  phone: requiredString()
-    .refine(isInternationalPhone, { error: PHONE_FORMAT_MESSAGE })
-    .transform(withLeadingPlus),
-  // requiredString + refine, não z.enum: o enum listaria as 249 opções na mensagem.
-  nationality: requiredString().refine(isCountryCode, { error: NATIONALITY_MESSAGE }),
-}) satisfies z.ZodType<CreateGuestPayload>
+function submittedPhone(phone: string, nationality: string): string {
+  return nationality === 'BR' ? brPhoneToInternational(phone) : withLeadingPlus(phone)
+}
+
+export const guestFormSchema = z
+  .object({
+    full_name: requiredString(),
+    document: requiredString().refine(
+      (value) => normalizeDocument(value).length >= DOCUMENT_MIN_LENGTH,
+      { error: `Documento exige ao menos ${DOCUMENT_MIN_LENGTH} caracteres alfanuméricos.` },
+    ),
+    phone: requiredString().refine(
+      (value) => isInternationalPhone(value) || isCompleteBrNationalPhone(value),
+      { error: PHONE_FORMAT_MESSAGE },
+    ),
+    // requiredString + refine, não z.enum: o enum listaria as 249 opções na mensagem.
+    nationality: requiredString().refine(isCountryCode, { error: NATIONALITY_MESSAGE }),
+  })
+  .superRefine((data, ctx) => {
+    if (data.nationality === 'BR' || isInternationalPhone(data.phone)) return
+    if (isCompleteBrNationalPhone(data.phone)) {
+      ctx.addIssue({ code: 'custom', path: ['phone'], message: PHONE_FORMAT_MESSAGE })
+    }
+  })
+  .transform((data) => ({
+    ...data,
+    phone: submittedPhone(data.phone, data.nationality),
+  })) satisfies z.ZodType<CreateGuestPayload>

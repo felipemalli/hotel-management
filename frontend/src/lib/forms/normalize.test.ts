@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  applyBrPhoneMask,
+  brPhoneToInternational,
+  isCompleteBrNationalPhone,
   isInternationalPhone,
   normalizeDocument,
   normalizePhone,
@@ -37,6 +40,46 @@ describe('withLeadingPlus', () => {
 
   it('nao duplica o mais ja digitado', () => {
     expect(withLeadingPlus('+55 21 98888-7777')).toBe('+55 21 98888-7777')
+  })
+})
+
+describe('applyBrPhoneMask', () => {
+  it('aplica a mascara progressiva com o DDI 55', () => {
+    expect(applyBrPhoneMask('')).toBe('')
+    expect(applyBrPhoneMask('55')).toBe('55')
+    expect(applyBrPhoneMask('2')).toBe('55 (2')
+    expect(applyBrPhoneMask('21')).toBe('55 (21')
+    expect(applyBrPhoneMask('219888')).toBe('55 (21) 9888')
+    expect(applyBrPhoneMask('2198887777')).toBe('55 (21) 9888-7777')
+    expect(applyBrPhoneMask('21988887777')).toBe('55 (21) 98888-7777')
+  })
+
+  it('mantem o DDI 55 quando o valor ja veio internacional', () => {
+    expect(applyBrPhoneMask('5521988887777')).toBe('55 (21) 98888-7777')
+    expect(applyBrPhoneMask('+55 21 98888-7777')).toBe('55 (21) 98888-7777')
+  })
+
+  it('corta o excesso depois do celular', () => {
+    expect(applyBrPhoneMask('21988887777888')).toBe('55 (21) 98888-7777')
+  })
+})
+
+describe('brPhoneToInternational', () => {
+  it('prefixa o mais na mascara com DDI 55', () => {
+    expect(brPhoneToInternational('(21) 98888-7777')).toBe('+55 (21) 98888-7777')
+    expect(brPhoneToInternational('5521988887777')).toBe('+55 (21) 98888-7777')
+  })
+})
+
+describe('isCompleteBrNationalPhone', () => {
+  it('aceita fixo de 10 e celular de 11 digitos', () => {
+    expect(isCompleteBrNationalPhone('(21) 9888-7777')).toBe(true)
+    expect(isCompleteBrNationalPhone('(21) 98888-7777')).toBe(true)
+  })
+
+  it('recusa numero incompleto ou ja com DDI', () => {
+    expect(isCompleteBrNationalPhone('98888-7777')).toBe(false)
+    expect(isCompleteBrNationalPhone('55 21 98888-7777')).toBe(false)
   })
 })
 
