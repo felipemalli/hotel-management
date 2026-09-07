@@ -20,4 +20,5 @@ desafio.md
 frontend/playwright-report/
 frontend/test-results/
 frontend/e2e/.auth/
+frontend/.pnpm-store/
 .claude/settings.local.json

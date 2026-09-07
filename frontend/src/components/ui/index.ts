@@ -14,7 +14,26 @@ export {
 } from './AlertDialog'
 export { Badge, badgeVariants } from './Badge'
 export { Button, buttonVariants } from './Button'
+export { Calendar, CalendarDayButton } from './Calendar'
 export { Checkbox } from './Checkbox'
+export {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxClear,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+  ComboboxSeparator,
+  ComboboxTrigger,
+  ComboboxValue,
+} from './Combobox'
 export {
   Dialog,
   DialogClose,
@@ -56,7 +75,16 @@ export {
   FieldTitle,
 } from './Field'
 export { Input } from './Input'
+export {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupText,
+  InputGroupTextarea,
+} from './InputGroup'
 export { Label } from './Label'
+export { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from './Popover'
 export {
   Select,
   SelectContent,

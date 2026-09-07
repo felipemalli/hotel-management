@@ -68,15 +68,19 @@ describe('CompanionPicker', () => {
     await advanceTimersAndFlush(0)
 
     expect(fetchGuests).toHaveBeenLastCalledWith('lima', 1)
-    expect(screen.getByRole('button', { name: 'Adicionar Eva Lima' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Adicionar Bruno Lima' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Eva Lima/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Bruno Lima/ })).not.toBeInTheDocument()
   })
 
-  it('adiciona ao clicar, limpa a busca e devolve o conjunto novo', async () => {
+  // Combobox (Base UI) trava em jsdom se aberto via clique — a interação real
+  // é provada no e2e. Aqui, seleção por teclado, que não trava.
+  it('adiciona ao selecionar, limpa a busca e devolve o conjunto novo', async () => {
     const { onChange } = setup()
 
     await search('eva')
-    fireEvent.click(screen.getByRole('button', { name: 'Adicionar Eva Lima' }))
+    const input = screen.getByLabelText('Buscar acompanhante')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(onChange).toHaveBeenCalledWith([EVA_REF])
     expect(screen.getByLabelText('Buscar acompanhante')).toHaveValue('')
@@ -98,8 +102,8 @@ describe('CompanionPicker', () => {
 
     await search('a')
 
-    expect(screen.getByRole('button', { name: 'Adicionar Davi Rocha' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Adicionar Eva Lima' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Davi Rocha/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Eva Lima/ })).not.toBeInTheDocument()
   })
 
   it('avisa quando a busca nao encontra ninguem', async () => {

@@ -1,8 +1,16 @@
 import { useId, useState } from 'react'
 
 import { DismissButton, FormField } from '@/components/common'
-import { Button, Input, Typography } from '@/components/ui'
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  Typography,
+} from '@/components/ui'
 import { useGuests } from '@/features/guests/hooks'
+import type { Guest } from '@/features/guests/types'
 import type { GuestRef } from '@/features/reservations/types'
 import { errorMessage } from '@/lib/errors/errors'
 import { formatDocument } from '@/lib/format/pii'
@@ -28,6 +36,11 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
   const candidates = (results.data?.results ?? []).filter(
     (guest) => guest.id !== holderId && !chosen.has(guest.id),
   )
+
+  function addCompanion(guest: Guest) {
+    onChange([...value, { id: guest.id, full_name: guest.full_name }])
+    setSearch('')
+  }
 
   return (
     <fieldset className="flex flex-col gap-2" aria-describedby={error ? errorId : undefined}>
@@ -60,17 +73,28 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
 
       <FormField label="Buscar acompanhante">
         {(control) => (
-          <Input
-            type="search"
-            placeholder="Nome, documento ou telefone"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            {...control}
-          />
+          <Combobox
+            items={candidates}
+            inputValue={search}
+            onInputValueChange={setSearch}
+            onValueChange={(guest: Guest | null) => {
+              if (guest) addCompanion(guest)
+            }}
+            itemToStringLabel={(guest: Guest) => guest.full_name}
+            filter={null}
+            open={term.length > 0}
+          >
+            <ComboboxInput
+              placeholder="Nome, documento ou telefone"
+              showTrigger={false}
+              {...control}
+            />
+            <ComboboxContent>
+              {renderPopupBody()}
+            </ComboboxContent>
+          </Combobox>
         )}
       </FormField>
-
-      {term ? renderCandidates() : null}
 
       {error ? (
         <Typography
@@ -88,10 +112,10 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
   )
 
   // Função, não componente aninhado: tipo novo a cada render remontaria a lista.
-  function renderCandidates() {
+  function renderPopupBody() {
     if (results.isPending) {
       return (
-        <Typography as="p" role="status" variant="caption">
+        <Typography as="p" role="status" variant="caption" className="p-2">
           Buscando…
         </Typography>
       )
@@ -99,7 +123,7 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
 
     if (results.isError) {
       return (
-        <Typography as="p" role="alert" variant="caption" tone="destructive" weight="medium">
+        <Typography as="p" role="alert" variant="caption" tone="destructive" weight="medium" className="p-2">
           {errorMessage(results.error)}
         </Typography>
       )
@@ -107,41 +131,23 @@ export function CompanionPicker({ holderId, value, onChange, error }: CompanionP
 
     if (candidates.length === 0) {
       return (
-        <Typography as="p" variant="caption">
+        <Typography as="p" variant="caption" className="p-2">
           Nenhum hóspede encontrado.
         </Typography>
       )
     }
 
     return (
-      <ul aria-label="Resultados da busca" className="flex flex-col gap-1">
+      <ComboboxList>
         {candidates.map((guest) => (
-          <Typography
-            as="li"
-            key={guest.id}
-            variant="body"
-            className="flex items-center justify-between gap-3"
-          >
-            <span>
-              {guest.full_name}{' '}
-              <Typography as="span" variant="mono" tone="muted">
-                {formatDocument(guest.document)}
-              </Typography>
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              aria-label={`Adicionar ${guest.full_name}`}
-              onClick={() => {
-                onChange([...value, { id: guest.id, full_name: guest.full_name }])
-                setSearch('')
-              }}
-            >
-              Adicionar
-            </Button>
-          </Typography>
+          <ComboboxItem key={guest.id} value={guest}>
+            {guest.full_name}{' '}
+            <Typography as="span" variant="mono" tone="muted">
+              {formatDocument(guest.document)}
+            </Typography>
+          </ComboboxItem>
         ))}
-      </ul>
+      </ComboboxList>
     )
   }
 }
