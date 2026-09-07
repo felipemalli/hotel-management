@@ -204,6 +204,23 @@ def test_list_reservations_filters_by_search():
     assert set(selectors.list_reservations(search="inexistente")) == set()
 
 
+def test_annotate_is_occupied_only_counts_checked_in():
+    free = RoomFactory(number="101")
+    occupied = RoomFactory(number="102")
+    reserved = RoomFactory(number="103")
+    ReservationFactory(checked_in=True, room=occupied)
+    ReservationFactory(room=reserved)
+
+    flagged = {
+        room.number: room.is_occupied
+        for room in selectors.annotate_is_occupied(room_selectors.list_rooms())
+    }
+
+    assert flagged[free.number] is False
+    assert flagged[occupied.number] is True
+    assert flagged[reserved.number] is False
+
+
 def test_list_rooms_filters_by_search():
     """RF novo: busca por fragmento do número do quarto."""
     room_101 = RoomFactory(number="101")

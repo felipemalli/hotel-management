@@ -206,6 +206,16 @@ def _overlapping(checkin_date: date, checkout_date: date) -> QuerySet[Reservatio
     )
 
 
+def _occupied_now() -> QuerySet[Reservation]:
+    return Reservation.objects.filter(
+        room=OuterRef("pk"), status=ReservationStatus.CHECKED_IN
+    )
+
+
+def annotate_is_occupied(queryset: QuerySet[Room]) -> QuerySet[Room]:
+    return queryset.annotate(is_occupied=Exists(_occupied_now()))
+
+
 def available_rooms(
     *,
     checkin_date: date,
@@ -222,12 +232,9 @@ def available_rooms(
     queryset = queryset.filter(~Exists(scheduled))
 
     if checkin_date <= today:
-        occupied_now = Reservation.objects.filter(
-            room=OuterRef("pk"), status=ReservationStatus.CHECKED_IN
-        )
-        queryset = queryset.filter(~Exists(occupied_now))
+        queryset = queryset.filter(~Exists(_occupied_now()))
 
-    return queryset
+    return annotate_is_occupied(queryset)
 
 
 def conflicting_reservation(

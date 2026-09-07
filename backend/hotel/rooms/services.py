@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from django.db import transaction
+from django.db.models import QuerySet
 from django.db.models.deletion import ProtectedError
 
 from core.errors import DomainError, DomainValidationError, translate_integrity_error
 from hotel.reservations import selectors as reservation_selectors
+from hotel.rooms.models import ROOM_NUMBER_UNIQUE, Room
 
 # Unica dependencia de uma folha do grafo de camadas para `reservations`:
-# as guardas de desativacao, exclusao e de capacidade sao leituras da agenda.
-# O selector encapsula os status, entao `rooms` nao conhece o ciclo de vida
-# da reserva.
-from hotel.rooms.models import ROOM_NUMBER_UNIQUE, Room
+# guardas de desativacao/exclusao/capacidade e a ocupacao do catalogo leem a
+# agenda. O selector encapsula os status, entao `rooms` nao conhece o ciclo.
 
 
 class DuplicateRoomNumberError(DomainError):
@@ -30,6 +30,10 @@ class RoomInUseError(DomainError):
 class RoomHasHistoryError(DomainError):
     code = "INVALID_STATUS"
     default_detail = "Quarto com histórico de reserva não pode ser excluído."
+
+
+def with_occupancy(queryset: QuerySet[Room]) -> QuerySet[Room]:
+    return reservation_selectors.annotate_is_occupied(queryset)
 
 
 def create_room(*, number: str, capacity: int) -> Room:

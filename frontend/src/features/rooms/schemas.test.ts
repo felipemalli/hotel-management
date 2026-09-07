@@ -23,6 +23,18 @@ describe('roomSchema', () => {
     expect(roomSchema.safeParse({ ...ROOM_101, capacity: '2' }).success).toBe(false)
   })
 
+  it('exige o booleano de ocupacao', () => {
+    expect(
+      roomSchema.safeParse({
+        id: ROOM_101.id,
+        number: ROOM_101.number,
+        capacity: ROOM_101.capacity,
+        is_active: ROOM_101.is_active,
+        created_at: ROOM_101.created_at,
+      }).success,
+    ).toBe(false)
+  })
+
   it('reduz o resumo ao que a reserva embute', () => {
     const parsed = roomSummarySchema.parse(ROOM_101)
 

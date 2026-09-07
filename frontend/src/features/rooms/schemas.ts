@@ -13,6 +13,7 @@ export const roomSummarySchema = z.object({
 export const roomSchema = roomSummarySchema.extend({
   capacity: z.number().int(),
   is_active: z.boolean(),
+  is_occupied: z.boolean(),
   created_at: isoDateTime,
 })
 

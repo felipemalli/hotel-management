@@ -32,7 +32,7 @@ export function SessionMenu({ username, isAdmin, onSignOut }: SessionMenuProps) 
         <div className="flex size-7 flex-none items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
           {initials}
         </div>
-        <div className="flex flex-wrap grow gap-2">
+        <div className="flex grow flex-wrap gap-2">
           <Typography as="p" variant="label" className="truncate">
             {username}
           </Typography>

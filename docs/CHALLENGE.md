@@ -170,17 +170,33 @@ porque o sistema não muda estado sem gesto humano (RN19).
 O `seed_demo` roda na subida do Compose (e uma vez, por comando, em produção).
 É idempotente e usa **datas relativas**, então o cenário vale em qualquer dia; as
 transições passam pelos mesmos services que a API usa, com o relógio injetado.
+Dezesseis fichas cobrem os quatro status e espalham entrada/saída pela
+vizinhança de hoje — chegada atrasada, hoje, amanhã e daqui a mais de uma
+semana; saída hoje, no passado (overstay) e no futuro:
 
-| Hóspede         | Situação                                              | Demonstra                                        |
-| --------------- | ----------------------------------------------------- | ------------------------------------------------ |
-| **Ana Souza**   | `PENDING`, entrada hoje, com veículo                  | aba "Check-in pendente" e o fluxo de check-in     |
-| **Bruno Lima**  | `CHECKED_IN` no quarto 102, com a acompanhante Eva    | aba "No hotel", checkout, acompanhantes (RN22)    |
-| **Eva Lima**    | Acompanhante do Bruno, argentina (`+54 11 5555-4444`) | telefone com DDI estrangeiro                      |
-| **Carla Nunes** | `CHECKED_OUT` sex→dom, com vaga, saída 12:01          | extrato com diária de fim de semana **e** multa de 90,00 |
-| **Davi Rocha**  | Sem reserva                                           | busca por nome, documento e telefone              |
+| Hóspede            | Situação                                                     | Demonstra                                              |
+| ------------------ | -------------------------------------------------------------| ------------------------------------------------------ |
+| **Ana Souza**      | `PENDING`, entrada hoje, com veículo                          | aba "Check-in pendente" e o fluxo de check-in          |
+| **Fernanda Torres**| `PENDING`, entrada ontem (atrasada)                           | chegada em atraso na mesma aba                         |
+| **Gustavo Pinto**  | `PENDING`, entrada amanhã, com veículo                        | chegada futura próxima                                 |
+| **Helena Castro**  | `PENDING` daqui a 3 dias, com acompanhantes Bento e Clara      | acompanhantes ainda em reserva pendente                |
+| **Paula Antunes**  | `CHECKED_OUT` (estadia passada) **e** nova `PENDING` futura    | hóspede recorrente com duas fichas                     |
+| **Igor Salles**    | `PENDING` daqui a mais de uma semana                          | horizonte distante da agenda                           |
+| **Julia Prado**    | `CANCELLED`                                                   | aba/filtro de reserva cancelada                        |
+| **Bruno Lima**     | `CHECKED_IN` no quarto 102, com a acompanhante Eva             | aba "No hotel", checkout, acompanhantes (RN22)         |
+| **Eva Lima**       | Acompanhante do Bruno, argentina (`+54 11 5555-4444`)          | telefone com DDI estrangeiro                           |
+| **Nadia Ferraz**   | `CHECKED_IN`, saída daqui a 3 dias, com dois acompanhantes     | estadia longa em curso, grupo de 3                     |
+| **Otavio Bastos**  | `CHECKED_IN`, saída prevista ontem                             | hóspede que passou do checkout (overstay)              |
+| **Marcos Vieira**  | `CHECKED_IN`, saída hoje                                       | saída do dia na aba "No hotel"                         |
+| **Carla Nunes**    | `CHECKED_OUT` sex→dom, com vaga, saída 12:01                   | extrato com diária de fim de semana **e** multa de 90,00 |
+| **Sofia Marques**  | `CHECKED_OUT`, pagamento em dinheiro                           | conta paga em `CASH`                                   |
+| **Tiago Alves**    | `CHECKED_OUT`, pagamento no cartão                             | conta paga em `CARD`                                   |
+| **Ricardo Mattos** | `CHECKED_OUT` com saída tardia, conta em aberto                | extrato fechado ainda não pago                         |
+| **Davi Rocha**     | Sem reserva                                                    | busca por nome, documento e telefone                   |
+| **Ursula Klein**   | Sem reserva, alemã                                             | busca por hóspede estrangeiro sem estadia              |
 
-Quatro quartos: 101 (cap. 2), 102 (2), 103 (3), 201 (4). Dois usuários,
+Doze quartos (101–105, 201–203, 301–302, 401–402), o 302 desativado para
+mostrar o quarto fora de serviço; capacidades de 2 a 6. Dois usuários,
 `atendente` / `atendente123` e `admin` / `admin123`, ambos usuários comuns do
-Django: o papel `ATTENDANT`/`ADMIN` é do produto. O admin do Django não está
-instalado, porque gravaria na base sem passar por service nenhum; para
+Django: o papel `ATTENDANT`/`ADMIN` é do produto. Para
 inspecionar dados, use o Swagger ou `docker compose exec db psql -U hotel -d hotel`.

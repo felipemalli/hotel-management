@@ -26,6 +26,14 @@ export function roomColumns(renderActions?: (room: Room) => ReactNode): DataTabl
         return capacity === 1 ? '1 pessoa' : `${capacity} pessoas`
       },
     }),
+    helper.accessor('is_occupied', {
+      header: 'Ocupação',
+      cell: ({ getValue }) => (
+        <Badge variant={getValue() ? 'warning' : 'success'}>
+          {getValue() ? 'Ocupado' : 'Livre'}
+        </Badge>
+      ),
+    }),
     helper.accessor('is_active', {
       header: 'Situação',
       cell: ({ getValue }) => (

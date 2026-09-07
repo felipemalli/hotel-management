@@ -108,29 +108,36 @@ class RoomViewSet(
 
     def get_queryset(self):
         if self.action != "list":
-            return Room.objects.all()
-        raw = self.request.query_params.get("is_active")
-        return selectors.list_rooms(
-            active_only=raw is None or raw.lower() != "false",
-            search=self.request.query_params.get("search"),
-        )
+            queryset = Room.objects.all()
+        else:
+            raw = self.request.query_params.get("is_active")
+            queryset = selectors.list_rooms(
+                active_only=raw is None or raw.lower() != "false",
+                search=self.request.query_params.get("search"),
+            )
+        return catalog_service.with_occupancy(queryset)
 
     def create(self, request: Request, *args, **kwargs) -> Response:
         serializer = RoomCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         room = catalog_service.create_room(**serializer.validated_data)
-        return Response(RoomSerializer(room).data, status=status.HTTP_201_CREATED)
+        return Response(_serialize_room(room), status=status.HTTP_201_CREATED)
 
     def partial_update(self, request: Request, *args, **kwargs) -> Response:
         room = self.get_object()
         payload = RoomUpdateSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
         updated = catalog_service.update_room(room, **payload.validated_data)
-        return Response(RoomSerializer(updated).data)
+        return Response(_serialize_room(updated))
 
     def destroy(self, request: Request, *args, **kwargs) -> Response:
         catalog_service.delete_room(self.get_object())
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def _serialize_room(room: Room) -> dict:
+    annotated = catalog_service.with_occupancy(Room.objects.filter(pk=room.pk)).get()
+    return RoomSerializer(annotated).data
 
 
 __all__ = ["RoomViewSet"]

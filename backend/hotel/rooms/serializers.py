@@ -6,9 +6,11 @@ from hotel.rooms.models import Room
 
 
 class RoomSerializer(serializers.ModelSerializer):
+    is_occupied = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = Room
-        fields = ["id", "number", "capacity", "is_active", "created_at"]
+        fields = ["id", "number", "capacity", "is_active", "is_occupied", "created_at"]
         read_only_fields = fields
 
 

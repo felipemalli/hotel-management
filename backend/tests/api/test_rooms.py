@@ -30,6 +30,7 @@ def test_admin_creates_room_201(admin_client):
         "number": "301",
         "capacity": 3,
         "is_active": True,
+        "is_occupied": False,
         "created_at": response.data["created_at"],
     }
 
@@ -117,6 +118,20 @@ def test_list_hides_inactive_rooms_by_default(auth_client):
 
     assert [row["number"] for row in default] == [active.number]
     assert {row["number"] for row in including} == {"401", "402"}
+
+
+def test_list_marks_checked_in_room_as_occupied(auth_client):
+    free = RoomFactory(number="101")
+    occupied = RoomFactory(number="102")
+    reserved = RoomFactory(number="103")
+    ReservationFactory(checked_in=True, room=occupied)
+    ReservationFactory(room=reserved)
+
+    rows = {row["number"]: row["is_occupied"] for row in auth_client.get(ROOMS_URL).data["results"]}
+
+    assert rows[free.number] is False
+    assert rows[occupied.number] is True
+    assert rows[reserved.number] is False
 
 
 def test_rooms_search_filters_by_number(auth_client):

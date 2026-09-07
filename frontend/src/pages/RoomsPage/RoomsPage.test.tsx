@@ -6,7 +6,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ADMIN, ATTENDANT } from '@/features/auth/__fixtures__/users'
 import { fetchCurrentUser } from '@/features/auth/api'
 import type { UserRole } from '@/features/auth/types'
-import { ROOM_201, ROOM_301_INACTIVE, SEED_ROOMS } from '@/features/rooms/__fixtures__/rooms'
+import {
+  ROOM_101,
+  ROOM_201,
+  ROOM_301_INACTIVE,
+  SEED_ROOMS,
+} from '@/features/rooms/__fixtures__/rooms'
 import { fetchRooms } from '@/features/rooms/api'
 import { ApiError } from '@/lib/errors/errors'
 import { SEARCH_DEBOUNCE_MS } from '@/lib/hooks/useDebouncedValue'
@@ -36,11 +41,22 @@ describe('RoomsPage', () => {
 
     const table = await screen.findByRole('table', { name: 'Quartos do hotel' })
     expect(within(table).getByText('101')).toBeInTheDocument()
+    expect(within(table).getByRole('columnheader', { name: 'Ocupação' })).toBeInTheDocument()
+    expect(within(table).getAllByText('Livre')).toHaveLength(SEED_ROOMS.length)
     expect(within(table).getAllByText('Ativo')).toHaveLength(SEED_ROOMS.length)
     expect(within(table).getByText('3 pessoas')).toBeInTheDocument()
 
     expect(screen.queryByRole('button', { name: 'Novo quarto' })).not.toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Ações' })).not.toBeInTheDocument()
+  })
+
+  it('mostra ocupado quando ha hospede no quarto', async () => {
+    vi.mocked(fetchRooms).mockResolvedValue(page([{ ...ROOM_101, is_occupied: true }]))
+    renderRooms()
+
+    const table = await screen.findByRole('table', { name: 'Quartos do hotel' })
+    expect(within(table).getByText('Ocupado')).toBeInTheDocument()
+    expect(within(table).queryByText('Livre')).not.toBeInTheDocument()
   })
 
   it('oferece ao admin o cadastro e as acoes por linha', async () => {

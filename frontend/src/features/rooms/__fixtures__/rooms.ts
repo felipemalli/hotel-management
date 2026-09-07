@@ -5,6 +5,7 @@ export const ROOM_101: Room = {
   number: '101',
   capacity: 2,
   is_active: true,
+  is_occupied: false,
   created_at: '2026-09-01T08:00:00-03:00',
 }
 

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from io import StringIO
 from unittest import mock
@@ -10,12 +10,14 @@ from django.utils import timezone
 from freezegun import freeze_time
 
 from accounts.models import Role
+from hotel.billing.models import AccountStatus, PaymentMethod
 from hotel.guests import selectors as guest_selectors
 from hotel.guests import services as guests_service
 from hotel.guests.models import Guest
 from hotel.reservations import selectors
 from hotel.reservations import services as reservations_service
 from hotel.reservations.models import Reservation, ReservationStatus
+from hotel.rooms.models import Room
 
 pytestmark = pytest.mark.django_db
 
@@ -30,13 +32,71 @@ def test_seed_populates_the_three_tabs():
     run_seed()
 
     assert get_user_model().objects.filter(username="atendente").exists()
-    assert [guest.full_name for guest in selectors.guests_pending_checkin()] == ["Ana Souza"]
-    # Eva acompanha Bruno.
-    assert [guest.full_name for guest in selectors.guests_in_hotel()] == [
+    # Acompanhante entra na aba pelo proprio nome: Eva com Bruno, os Castro com Helena.
+    assert {guest.full_name for guest in selectors.guests_pending_checkin()} == {
+        "Ana Souza",
+        "Fernanda Torres",
+        "Gustavo Pinto",
+        "Helena Castro",
+        "Bento Castro",
+        "Clara Castro",
+        "Paula Antunes",
+        "Igor Salles",
+    }
+    assert {guest.full_name for guest in selectors.guests_in_hotel()} == {
+        "Nadia Ferraz",
+        "Larissa Ferraz",
+        "Theo Ferraz",
+        "Otavio Bastos",
         "Bruno Lima",
         "Eva Lima",
-    ]
+        "Marcos Vieira",
+    }
     assert guest_selectors.search_guests("Davi").count() == 1
+
+
+def test_seed_covers_every_reservation_status():
+    run_seed()
+
+    counts = {
+        status: Reservation.objects.filter(status=status).count() for status in ReservationStatus
+    }
+    assert counts == {
+        ReservationStatus.PENDING: 6,
+        ReservationStatus.CHECKED_IN: 4,
+        ReservationStatus.CHECKED_OUT: 5,
+        ReservationStatus.CANCELLED: 1,
+    }
+
+
+def test_seed_spreads_the_calendar_around_today():
+    """As telas se leem pela data de hoje: cada vizinhanca dela precisa de ficha.
+
+    Sem isto o cenario cabe num unico dia e a demo nao mostra saida do dia,
+    chegada de amanha, reserva atrasada nem hospede que passou do previsto.
+    """
+    run_seed()
+
+    today = timezone.localdate()
+    in_hotel = Reservation.objects.filter(status=ReservationStatus.CHECKED_IN)
+    pending = Reservation.objects.filter(status=ReservationStatus.PENDING)
+
+    assert in_hotel.filter(checkout_date=today).exists(), "ninguem sai hoje"
+    assert in_hotel.filter(checkout_date__gt=today).exists(), "ninguem sai depois de hoje"
+    assert in_hotel.filter(checkout_date__lt=today).exists(), "ninguem passou do previsto"
+
+    assert pending.filter(checkin_date=today).exists(), "ninguem chega hoje"
+    assert pending.filter(checkin_date__lt=today).exists(), "nenhuma chegada atrasada"
+    assert pending.filter(checkin_date=today + timedelta(days=1)).exists(), "ninguem chega amanha"
+    assert pending.filter(checkin_date__gt=today + timedelta(days=7)).exists(), "nada distante"
+
+    departures = {
+        timezone.localdate(checked_out_at)
+        for checked_out_at in Reservation.objects.filter(
+            status=ReservationStatus.CHECKED_OUT
+        ).values_list("checked_out_at", flat=True)
+    }
+    assert {today - timedelta(days=1), today - timedelta(days=2)} <= departures
 
 
 def test_seed_freezes_a_weekend_statement_with_a_late_fee():
@@ -53,6 +113,43 @@ def test_seed_freezes_a_weekend_statement_with_a_late_fee():
     assert statement.subtotal_parking == Decimal("35.00")
     assert statement.late_fee == Decimal("90.00")
     assert carla.checked_out_at < timezone.now()
+
+
+def test_seed_leaves_paid_and_open_accounts_in_every_method():
+    """A aba de reservas filtra por pagamento: os dois lados precisam existir."""
+    run_seed()
+
+    checked_out = Reservation.objects.filter(status=ReservationStatus.CHECKED_OUT)
+    assert {
+        reservation.account.payment.method
+        for reservation in checked_out.select_related("account__payment")
+        if reservation.account.status == AccountStatus.PAID
+    } == {PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.PIX}
+    assert checked_out.filter(account__status=AccountStatus.CLOSED).count() == 2
+
+
+def test_seed_gives_a_returning_guest_two_stays():
+    """Uma estadia encerrada e uma reserva futura na mesma ficha de hospede."""
+    run_seed()
+
+    paula = Guest.objects.get(full_name="Paula Antunes")
+    assert list(paula.reservations.order_by("id").values_list("status", flat=True)) == [
+        ReservationStatus.CHECKED_OUT,
+        ReservationStatus.PENDING,
+    ]
+
+
+def test_seed_keeps_a_room_out_of_service_and_one_free():
+    run_seed()
+
+    assert list(Room.objects.filter(is_active=False).values_list("number", flat=True)) == ["302"]
+    assert Room.objects.filter(is_active=True).count() >= 10
+    # O fluxo de recepcao (e o e2e) precisa de quarto livre para hoje: o
+    # cenario nao pode lotar o hotel.
+    today = timezone.localdate()
+    assert selectors.available_rooms(
+        checkin_date=today, checkout_date=today + timedelta(days=1), people=1, today=today
+    ).exists()
 
 
 def test_seed_writes_through_the_services():
@@ -86,15 +183,32 @@ def test_seed_writes_through_the_services():
         run_seed()
 
     assert created_guests == [
-        "Ana Souza",
+        "Sofia Marques",
+        "Tiago Alves",
+        "Ricardo Mattos",
+        "Carla Nunes",
+        "Paula Antunes",
+        "Nadia Ferraz",
+        "Larissa Ferraz",
+        "Theo Ferraz",
+        "Otavio Bastos",
         "Bruno Lima",
         "Eva Lima",
-        "Carla Nunes",
+        "Marcos Vieira",
+        "Ana Souza",
+        "Fernanda Torres",
+        "Gustavo Pinto",
+        "Helena Castro",
+        "Bento Castro",
+        "Clara Castro",
+        "Igor Salles",
+        "Julia Prado",
         "Davi Rocha",
+        "Ursula Klein",
     ]
     assert Guest.objects.count() == len(created_guests)
     assert len(created_reservations) == Reservation.objects.count()
-    # today=checkin: a ficha de Carla e passada e o servico recusa agendamento no passado.
+    # today=checkin: as fichas passadas existem e o servico recusa agendamento no passado.
     assert min(created_reservations) < timezone.localdate()
 
 
@@ -113,7 +227,9 @@ def test_seed_guests_have_country_code():
     assert all(phone.isdigit() and len(phone) >= 10 for phone in phones), phones
     assert any(phone.startswith("54") for phone in phones), phones
     assert not any("+" in phone for phone in phones)
-    assert set(Guest.objects.values_list("nationality", flat=True)) == {"AR", "BR", "PT"}
+    assert {"AR", "BR", "DE", "ES", "FR", "IT", "PT", "US"} <= set(
+        Guest.objects.values_list("nationality", flat=True)
+    )
 
 
 def test_seed_is_idempotent():
@@ -144,6 +260,7 @@ def test_seed_creates_admin_role_without_staff_flag():
     assert admin.check_password("admin123")
     attendant = get_user_model().objects.get(username="atendente")
     assert attendant.role == Role.ATTENDANT
+    assert not get_user_model().objects.filter(is_staff=True).exists()
 
 
 def test_seed_never_logs_pii():
@@ -151,7 +268,9 @@ def test_seed_never_logs_pii():
 
     assert "123.456.789-01" not in output
     assert "98888-7777" not in output
-    assert "5521988887777" not in output
+    for document, phone in Guest.objects.values_list("document", "phone"):
+        assert document not in output
+        assert phone not in output
 
 
 def test_seed_demotes_an_existing_privileged_attendant():
@@ -197,3 +316,22 @@ def test_seed_is_idempotent_across_dates():
     assert Reservation.objects.filter(status=ReservationStatus.PENDING).exists()
     assert Reservation.objects.filter(status=ReservationStatus.CHECKED_IN).exists()
     assert Reservation.objects.filter(status=ReservationStatus.CHECKED_OUT).exists()
+    assert Reservation.objects.filter(status=ReservationStatus.CANCELLED).exists()
+
+
+@pytest.mark.parametrize(
+    "frozen",
+    ["2026-09-07", "2026-09-08", "2026-09-09", "2026-09-10", "2026-09-11", "2026-09-12"],
+)
+def test_seed_runs_on_every_weekday(frozen):
+    """A ficha da Carla ancora no ultimo domingo, nao num deslocamento fixo.
+
+    Dependendo do dia da semana ela cai dentro da janela de outra ficha, e uma
+    colisao de quarto abortaria o comando -- que esta na cadeia de subida do
+    compose.
+    """
+    with freeze_time(f"{frozen} 10:00:00-03:00"):
+        run_seed()
+
+    assert Reservation.objects.filter(status=ReservationStatus.CHECKED_OUT).count() == 5
+    assert Reservation.objects.filter(status=ReservationStatus.CHECKED_IN).count() == 4

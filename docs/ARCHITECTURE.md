@@ -173,7 +173,7 @@ para a paginação não repetir nem perder linha sobre datas iguais.
 | `POST /api/reservations/{id}/cancel/`                                     | ✔         | `PENDING → CANCELLED` (RN17)                                                                |
 | `POST /api/reservations/{id}/pay/`                                        | ✔         | Registra o pagamento único (RN15)                                                           |
 | `GET /api/reservations/{id}/statement/`                                   | ✔         | 2ª via do extrato (só `CHECKED_OUT`)                                                        |
-| `GET /api/rooms/` · `/{id}/` · `/available/`                              | ✔         | Inventário (`?search=` no número; só ativos, `?is_active=false` inclui desativados) e disponibilidade (`/available/?checkin_date=&checkout_date=&people=`) |
+| `GET /api/rooms/` · `/{id}/` · `/available/`                              | ✔         | Inventário (`?search=` no número; só ativos, `?is_active=false` inclui desativados; `is_occupied` = hóspede `CHECKED_IN` agora) e disponibilidade (`/available/?checkin_date=&checkout_date=&people=`) |
 | `POST /api/rooms/` · `PATCH /api/rooms/{id}/` · `DELETE /api/rooms/{id}/` | **admin** | Cadastro, ajuste de capacidade/situação e exclusão (só sem histórico de reserva)            |
 | `GET /api/pricing-policies/` · `/current/`                                | ✔         | Histórico e tarifa vigente                                                                  |
 | `GET /api/pricing-policies/quote/`                                        | ✔         | Estimativa de uma estadia agendada (`?checkin_date=&checkout_date=&has_vehicle=`)           |

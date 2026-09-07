@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
@@ -8,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Role
+from hotel.billing.models import AccountStatus, PaymentMethod
 from hotel.guests import services as guest_services
 from hotel.guests.models import Guest
 from hotel.guests.normalization import normalize_document
@@ -22,6 +24,11 @@ ADMIN_PASSWORD = "admin123"
 
 SUNDAY = 6
 
+CHECKIN_AT = time(15, 0)  # depois de checkin_opens (14:00): check-in sem allow_early
+ON_TIME_CHECKOUT = time(10, 30)
+LATE_CHECKOUT = time(13, 10)  # depois de checkout_limit (12:00): gera multa
+ONE_MINUTE_LATE = time(12, 1)
+
 
 def local_dt(day: date, at: time) -> datetime:
     return timezone.make_aware(datetime.combine(day, at), timezone.get_current_timezone())
@@ -32,6 +39,220 @@ def last_past_sunday(today: date) -> date:
     return today - timedelta(days=offset or 7)
 
 
+@dataclass(frozen=True)
+class Person:
+    full_name: str
+    document: str
+    phone: str
+    nationality: str
+
+
+@dataclass(frozen=True)
+class Stay:
+    """Uma ficha do cenario: quem, onde, quando e ate que estado ela avanca."""
+
+    guest: Person
+    room: str
+    checkin: date
+    checkout: date
+    stage: str
+    has_vehicle: bool = False
+    companions: tuple[Person, ...] = ()
+    checkout_at: time = ON_TIME_CHECKOUT
+    payment: str | None = None
+
+
+ANA = Person("Ana Souza", "123.456.789-01", "+55 21 98888-7777", "BR")
+BRUNO = Person("Bruno Lima", "987.654.321-00", "+55 11 97777-6666", "BR")
+EVA = Person("Eva Lima", "555.444.333-22", "+54 11 5555-4444", "AR")
+CARLA = Person("Carla Nunes", "AB123456", "+55 31 96666-5555", "PT")
+DAVI = Person("Davi Rocha", "321.654.987-00", "+55 41 95555-4444", "BR")
+SOFIA = Person("Sofia Marques", "111.222.333-44", "+55 51 98111-2233", "BR")
+TIAGO = Person("Tiago Alves", "CD987654", "+351 912 345 678", "PT")
+RICARDO = Person("Ricardo Mattos", "222.333.444-55", "+55 62 98222-3344", "BR")
+PAULA = Person("Paula Antunes", "ES4455667", "+34 612 345 678", "ES")
+NADIA = Person("Nadia Ferraz", "333.444.555-66", "+55 71 98333-4455", "BR")
+LARISSA = Person("Larissa Ferraz", "444.555.666-77", "+55 71 98444-5566", "BR")
+THEO = Person("Theo Ferraz", "555.666.777-88", "+55 71 98555-6677", "BR")
+OTAVIO = Person("Otavio Bastos", "IT7788990", "+39 320 123 4567", "IT")
+MARCOS = Person("Marcos Vieira", "666.777.888-99", "+55 85 98666-7788", "BR")
+FERNANDA = Person("Fernanda Torres", "777.888.999-00", "+55 27 98777-8899", "BR")
+GUSTAVO = Person("Gustavo Pinto", "888.999.000-11", "+55 48 98888-9900", "BR")
+HELENA = Person("Helena Castro", "999.000.111-22", "+55 11 98999-0011", "BR")
+BENTO = Person("Bento Castro", "000.111.222-33", "+55 11 98000-1122", "BR")
+CLARA = Person("Clara Castro", "112.233.445-56", "+55 11 98112-2334", "BR")
+IGOR = Person("Igor Salles", "US1122334", "+1 212 234 5678", "US")
+JULIA = Person("Julia Prado", "FR5566778", "+33 6 12 34 56 78", "FR")
+URSULA = Person("Ursula Klein", "DE9900112", "+49 30 12345678", "DE")
+
+# Sem ficha nenhuma: alimentam a busca por nome, documento e telefone.
+GUESTS_WITHOUT_STAY = (DAVI, URSULA)
+
+# (numero, capacidade, ativo)
+ROOMS = (
+    ("101", 2, True),
+    ("102", 2, True),
+    ("103", 3, True),
+    ("104", 2, True),
+    ("105", 3, True),
+    ("201", 4, True),
+    ("202", 4, True),
+    ("203", 2, True),
+    ("301", 6, True),
+    ("302", 4, False),
+    ("401", 2, True),
+    ("402", 3, True),
+)
+
+
+def scenario(today: date) -> list[Stay]:
+    """As fichas em ordem de criacao.
+
+    A ordem e' significativa: uma ficha com data de entrada no passado faz o
+    servico checar se o quarto tem alguem hospedado *agora* (RoomUnavailable),
+    entao as estadias encerradas nascem antes das ativas, e as pendentes
+    depois de todas -- e o mesmo quarto pode contar historia sem colidir.
+    """
+
+    def day(offset: int) -> date:
+        return today + timedelta(days=offset)
+
+    sunday = last_past_sunday(today)
+
+    return [
+        Stay(
+            SOFIA,
+            room="201",
+            checkin=day(-11),
+            checkout=day(-7),
+            stage=ReservationStatus.CHECKED_OUT,
+            has_vehicle=True,
+            payment=PaymentMethod.CASH,
+        ),
+        Stay(
+            TIAGO,
+            room="202",
+            checkin=day(-9),
+            checkout=day(-8),
+            stage=ReservationStatus.CHECKED_OUT,
+            checkout_at=time(11, 0),
+            payment=PaymentMethod.CARD,
+        ),
+        Stay(
+            RICARDO,
+            room="101",
+            checkin=day(-4),
+            checkout=day(-2),
+            stage=ReservationStatus.CHECKED_OUT,
+            has_vehicle=True,
+            checkout_at=LATE_CHECKOUT,
+        ),
+        Stay(
+            CARLA,
+            room="103",
+            checkin=sunday - timedelta(days=2),
+            checkout=sunday,
+            stage=ReservationStatus.CHECKED_OUT,
+            has_vehicle=True,
+            checkout_at=ONE_MINUTE_LATE,
+        ),
+        Stay(
+            PAULA,
+            room="203",
+            checkin=day(-2),
+            checkout=day(-1),
+            stage=ReservationStatus.CHECKED_OUT,
+            checkout_at=time(9, 45),
+            payment=PaymentMethod.PIX,
+        ),
+        Stay(
+            NADIA,
+            room="301",
+            checkin=day(-4),
+            checkout=day(3),
+            stage=ReservationStatus.CHECKED_IN,
+            has_vehicle=True,
+            companions=(LARISSA, THEO),
+        ),
+        Stay(
+            OTAVIO,
+            room="202",
+            checkin=day(-5),
+            checkout=day(-1),
+            stage=ReservationStatus.CHECKED_IN,
+            has_vehicle=True,
+        ),
+        Stay(
+            BRUNO,
+            room="102",
+            checkin=day(-1),
+            checkout=day(1),
+            stage=ReservationStatus.CHECKED_IN,
+            companions=(EVA,),
+        ),
+        Stay(
+            MARCOS,
+            room="105",
+            checkin=day(-2),
+            checkout=today,
+            stage=ReservationStatus.CHECKED_IN,
+            has_vehicle=True,
+        ),
+        Stay(
+            ANA,
+            room="101",
+            checkin=today,
+            checkout=day(2),
+            stage=ReservationStatus.PENDING,
+            has_vehicle=True,
+        ),
+        Stay(
+            FERNANDA,
+            room="104",
+            checkin=day(-1),
+            checkout=day(1),
+            stage=ReservationStatus.PENDING,
+        ),
+        Stay(
+            GUSTAVO,
+            room="105",
+            checkin=day(1),
+            checkout=day(4),
+            stage=ReservationStatus.PENDING,
+            has_vehicle=True,
+        ),
+        Stay(
+            HELENA,
+            room="201",
+            checkin=day(3),
+            checkout=day(7),
+            stage=ReservationStatus.PENDING,
+            companions=(BENTO, CLARA),
+        ),
+        Stay(
+            PAULA,
+            room="203",
+            checkin=day(8),
+            checkout=day(10),
+            stage=ReservationStatus.PENDING,
+        ),
+        Stay(
+            IGOR,
+            room="203",
+            checkin=day(10),
+            checkout=day(12),
+            stage=ReservationStatus.PENDING,
+        ),
+        Stay(
+            JULIA,
+            room="104",
+            checkin=day(5),
+            checkout=day(6),
+            stage=ReservationStatus.CANCELLED,
+        ),
+    ]
+
+
 class Command(BaseCommand):
     help = "Popula o banco com um cenario de demonstracao (idempotente)."
 
@@ -39,151 +260,171 @@ class Command(BaseCommand):
     def handle(self, *args, **options) -> None:
         today = timezone.localdate()
 
-        attendant = self._ensure_attendant()
-        self._ensure_admin()
+        attendant = self._ensure_users()
         rooms = self._ensure_rooms()
 
-        ana = self._ensure_guest("Ana Souza", "123.456.789-01", "+55 21 98888-7777", "BR")
-        self._ensure_reservation(
-            ana,
-            room=rooms["101"],
-            checkin=today,
-            checkout=today + timedelta(days=2),
-            has_vehicle=True,
-            actor=attendant,
-        )
+        # Quantas fichas o hospede ja recebeu nesta execucao: e a chave de
+        # idempotencia da n-esima ficha dele (ver _ensure_reservation).
+        slots: dict[int, int] = {}
 
-        bruno = self._ensure_guest("Bruno Lima", "987.654.321-00", "+55 11 97777-6666", "BR")
-        eva = self._ensure_guest("Eva Lima", "555.444.333-22", "+54 11 5555-4444", "AR")
-        yesterday = today - timedelta(days=1)
-        bruno_reservation = self._ensure_reservation(
-            bruno,
-            companions=[eva],
-            room=rooms["102"],
-            checkin=yesterday,
-            checkout=today + timedelta(days=1),
-            has_vehicle=False,
-            actor=attendant,
-        )
-        if bruno_reservation.status == ReservationStatus.PENDING:
-            reservation_services.check_in(
-                bruno_reservation,
-                now=local_dt(yesterday, time(15, 0)),
+        for stay in scenario(today):
+            guest = self._ensure_guest(stay.guest)
+            companions = [self._ensure_guest(person) for person in stay.companions]
+            slot = slots.get(guest.pk, 0)
+            slots[guest.pk] = slot + 1
+
+            reservation = self._ensure_reservation(
+                guest,
+                room=rooms[stay.room],
+                companions=companions,
+                stay=stay,
+                slot=slot,
+                today=today,
                 actor=attendant,
-                allow_early=False,
             )
-            self.stdout.write("  check-in aplicado: Bruno Lima")
+            self._advance(reservation, stay=stay, today=today, actor=attendant)
+            self._report(reservation, stay=stay)
 
-        carla = self._ensure_guest("Carla Nunes", "AB123456", "+55 31 96666-5555", "PT")
-        sunday = last_past_sunday(today)
-        friday = sunday - timedelta(days=2)
-        carla_reservation = self._ensure_reservation(
-            carla,
-            room=rooms["103"],
-            checkin=friday,
-            checkout=sunday,
-            has_vehicle=True,
-            actor=attendant,
+        for person in GUESTS_WITHOUT_STAY:
+            self._ensure_guest(person)
+
+        self._summarize()
+
+    def _report(self, reservation: Reservation, *, stay: Stay) -> None:
+        line = (
+            f"  {stay.guest.full_name} · quarto {stay.room} · "
+            f"{stay.checkin:%d/%m} -> {stay.checkout:%d/%m} · {reservation.status}"
         )
-        if carla_reservation.status == ReservationStatus.PENDING:
-            reservation_services.check_in(
-                carla_reservation,
-                now=local_dt(friday, time(15, 0)),
-                actor=attendant,
-                allow_early=False,
-            )
-            statement = reservation_services.check_out(
-                carla_reservation, now=local_dt(sunday, time(12, 1)), actor=attendant
-            )
-            self.stdout.write(
-                f"  estadia encerrada (em aberto): Carla Nunes - total R$ {statement.total} "
-                f"(multa R$ {statement.late_fee})"
-            )
+        account = reservation.account
+        if account is not None and account.total_amount is not None:
+            line += f" · R$ {account.total_amount} ({account.status})"
+        self.stdout.write(line)
 
-        self._ensure_guest("Davi Rocha", "321.654.987-00", "+55 41 95555-4444", "BR")
-
+    def _summarize(self) -> None:
+        by_status = {
+            status.label: Reservation.objects.filter(status=status).count()
+            for status in ReservationStatus
+        }
         self.stdout.write(self.style.SUCCESS("Seed de demonstracao aplicado."))
         self.stdout.write(
             f"Atendente: {ATTENDANT_USERNAME} / {ATTENDANT_PASSWORD} "
-            f"| Admin: {ADMIN_USERNAME} / {ADMIN_PASSWORD} "
-            f"| quartos: {Room.objects.count()} "
-            f"| hospedes: {Guest.objects.count()} | reservas: {Reservation.objects.count()}"
+            f"| Admin: {ADMIN_USERNAME} / {ADMIN_PASSWORD}"
+        )
+        self.stdout.write(
+            f"quartos: {Room.objects.count()} | hospedes: {Guest.objects.count()} "
+            f"| reservas: {Reservation.objects.count()} "
+            + " | ".join(f"{label}: {count}" for label, count in by_status.items())
         )
 
-    def _ensure_attendant(self):
-        user_model = get_user_model()
-        attendant, created = user_model.objects.get_or_create(username=ATTENDANT_USERNAME)
-        if created:
-            attendant.set_password(ATTENDANT_PASSWORD)
-            attendant.save(update_fields=["password"])
-            self.stdout.write(f"  atendente criado: {ATTENDANT_USERNAME}")
-        elif attendant.is_staff or attendant.is_superuser:
-            # get_or_create nao mexe em linha existente: bancos antigos
-            # guardariam para sempre um superusuario com senha publicada.
-            user_model.objects.filter(pk=attendant.pk).update(is_staff=False, is_superuser=False)
-            self.stdout.write("  atendente rebaixado para usuario comum")
-            attendant.refresh_from_db()
+    def _ensure_users(self):
+        attendant = self._ensure_user(ATTENDANT_USERNAME, ATTENDANT_PASSWORD, Role.ATTENDANT)
+        self._ensure_user(ADMIN_USERNAME, ADMIN_PASSWORD, Role.ADMIN)
         return attendant
 
-    def _ensure_admin(self) -> None:
+    def _ensure_user(self, username: str, password: str, role: str):
         user_model = get_user_model()
-        admin, created = user_model.objects.get_or_create(
-            username=ADMIN_USERNAME,
-            defaults={"role": Role.ADMIN, "is_staff": False, "is_superuser": False},
+        user, created = user_model.objects.get_or_create(
+            username=username,
+            defaults={"role": role, "is_staff": False, "is_superuser": False},
         )
         if created:
-            admin.set_password(ADMIN_PASSWORD)
-            admin.save(update_fields=["password"])
-            self.stdout.write(f"  admin criado: {ADMIN_USERNAME}")
+            user.set_password(password)
+            user.save(update_fields=["password"])
+            self.stdout.write(f"  usuario criado: {username} ({role})")
+        elif user.is_staff or user.is_superuser:
+            # get_or_create nao mexe em linha existente: bancos antigos
+            # guardariam para sempre um superusuario com senha publicada.
+            user_model.objects.filter(pk=user.pk).update(is_staff=False, is_superuser=False)
+            self.stdout.write(f"  {username} rebaixado para usuario comum")
+            user.refresh_from_db()
+        return user
 
     def _ensure_rooms(self) -> dict[str, Room]:
         rooms: dict[str, Room] = {}
-        for number, capacity in (("101", 2), ("102", 2), ("103", 3), ("201", 4)):
+        for number, capacity, is_active in ROOMS:
             room, created = Room.objects.get_or_create(
-                number=number, defaults={"capacity": capacity}
+                number=number, defaults={"capacity": capacity, "is_active": is_active}
             )
             if created:
                 self.stdout.write(f"  quarto criado: {number} ({capacity} pessoas)")
             rooms[number] = room
         return rooms
 
-    def _ensure_guest(self, full_name: str, document: str, phone: str, nationality: str) -> Guest:
-        existing = Guest.objects.filter(document=normalize_document(document)).first()
+    def _ensure_guest(self, person: Person) -> Guest:
+        existing = Guest.objects.filter(document=normalize_document(person.document)).first()
         if existing is not None:
             return existing
 
-        guest = guest_services.create_guest(
-            full_name=full_name, document=document, phone=phone, nationality=nationality
+        return guest_services.create_guest(
+            full_name=person.full_name,
+            document=person.document,
+            phone=person.phone,
+            nationality=person.nationality,
         )
-        self.stdout.write(f"  hospede criado: {full_name}")
-        return guest
 
     def _ensure_reservation(
         self,
         guest: Guest,
         *,
         room: Room,
-        companions: list[Guest] | None = None,
-        checkin: date,
-        checkout: date,
-        has_vehicle: bool,
+        companions: list[Guest],
+        stay: Stay,
+        slot: int,
+        today: date,
         actor,
     ) -> Reservation:
-        existing = guest.reservations.order_by("id").first()
-        if existing is not None:
-            return existing
+        # A n-esima ficha do hospede e' a chave, nao a data: as datas do
+        # cenario sao relativas a hoje, entao chavear por data criaria uma
+        # ficha nova a cada dia -- e o seed roda na subida do compose.
+        existing = list(guest.reservations.order_by("id")[: slot + 1])
+        if len(existing) > slot:
+            return existing[slot]
 
-        reservation = reservation_services.create_reservation(
+        return reservation_services.create_reservation(
             guest=guest,
             room=room,
-            companions=companions or [],
-            checkin_date=checkin,
-            checkout_date=checkout,
-            has_vehicle=has_vehicle,
+            companions=companions,
+            checkin_date=stay.checkin,
+            checkout_date=stay.checkout,
+            has_vehicle=stay.has_vehicle,
             actor=actor,
-            # today=checkin, nao localdate(): fichas de Bruno/Carla sao passadas
-            # e agendamento no passado e recusado.
-            today=checkin,
+            # Recuar o relogio so' para ficha passada, que o servico recusaria.
+            # Adiantar seria pior: com today no futuro, a checagem de "quarto
+            # ocupado agora" entra e recusa a reserva de um quarto que estara
+            # livre na data pedida.
+            today=min(today, stay.checkin),
         )
-        self.stdout.write(f"  reserva criada: {guest.full_name} {checkin} -> {checkout}")
-        return reservation
+
+    def _advance(self, reservation: Reservation, *, stay: Stay, today: date, actor) -> None:
+        if stay.stage == ReservationStatus.CANCELLED:
+            if reservation.status == ReservationStatus.PENDING:
+                reservation_services.cancel(
+                    reservation, now=local_dt(today - timedelta(days=1), time(9, 0)), actor=actor
+                )
+            return
+
+        if stay.stage not in (ReservationStatus.CHECKED_IN, ReservationStatus.CHECKED_OUT):
+            return
+
+        if reservation.status == ReservationStatus.PENDING:
+            reservation_services.check_in(
+                reservation,
+                now=local_dt(stay.checkin, CHECKIN_AT),
+                actor=actor,
+                allow_early=False,
+            )
+
+        if stay.stage != ReservationStatus.CHECKED_OUT:
+            return
+
+        checkout_at = local_dt(stay.checkout, stay.checkout_at)
+        if reservation.status == ReservationStatus.CHECKED_IN:
+            reservation_services.check_out(reservation, now=checkout_at, actor=actor)
+
+        if stay.payment is not None and reservation.account.status == AccountStatus.CLOSED:
+            reservation_services.mark_paid(
+                reservation,
+                now=checkout_at + timedelta(minutes=10),
+                actor=actor,
+                payment_method=stay.payment,
+            )
