@@ -5,6 +5,7 @@ import { RESERVATIONS_ROOT } from '@/lib/api/queryKeys'
 import { useInvalidateServerState } from '@/lib/api/useInvalidateServerState'
 
 import {
+  addReservationCompanions,
   cancelReservation,
   checkIn,
   checkOut,
@@ -15,6 +16,7 @@ import {
   payReservation,
 } from './api'
 import type {
+  AddCompanionsPayload,
   CheckInPayload,
   CheckoutStatement,
   CreateReservationPayload,
@@ -36,6 +38,20 @@ export function useCreateReservation(options?: { onSuccess?: (r: Reservation) =>
     mutationFn: (payload: CreateReservationPayload) => createReservation(payload),
     onSuccess: (reservation) => {
       invalidateServerState()
+      options?.onSuccess?.(reservation)
+    },
+  })
+}
+
+export function useAddReservationCompanions(options?: { onSuccess?: (r: Reservation) => void }) {
+  const invalidateServerState = useInvalidateServerState()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: AddCompanionsPayload) => addReservationCompanions(payload),
+    onSuccess: (reservation) => {
+      invalidateServerState()
+      queryClient.setQueryData(reservationKeys.detail(reservation.id), reservation)
       options?.onSuccess?.(reservation)
     },
   })

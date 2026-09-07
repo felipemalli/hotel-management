@@ -105,6 +105,8 @@ export const checkoutStatementSchema = z.object({
 
 export const ROOM_REQUIRED_MESSAGE = 'Escolha um quarto.'
 
+export const COMPANION_UNRESOLVED_MESSAGE = 'Selecione um hóspede cadastrado ou limpe a busca.'
+
 // `today` vem do chamador: datas YYYY-MM-DD comparam-se lexicalmente.
 export function reservationFormSchema(today: string) {
   return z
@@ -117,11 +119,20 @@ export function reservationFormSchema(today: string) {
         .nullable()
         .refine((value): value is number => value !== null, { error: ROOM_REQUIRED_MESSAGE }),
       companion_ids: z.array(z.number().int()),
+      companion_draft: z.string(),
       checkin_date: requiredString(),
       checkout_date: requiredString(),
       has_vehicle: z.boolean(),
     })
     .superRefine((value, ctx) => {
+      if (value.companion_draft.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['companion_ids'],
+          message: COMPANION_UNRESOLVED_MESSAGE,
+        })
+      }
+
       const { checkin_date: checkin, checkout_date: checkout } = value
       if (!checkin || !checkout) return
 
@@ -140,5 +151,13 @@ export function reservationFormSchema(today: string) {
           message: 'A saída deve ser depois da entrada (mínimo de 1 noite).',
         })
       }
-    }) satisfies z.ZodType<CreateReservationPayload, ReservationFormValues>
+    })
+    .transform((value) => ({
+      guest_id: value.guest_id,
+      room_id: value.room_id,
+      companion_ids: value.companion_ids,
+      checkin_date: value.checkin_date,
+      checkout_date: value.checkout_date,
+      has_vehicle: value.has_vehicle,
+    })) satisfies z.ZodType<CreateReservationPayload, ReservationFormValues>
 }

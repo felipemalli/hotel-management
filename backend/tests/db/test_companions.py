@@ -245,3 +245,63 @@ def test_cancelled_reservation_does_not_list_its_companions(actor):
 
     assert eva not in selectors.guests_pending_checkin()
     assert reservation.status == ReservationStatus.CANCELLED
+
+
+def test_add_companions_on_pending_reservation(actor):
+    eva, davi = GuestFactory(), GuestFactory()
+    reservation = book(actor=actor, room=RoomFactory(capacity=4), companions=[eva])
+
+    updated = service.add_companions(reservation, companions=[davi])
+
+    assert set(updated.companions.all()) == {eva, davi}
+
+
+def test_add_companions_rejects_over_capacity(actor):
+    room = RoomFactory(number="C03", capacity=2)
+    reservation = book(actor=actor, room=room, companions=[GuestFactory()])
+
+    with pytest.raises(service.DomainValidationError) as excinfo:
+        service.add_companions(reservation, companions=[GuestFactory()])
+
+    assert "companion_ids" in excinfo.value.extra
+    assert "C03" in excinfo.value.extra["companion_ids"][0]
+
+
+def test_add_companions_rejects_holder(actor):
+    guest = GuestFactory()
+    reservation = book(actor=actor, guest=guest)
+
+    with pytest.raises(service.DomainValidationError) as excinfo:
+        service.add_companions(reservation, companions=[guest])
+
+    assert "companion_ids" in excinfo.value.extra
+
+
+def test_add_companions_rejects_already_listed(actor):
+    eva = GuestFactory()
+    reservation = book(actor=actor, companions=[eva])
+
+    with pytest.raises(service.DomainValidationError) as excinfo:
+        service.add_companions(reservation, companions=[eva])
+
+    assert "já é acompanhante" in excinfo.value.extra["companion_ids"][0]
+
+
+def test_add_companions_rejects_empty_list(actor):
+    reservation = book(actor=actor)
+
+    with pytest.raises(service.DomainValidationError) as excinfo:
+        service.add_companions(reservation, companions=[])
+
+    assert "companion_ids" in excinfo.value.extra
+
+
+def test_add_companions_rejects_anything_but_pending(actor):
+    eva = GuestFactory()
+    reservation = book(actor=actor)
+    service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
+
+    with pytest.raises(service.InvalidStatusError) as excinfo:
+        service.add_companions(reservation, companions=[eva])
+
+    assert excinfo.value.extra["status"] == ReservationStatus.CHECKED_IN

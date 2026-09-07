@@ -58,6 +58,12 @@ export interface CreateReservationPayload {
 
 export interface ReservationFormValues extends Omit<CreateReservationPayload, 'room_id'> {
   room_id: number | null
+  companion_draft: string
+}
+
+export interface AddCompanionsPayload {
+  id: number
+  companion_ids: number[]
 }
 
 export interface CheckInPayload {

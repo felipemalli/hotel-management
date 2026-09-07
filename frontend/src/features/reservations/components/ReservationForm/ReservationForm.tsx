@@ -48,10 +48,11 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
 
   const {
     control,
-    formState: { errors },
+    formState: { errors, isSubmitted },
     handleSubmit,
     register,
     setError,
+    setValue,
     watch,
   } = useForm<ReservationFormValues, unknown, CreateReservationPayload>({
     resolver: zodResolver(schema),
@@ -61,6 +62,7 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
       guest_id: guest.id,
       room_id: null,
       companion_ids: [],
+      companion_draft: '',
       checkin_date: today,
       checkout_date: addDaysISO(today, 1),
       has_vehicle: false,
@@ -154,6 +156,9 @@ export function ReservationForm({ guest, onSuccess, onCancel }: ReservationFormP
         holderId={guest.id}
         value={companions}
         error={errors.companion_ids?.message}
+        onDraftChange={(draft) => {
+          setValue('companion_draft', draft, { shouldValidate: isSubmitted })
+        }}
         onChange={(next) => {
           setCompanions(next)
           companionIds.field.onChange(next.map((companion) => companion.id))

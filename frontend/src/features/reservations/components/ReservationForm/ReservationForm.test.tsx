@@ -6,6 +6,7 @@ import { EVA } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests } from '@/features/guests/api'
 import { reservation } from '@/features/reservations/__fixtures__/reservations'
 import { createReservation } from '@/features/reservations/api'
+import { COMPANION_UNRESOLVED_MESSAGE } from '@/features/reservations/schemas'
 import { ROOM_101, ROOM_201 } from '@/features/rooms/__fixtures__/rooms'
 import { fetchAvailableRooms } from '@/features/rooms/api'
 import { ApiError } from '@/lib/errors/errors'
@@ -158,11 +159,23 @@ describe('ReservationForm · escolha do quarto', () => {
     renderWithProviders(<ReservationForm guest={GUEST} />)
     await waitFor(() => expect(roomTrigger()).toBeEnabled())
 
-    await user.type(screen.getByLabelText('Buscar acompanhante'), 'eva')
+    await user.type(screen.getByLabelText('Acompanhantes'), 'eva')
     await waitFor(() => expect(fetchGuests).toHaveBeenCalled(), { timeout: SEARCH_DEBOUNCE_MS * 4 })
-    await user.click(await screen.findByRole('button', { name: 'Adicionar Eva Lima' }))
+    await user.click(await screen.findByRole('option', { name: /Eva Lima/ }))
 
     await waitFor(() => expect(vi.mocked(fetchAvailableRooms).mock.lastCall?.[0].people).toBe(2))
     expect(screen.getByRole('button', { name: 'Remover Eva Lima' })).toBeInTheDocument()
+  })
+
+  it('nao cria a reserva se a busca de acompanhante nao corresponde a um hospede', async () => {
+    const user = userEvent.setup()
+    vi.mocked(fetchGuests).mockResolvedValue(page([]))
+    renderWithProviders(<ReservationForm guest={GUEST} />)
+
+    await user.type(screen.getByLabelText('Acompanhantes'), 'zzz')
+    await user.click(screen.getByRole('button', { name: 'Criar reserva' }))
+
+    expect(createReservation).not.toHaveBeenCalled()
+    expect(await screen.findByText(COMPANION_UNRESOLVED_MESSAGE)).toBeInTheDocument()
   })
 })

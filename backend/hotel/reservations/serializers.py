@@ -153,6 +153,15 @@ class ReservationListQuerySerializer(serializers.Serializer):
     )
 
 
+class AddCompanionsSerializer(serializers.Serializer):
+    companion_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Guest.objects.all(),
+        many=True,
+        allow_empty=False,
+        help_text="Ids dos acompanhantes a adicionar, já cadastrados como hóspedes.",
+    )
+
+
 class CheckInRequestSerializer(serializers.Serializer):
     allow_early = serializers.BooleanField(
         default=False,

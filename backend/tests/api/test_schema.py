@@ -18,6 +18,7 @@ EXPECTED_PATHS = [
     "/api/reservations/{id}/check-in/",
     "/api/reservations/{id}/checkout/",
     "/api/reservations/{id}/cancel/",
+    "/api/reservations/{id}/companions/",
     "/api/reservations/{id}/pay/",
     "/api/pricing-policies/",
     "/api/pricing-policies/current/",
@@ -30,6 +31,7 @@ CUSTOM_ACTIONS = [
     "/api/reservations/{id}/check-in/",
     "/api/reservations/{id}/checkout/",
     "/api/reservations/{id}/cancel/",
+    "/api/reservations/{id}/companions/",
     "/api/reservations/{id}/pay/",
 ]
 

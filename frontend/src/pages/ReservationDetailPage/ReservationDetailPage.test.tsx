@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ATTENDANT } from '@/features/auth/__fixtures__/users'
 import { fetchCurrentUser } from '@/features/auth/api'
-import { BRUNO, CARLA } from '@/features/guests/__fixtures__/guests'
-import { fetchGuest } from '@/features/guests/api'
+import { BRUNO, CARLA, EVA } from '@/features/guests/__fixtures__/guests'
+import { fetchGuest, fetchGuests } from '@/features/guests/api'
 import { T7_STATEMENT } from '@/features/reservations/__fixtures__/bills'
 import {
   ANA_CANCELLED,
@@ -15,6 +15,7 @@ import {
   CARLA_PAID,
 } from '@/features/reservations/__fixtures__/reservations'
 import {
+  addReservationCompanions,
   cancelReservation,
   checkOut,
   fetchReservation,
@@ -22,7 +23,9 @@ import {
 } from '@/features/reservations/api'
 import type { Reservation } from '@/features/reservations/types'
 import { ApiError } from '@/lib/errors/errors'
+import { SEARCH_DEBOUNCE_MS } from '@/lib/hooks/useDebouncedValue'
 import { toastStore } from '@/lib/notify/toast'
+import { page } from '@/test/fixtures'
 import { renderPage } from '@/test/renderPage'
 import { signInForTest } from '@/test/renderWithProviders'
 
@@ -75,6 +78,63 @@ describe('ReservationDetailPage', () => {
 
     const people = await screen.findByRole('region', { name: 'Pessoas' })
     expect(within(people).getByText('Sem acompanhantes')).toBeInTheDocument()
+    expect(within(people).getByLabelText('Adicionar acompanhante')).toBeInTheDocument()
+  })
+
+  it('nao oferece adicionar acompanhante depois do check-in', async () => {
+    renderDetail(BRUNO_CHECKED_IN)
+
+    const people = await screen.findByRole('region', { name: 'Pessoas' })
+    expect(within(people).queryByLabelText('Adicionar acompanhante')).not.toBeInTheDocument()
+  })
+
+  it('adiciona um acompanhante na reserva pendente', async () => {
+    const user = userEvent.setup()
+    const updated = {
+      ...ANA_PENDING,
+      companions: [{ id: EVA.id, full_name: EVA.full_name }],
+    }
+    vi.mocked(fetchGuests).mockResolvedValue(page([EVA]))
+    vi.mocked(addReservationCompanions).mockImplementation(async () => {
+      vi.mocked(fetchReservation).mockResolvedValue(updated)
+      return updated
+    })
+    renderDetail(ANA_PENDING)
+
+    const field = await screen.findByLabelText('Adicionar acompanhante')
+    await user.type(field, 'eva')
+    await waitFor(() => expect(fetchGuests).toHaveBeenCalled(), { timeout: SEARCH_DEBOUNCE_MS * 4 })
+    await user.click(await screen.findByRole('option', { name: /Eva Lima/ }))
+
+    await waitFor(() =>
+      expect(addReservationCompanions).toHaveBeenCalledWith({
+        id: ANA_PENDING.id,
+        companion_ids: [EVA.id],
+      }),
+    )
+    const people = screen.getByRole('region', { name: 'Pessoas' })
+    expect(await within(people).findByText('Eva Lima')).toBeInTheDocument()
+    expect(within(people).queryByText('Sem acompanhantes')).not.toBeInTheDocument()
+  })
+
+  it('mostra o erro de capacidade ao adicionar acompanhante', async () => {
+    const user = userEvent.setup()
+    vi.mocked(fetchGuests).mockResolvedValue(page([EVA]))
+    vi.mocked(addReservationCompanions).mockRejectedValue(
+      new ApiError({
+        code: 'VALIDATION_ERROR',
+        detail: 'Dados inválidos.',
+        status: 400,
+        extra: { companion_ids: ['Quarto 101 comporta 2 pessoas.'] },
+      }),
+    )
+    renderDetail(ANA_PENDING)
+
+    await user.type(await screen.findByLabelText('Adicionar acompanhante'), 'eva')
+    await waitFor(() => expect(fetchGuests).toHaveBeenCalled(), { timeout: SEARCH_DEBOUNCE_MS * 4 })
+    await user.click(await screen.findByRole('option', { name: /Eva Lima/ }))
+
+    expect(await screen.findByText('Quarto 101 comporta 2 pessoas.')).toBeInTheDocument()
   })
 
   it('nao consulta a API para um id que nao e reserva', async () => {

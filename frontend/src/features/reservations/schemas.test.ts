@@ -4,6 +4,7 @@ import { BILL_FIXTURES, T7_STATEMENT } from './__fixtures__/bills'
 import { ANA_PENDING, BRUNO_CHECKED_IN, CARLA_PAID } from './__fixtures__/reservations'
 import {
   checkoutStatementSchema,
+  COMPANION_UNRESOLVED_MESSAGE,
   lateFeeSchema,
   reservationFormSchema,
   reservationSchema,
@@ -16,6 +17,7 @@ const FILLED = {
   guest_id: 1,
   room_id: 1,
   companion_ids: [],
+  companion_draft: '',
   checkin_date: TODAY,
   checkout_date: '2026-09-04',
   has_vehicle: false,
@@ -93,6 +95,19 @@ describe('reservationFormSchema', () => {
       checkout_date: '2026-09-04',
     })
     expect(before.success).toBe(false)
+  })
+
+  it('barra busca de acompanhante que nao foi escolhida na lista', () => {
+    const schema = reservationFormSchema(TODAY)
+    const result = schema.safeParse({ ...FILLED, companion_draft: 'zzz' })
+
+    expect(result.success).toBe(false)
+    expect(result.error?.issues).toEqual([
+      expect.objectContaining({
+        path: ['companion_ids'],
+        message: COMPANION_UNRESOLVED_MESSAGE,
+      }),
+    ])
   })
 })
 

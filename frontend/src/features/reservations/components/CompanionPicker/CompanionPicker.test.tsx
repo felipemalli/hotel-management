@@ -30,8 +30,12 @@ function setup(value: GuestRef[] = [], error?: string) {
   return { onChange }
 }
 
+function searchField() {
+  return screen.getByLabelText('Acompanhantes')
+}
+
 async function search(text: string) {
-  fireEvent.change(screen.getByLabelText('Buscar acompanhante'), { target: { value: text } })
+  fireEvent.change(searchField(), { target: { value: text } })
   await advanceTimersAndFlush(SEARCH_DEBOUNCE_MS)
   await advanceTimersAndFlush(0)
 }
@@ -52,7 +56,9 @@ describe('CompanionPicker', () => {
     await advanceTimersAndFlush(SEARCH_DEBOUNCE_MS * 2)
 
     expect(fetchGuests).not.toHaveBeenCalled()
-    expect(screen.getByText(/Nenhum acompanhante/)).toBeInTheDocument()
+    expect(
+      screen.getByText('Só hóspedes já cadastrados podem ser adicionados.'),
+    ).toBeInTheDocument()
   })
 
   it('busca com o mesmo debounce da tabela e omite o titular', async () => {
@@ -60,7 +66,7 @@ describe('CompanionPicker', () => {
     vi.mocked(fetchGuests).mockResolvedValue(page([BRUNO, EVA]))
     setup()
 
-    fireEvent.change(screen.getByLabelText('Buscar acompanhante'), { target: { value: 'lima' } })
+    fireEvent.change(searchField(), { target: { value: 'lima' } })
     await advanceTimersAndFlush(SEARCH_DEBOUNCE_MS - 1)
     expect(fetchGuests).not.toHaveBeenCalled()
 
@@ -76,18 +82,18 @@ describe('CompanionPicker', () => {
     const { onChange } = setup()
 
     await search('eva')
-    const input = screen.getByLabelText('Buscar acompanhante')
+    const input = searchField()
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
 
     expect(onChange).toHaveBeenCalledWith([EVA_REF])
-    expect(screen.getByLabelText('Buscar acompanhante')).toHaveValue('')
+    expect(searchField()).toHaveValue('')
   })
 
   it('mostra os escolhidos como etiquetas removiveis', () => {
     const { onChange } = setup([EVA_REF])
 
-    const chosen = screen.getByRole('list', { name: 'Acompanhantes escolhidos' })
+    const chosen = screen.getByLabelText('Acompanhantes escolhidos')
     expect(within(chosen).getByText('Eva Lima')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Remover Eva Lima' }))
@@ -97,6 +103,17 @@ describe('CompanionPicker', () => {
 
   it('nao oferece de novo quem ja esta na lista', async () => {
     setup([EVA_REF])
+
+    await search('a')
+
+    expect(screen.getByRole('option', { name: /Davi Rocha/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Eva Lima/ })).not.toBeInTheDocument()
+  })
+
+  it('omite ids excluidos mesmo que ainda nao estejam escolhidos', async () => {
+    renderWithProviders(
+      <CompanionPicker holderId={BRUNO.id} value={[]} excludeIds={[EVA.id]} onChange={vi.fn()} />,
+    )
 
     await search('a')
 

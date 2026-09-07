@@ -26,6 +26,7 @@ from hotel.reservations.openapi import (
     T7_STATEMENT_EXAMPLE,
 )
 from hotel.reservations.serializers import (
+    AddCompanionsSerializer,
     CheckInRequestSerializer,
     GuestInHotelSerializer,
     GuestPendingCheckinSerializer,
@@ -169,6 +170,34 @@ class ReservationViewSet(
             ReservationSerializer(reservation).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @extend_schema(
+        summary="Adiciona acompanhantes a uma reserva pendente",
+        description=(
+            "Só `PENDING`. Os ids entram na lista já gravada: titular, repetidos e "
+            "capacidade do quarto seguem as mesmas regras da criação."
+        ),
+        request=AddCompanionsSerializer,
+        responses={
+            200: ReservationSerializer,
+            400: ErrorEnvelopeSerializer,
+            409: OpenApiResponse(
+                response=ErrorEnvelopeSerializer,
+                description="Reserva não está `PENDING`.",
+                examples=[INVALID_STATUS_EXAMPLE],
+            ),
+            404: ErrorEnvelopeSerializer,
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="companions")
+    def add_companions(self, request: Request, pk: str | None = None) -> Response:
+        payload = AddCompanionsSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        reservation = reservations_service.add_companions(
+            self.get_object(),
+            companions=payload.validated_data["companion_ids"],
+        )
+        return Response(ReservationSerializer(reservation).data)
 
     @extend_schema(
         summary="Efetiva o check-in",

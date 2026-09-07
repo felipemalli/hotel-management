@@ -2,6 +2,7 @@ import { apiClient, type Paginated, parseResponse } from '@/lib/api/apiClient'
 
 import { checkoutStatementSchema, reservationPageSchema, reservationSchema } from './schemas'
 import type {
+  AddCompanionsPayload,
   CheckInPayload,
   CheckoutStatement,
   CreateReservationPayload,
@@ -12,6 +13,16 @@ import type {
 
 export async function createReservation(payload: CreateReservationPayload): Promise<Reservation> {
   const response = await apiClient.post<unknown>('/reservations/', payload)
+  return parseResponse(reservationSchema, response)
+}
+
+export async function addReservationCompanions({
+  id,
+  companion_ids,
+}: AddCompanionsPayload): Promise<Reservation> {
+  const response = await apiClient.post<unknown>(`/reservations/${id}/companions/`, {
+    companion_ids,
+  })
   return parseResponse(reservationSchema, response)
 }
 

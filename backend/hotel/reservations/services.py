@@ -109,6 +109,29 @@ def create_reservation(
         return reservation
 
 
+def add_companions(reservation: Reservation, *, companions: Sequence[Guest]) -> Reservation:
+    if not companions:
+        raise DomainValidationError("companion_ids", "Informe ao menos um acompanhante.")
+
+    with transaction.atomic():
+        locked = _lock(reservation)
+        if locked.status != ReservationStatus.PENDING:
+            raise InvalidStatusError(
+                "Acompanhantes só podem ser adicionados enquanto a reserva está pendente.",
+                extra={"status": locked.status},
+            )
+        existing = list(locked.companions.all())
+        already = {person.pk for person in existing}
+        if any(person.pk in already for person in companions):
+            raise DomainValidationError(
+                "companion_ids", "Este hóspede já é acompanhante desta reserva."
+            )
+        _assert_party(locked.guest, [*existing, *companions], locked.room)
+        locked.companions.add(*companions)
+
+    return selectors.reservation_queryset().get(pk=reservation.pk)
+
+
 @dataclass(frozen=True)
 class CheckinWindow:
     """A politica vigente e o que ela diz sobre a hora de agora."""

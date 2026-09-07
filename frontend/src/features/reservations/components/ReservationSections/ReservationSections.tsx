@@ -1,12 +1,15 @@
 import type { UseQueryResult } from '@tanstack/react-query'
+import { useState } from 'react'
 
 import { DescriptionList, ErrorState } from '@/components/common'
 import { Typography } from '@/components/ui'
 import type { Guest } from '@/features/guests/types'
+import { CompanionPicker } from '@/features/reservations/components/CompanionPicker'
 import { describeEntry, historyEntries } from '@/features/reservations/history'
+import { useAddReservationCompanions } from '@/features/reservations/hooks'
 import { PAYMENT_METHOD_LABELS } from '@/features/reservations/payment'
 import type { CheckoutStatement, Reservation } from '@/features/reservations/types'
-import { errorMessage } from '@/lib/errors/errors'
+import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { countryName } from '@/lib/format/countries'
 import { formatISODate } from '@/lib/format/dates'
 import { formatBRL } from '@/lib/format/money'
@@ -107,9 +110,46 @@ export function ReservationPeopleSection({
               ))}
             </ul>
           )}
+          {reservation.status === 'PENDING' ? (
+            <AddCompanionField reservation={reservation} />
+          ) : null}
         </div>
       </div>
     </Section>
+  )
+}
+
+function companionFieldError(error: unknown): string {
+  if (isApiErrorCode(error, 'VALIDATION_ERROR')) {
+    const messages = error.extra.companion_ids
+    if (Array.isArray(messages) && typeof messages[0] === 'string') return messages[0]
+  }
+  return errorMessage(error)
+}
+
+function AddCompanionField({ reservation }: { reservation: Reservation }) {
+  const add = useAddReservationCompanions()
+  const [error, setError] = useState<string>()
+
+  return (
+    <CompanionPicker
+      holderId={reservation.guest_id}
+      value={[]}
+      excludeIds={reservation.companions.map((companion) => companion.id)}
+      label="Adicionar acompanhante"
+      error={error}
+      onDraftChange={() => setError(undefined)}
+      onChange={(next) => {
+        if (next.length === 0) return
+        add.mutate(
+          { id: reservation.id, companion_ids: next.map((companion) => companion.id) },
+          {
+            onSuccess: () => setError(undefined),
+            onError: (cause) => setError(companionFieldError(cause)),
+          },
+        )
+      }}
+    />
   )
 }
 

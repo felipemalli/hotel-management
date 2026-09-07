@@ -48,6 +48,10 @@ def cancel_url(reservation: Reservation) -> str:
     return f"/api/reservations/{reservation.pk}/cancel/"
 
 
+def companions_url(reservation: Reservation) -> str:
+    return f"/api/reservations/{reservation.pk}/companions/"
+
+
 def detail_url(reservation: Reservation) -> str:
     return f"/api/reservations/{reservation.pk}/"
 
@@ -729,6 +733,66 @@ def test_create_reservation_rejects_an_unknown_companion(auth_client):
             "checkin_date": str(today),
             "checkout_date": str(today + timedelta(days=2)),
         },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "companion_ids" in response.data["extra"]
+
+
+def test_add_companions_to_pending_reservation(auth_client):
+    reservation = ReservationFactory(room=RoomFactory(capacity=3))
+    eva = GuestFactory()
+
+    response = auth_client.post(
+        companions_url(reservation),
+        {"companion_ids": [eva.pk]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["companions"] == [{"id": eva.pk, "full_name": eva.full_name}]
+    assert set(reservation.companions.values_list("pk", flat=True)) == {eva.pk}
+
+
+def test_add_companions_keeps_the_ones_already_there(auth_client):
+    eva, davi = GuestFactory(), GuestFactory()
+    reservation = ReservationFactory(room=RoomFactory(capacity=4))
+    reservation.companions.add(eva)
+
+    response = auth_client.post(
+        companions_url(reservation),
+        {"companion_ids": [davi.pk]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    names = {row["full_name"] for row in response.data["companions"]}
+    assert names == {eva.full_name, davi.full_name}
+
+
+def test_add_companions_rejects_checked_in(auth_client):
+    reservation = t7_reservation()
+    eva = GuestFactory()
+
+    with freeze_time(local(MARCH_7, 15, 0)):
+        auth_client.post(checkin_url(reservation), {}, format="json")
+    response = auth_client.post(
+        companions_url(reservation),
+        {"companion_ids": [eva.pk]},
+        format="json",
+    )
+
+    assert response.status_code == 409
+    assert response.data["code"] == "INVALID_STATUS"
+
+
+def test_add_companions_rejects_an_unknown_guest(auth_client):
+    reservation = ReservationFactory()
+
+    response = auth_client.post(
+        companions_url(reservation),
+        {"companion_ids": [999999]},
         format="json",
     )
 
