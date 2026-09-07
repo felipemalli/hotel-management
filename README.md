@@ -334,6 +334,7 @@ coisa ainda não construída estão em [`ARCHITECTURE.md`](ARCHITECTURE.md).
 | [`docs/DECISOES.md`](docs/DECISOES.md)                           | D1–D19: cada ambiguidade do briefing, a leitura rejeitada e o caso que as separa. |
 | [`docs/QUALIDADE.md`](docs/QUALIDADE.md)                         | Doutrina de teste, política de cobertura, ferramental do CI.             |
 | [`docs/IRIS.md`](docs/IRIS.md)                                   | A Íris: laço de ferramentas, fronteira de PII, fallback sem chave.       |
+| [`docs/IRIS-CODIGO.md`](docs/IRIS-CODIGO.md)                     | A Íris por dentro: o laço de *tool use*, os guardas e o caminho do código. |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md)                             | Os quatro apps, o grafo fiscalizado, e o gatilho do que não foi feito.   |
 | [`backend/docs/`](backend/docs/)                                 | Regras de negócio, autenticação, envelope de exceções, guia técnico.     |
 
