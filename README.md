@@ -236,7 +236,7 @@ não repetir nem perder linha sobre datas iguais.
 | `POST /api/reservations/{id}/pay/`                  | ✔         | Registra o pagamento único (D18)                             |
 | `GET /api/reservations/{id}/statement/`             | ✔         | 2ª via do extrato (só `CHECKED_OUT`)                         |
 | `GET /api/rooms/` · `/{id}/` · `/available/`        | ✔         | Inventário e disponibilidade (`?search=` no número)          |
-| `POST /api/rooms/` · `PATCH /api/rooms/{id}/`       | **admin** | Cadastro e ajuste de capacidade/situação                     |
+| `POST /api/rooms/` · `PATCH /api/rooms/{id}/` · `DELETE /api/rooms/{id}/` | **admin** | Cadastro, ajuste de capacidade/situação e exclusão (só sem histórico de reserva) |
 | `GET /api/pricing-policies/` · `/current/`          | ✔         | Histórico e tarifa vigente                                   |
 | `POST /api/pricing-policies/`                       | **admin** | Publica tarifa (append-only; vigência = agora)               |
 | `GET /api/ai/status/` · `POST /api/ai/copilot/`     | ✔         | A Íris ([`docs/IRIS.md`](docs/IRIS.md))                      |
@@ -257,7 +257,7 @@ nunca por texto:
 | `CSRF_FAILED`        | 403  | Rota de cookie sem `X-CSRFToken` válido, ou `Origin` fora da lista                        |
 | `NOT_FOUND`          | 404  | Recurso inexistente                                                                       |
 | `EARLY_CHECKIN`      | 409  | Check-in antes da abertura, sem `allow_early` (D4). `extra`: `server_time`, `opens_at`    |
-| `INVALID_STATUS`     | 409  | Transição ilegal, hóspede já hospedado, ou conta já paga (`extra.paid_at`)                |
+| `INVALID_STATUS`     | 409  | Transição ilegal, hóspede já hospedado, conta já paga (`extra.paid_at`), ou quarto com reserva (ativa na desativação; qualquer histórico na exclusão) |
 | `DUPLICATE_DOCUMENT` | 409  | Documento já cadastrado (D12)                                                             |
 | `ROOM_UNAVAILABLE`   | 409  | Agenda cruzada, quarto ainda ocupado, ou chegada antecipada que tomaria o quarto (D16)    |
 | `THROTTLED`          | 429  | Login 10/min e refresh 60/min por IP; Íris 20/min por usuário                             |

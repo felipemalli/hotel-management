@@ -39,7 +39,7 @@ contrato (`forbidden`) fecha o outro lado: `ai` não pode importar `hotel.billin
 `hotel.guests` direto — só `hotel.reservations`, que já é a fachada das leituras cruzadas. É
 `allow_indirect_imports`, porque `reservations` importa as folhas e a cadeia é legítima. `billing` não
 conhece nenhum irmão — a conta não sabe que existe reserva. A exceção é
-`hotel.rooms.services → hotel.reservations.selectors`: desativar um quarto e reduzir capacidade
+`hotel.rooms.services → hotel.reservations.selectors`: desativar ou excluir um quarto e reduzir capacidade
 precisam ler a agenda, e o selector encapsula os status para que `rooms` não conheça o ciclo de vida
 da reserva. O contrato vive em `backend/pyproject.toml` (`[tool.importlinter]`) e o CI roda
 `uv run lint-imports`.

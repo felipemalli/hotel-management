@@ -130,20 +130,9 @@ Quem decide é o banco, lançando `IntegrityError`. Cru, ele quebra duas coisas:
 - **Vira 500 com corpo HTML.** `IntegrityError` não é `DomainError` nem `APIException`: cai no caminho do bug não previsto, o handler devolve `None`, e a mesma requisição responde 409 ou 500 conforme o timing.
 - **Aborta a transação do chamador.** No PostgreSQL o erro invalida a transação inteira, e a query seguinte estoura `TransactionManagementError`. Daí o `transaction.atomic()` interno: o savepoint isola a violação e deixa a `atomic` de fora utilizável.
 
-#### Por que pelo nome, e não pela mensagem
-
-A mensagem varia com locale e versão do PostgreSQL, e o nome do campo aparece em toda constraint que toca a coluna: casar `"document"` por substring classificaria como `DUPLICATE_DOCUMENT` qualquer erro daquela coluna — um 409 mentiroso, que esconde o bug em vez de expô-lo. O `constraint_name()` lê `diag.constraint_name` do psycopg, campo estruturado do driver. Por isso o nome é constante compartilhada entre o `models.py` e o serviço.
-
-Nome fora do mapa sobe intacto.
-
 #### A guarda de leitura continua no serviço
 
-Papéis diferentes: a guarda decide o caso comum e entrega mensagem específica com `extra` rico (`conflicting_reservation_id`); a constraint decide a corrida e só sabe o próprio nome. Como está em `create_reservation`:
-
-```python
-# A guarda da a mensagem; o EXCLUDE e a autoridade na corrida. O savepoint
-# traduz a violacao no mesmo 409, em vez de 500 com corpo HTML.
-```
+Papéis diferentes: a guarda decide o caso comum e entrega mensagem específica com `extra` rico (`conflicting_reservation_id`); a constraint decide a corrida e só sabe o próprio nome.
 
 #### Onde é usada
 
@@ -152,8 +141,6 @@ Papéis diferentes: a guarda decide o caso comum e entrega mensagem específica 
 | `guest_document_unique` | `DuplicateDocumentError` | 409 | `_assert_document_available` |
 | `room_number_unique` | `DuplicateRoomNumberError` | 400 `VALIDATION_ERROR` | nenhuma |
 | `resv_room_no_overlap` (`ExclusionConstraint`) | `RoomUnavailableError` | 409 | `_assert_room_free` |
-
-Nem toda tradução vira 409: número de quarto duplicado é erro de formulário, então `DuplicateRoomNumberError` sai 400 com `extra = {"number": [...]}`. É também a única sem guarda prévia — não há `extra` a enriquecer, a constraint basta.
 
 #### Quando não traduzir
 
