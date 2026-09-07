@@ -77,7 +77,6 @@ class LineKind(models.TextChoices):
     DAILY = "DAILY", "Diária"
     PARKING = "PARKING", "Vaga"
     LATE_FEE = "LATE_FEE", "Multa de checkout tardio"
-    EXTRA = "EXTRA", "Lançamento avulso"
 
 
 class Account(models.Model):
@@ -122,11 +121,12 @@ class AccountLine(models.Model):
     kind = models.CharField(max_length=8, choices=LineKind)
     service_date = models.DateField()
     description = models.CharField(max_length=140, blank=True, default="")
-    # 7,4 comporta o late_fee_factor da politica (5,4).
+    # quantity recebe o late_fee_factor da politica (5,4): dai as 4 casas, nao 2.
     quantity = models.DecimalField(max_digits=7, decimal_places=4, default=Decimal("1"))
     unit_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    # Sem CHECK aritmetico: quantity 0.3333 x unit nao fecha em `numeric`.
-    # Esta coluna e a autoridade; quantity e unit_amount explicam como se chegou nela.
+    # Sem CHECK de amount = quantity x unit: 0.3333 x 120.00 da 39.996, que
+    # arredonda para 40.00, e a igualdade reprovaria a linha. amount é a autoridade
+    # do dinheiro cobrado; quantity e unit_amount só explicam como se chegou nele.
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     posted_at = models.DateTimeField()
     posted_by = models.ForeignKey(
@@ -142,7 +142,7 @@ class AccountLine(models.Model):
         constraints = [
             models.CheckConstraint(
                 name=ACCOUNTLINE_QUANTITY_NON_NEGATIVE,
-                # >= 0, nao > 0: fator de multa 0 e politica valida.
+                # >= 0, nao > 0: para permitir fator de multa como 0.
                 condition=Q(quantity__gte=0),
             ),
             models.CheckConstraint(
@@ -152,7 +152,6 @@ class AccountLine(models.Model):
             models.UniqueConstraint(
                 name=ACCOUNTLINE_ONE_PER_KIND_DATE,
                 fields=["account", "kind", "service_date"],
-                condition=Q(kind__in=["DAILY", "PARKING", "LATE_FEE"]),
             ),
         ]
 

@@ -13,7 +13,7 @@ GUEST_SEARCH_PARAMETER = OpenApiParameter(
 
 DUPLICATE_DOCUMENT_RESPONSE = OpenApiResponse(
     response=ErrorEnvelopeSerializer,
-    description="Documento já cadastrado (D12).",
+    description="Documento já cadastrado.",
     examples=[
         OpenApiExample(
             "DUPLICATE_DOCUMENT",

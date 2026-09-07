@@ -28,7 +28,7 @@ pytestmark = pytest.mark.django_db
 SAO_PAULO = ZoneInfo("America/Sao_Paulo")
 UTC = ZoneInfo("UTC")
 
-# Calendario de referencia da SPEC 3.3: marco/2025.
+# Calendario de referencia da tabela de precos: marco/2025.
 MARCH_7 = date(2025, 3, 7)  # sexta
 MARCH_9 = date(2025, 3, 9)  # domingo
 
@@ -38,7 +38,7 @@ def local(day: date, hour: int, minute: int = 0, second: int = 0) -> datetime:
 
 
 def t7_reservation() -> Reservation:
-    """Reserva agendada do caso T7 (sex 07/03 -> dom 09/03, com vaga)."""
+    """Reserva agendada sex 07/03 -> dom 09/03, com vaga."""
     return ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
 
 
@@ -67,7 +67,7 @@ def test_create_reservation_starts_pending_without_money(actor):
 
 
 def test_create_reservation_accepts_today_as_checkin(actor):
-    """D11 recusa o passado, nao o proprio dia: `>= hoje`."""
+    """O servico recusa o passado, nao o proprio dia: `>= hoje`."""
     reservation = service.create_reservation(
         guest=GuestFactory(),
         room=RoomFactory(),
@@ -81,7 +81,7 @@ def test_create_reservation_accepts_today_as_checkin(actor):
 
 
 def test_create_reservation_in_the_past_is_rejected(actor):
-    """D11, sem HTTP e sem freezegun -- `today` e parametro (SPEC 0.3/3.4)."""
+    """Sem HTTP e sem freezegun -- `today` e parametro."""
     with pytest.raises(service.DomainValidationError) as excinfo:
         service.create_reservation(
             guest=GuestFactory(),
@@ -99,7 +99,7 @@ def test_create_reservation_in_the_past_is_rejected(actor):
 
 
 def test_create_reservation_requires_one_night(actor):
-    """D13: agendamento de zero noites nao existe (day-use so como fato)."""
+    """Agendamento de zero noites nao existe (day-use so como fato)."""
     with pytest.raises(service.DomainValidationError) as excinfo:
         service.create_reservation(
             guest=GuestFactory(),
@@ -129,7 +129,7 @@ def test_create_guest_persists_normalized_pii():
 
 
 def test_create_guest_rejects_duplicate_document_in_any_format():
-    """D12 + D9: mesma identidade civil, mascara diferente, mesma coluna."""
+    """Mesma identidade civil, mascara diferente, mesma coluna."""
     guests_service.create_guest(
         full_name="Ana Souza",
         document="123.456.789-01",
@@ -153,12 +153,12 @@ def test_create_guest_rejects_duplicate_document_in_any_format():
 def test_create_guest_translates_the_constraint_when_the_read_guard_loses_the_race(
     monkeypatch,
 ):
-    """A constraint unica e a autoridade final de D12, e sai como 409.
+    """A constraint unica e a autoridade final, e sai como 409.
 
     Neutralizar a guarda de leitura reproduz exatamente a corrida: dois
     cadastros do mesmo documento passam pelo `exists()` juntos e so o banco
     decide. O `IntegrityError` tem de virar `DuplicateDocumentError`, nunca
-    escapar cru (que no handler da SPEC 4.1 seria um 500 com corpo HTML).
+    escapar cru (que no handler de erro seria um 500 com corpo HTML).
     """
     existing = GuestFactory()
     monkeypatch.setattr(guests_service, "_assert_document_available", lambda document: None)
@@ -207,7 +207,7 @@ def test_constraint_name_is_extracted_from_integrity_error():
     """`constraint_name()` le o campo estruturado do driver, nao a mensagem.
 
     A mensagem do `IntegrityError` varia com locale e versao do PostgreSQL, e
-    era por substring dela que a traducao de D12 decidia ("document" aparecia
+    era por substring dela que a traducao decidia ("document" aparecia
     tanto na unicidade quanto no nome de qualquer outra constraint da coluna).
     O psycopg guarda o nome em `diag.constraint_name`, e e nesse nome que o
     dominio pode se apoiar.
@@ -230,7 +230,7 @@ def test_duplicate_document_translation_uses_named_constraint(monkeypatch):
 
     Com a traducao por substring, qualquer `IntegrityError` cuja mensagem
     mencionasse a palavra "document" saia como `DUPLICATE_DOCUMENT` -- inclusive
-    um erro que nada tem a ver com D12. Renomear a chave do mapa prova que a
+    um erro que nada tem a ver com a duplicidade. Renomear a chave do mapa prova que a
     decisao e pelo nome: sem entrada correspondente, o erro atravessa intacto
     e o bug aparece em vez de virar um 409 mentiroso.
     """
@@ -248,7 +248,7 @@ def test_duplicate_document_translation_uses_named_constraint(monkeypatch):
 
 
 def test_create_guest_requires_a_country_code(actor):
-    """A regra mora no SERVICO, entao vale para o seed e o shell tambem (D9).
+    """A regra mora no SERVICO, entao vale para o seed e o shell tambem.
 
     Se ela vivesse no serializer, `manage.py shell` e qualquer importador
     gravariam telefone sem DDI numa coluna que promete E.164 -- e o valor
@@ -407,7 +407,7 @@ def test_checkin_window_reads_local_time_from_a_utc_timestamp():
 
 
 def test_checkin_window_follows_the_policy_in_force():
-    """D15: quem abre a porta e a politica vigente no ato, nao a constante do motor."""
+    """Quem abre a porta e a politica vigente no ato, nao a constante do motor."""
     policy = PricingPolicyFactory(checkin_opens=time(15, 0), effective_from=local(MARCH_7, 0))
 
     window = service.checkin_window(now=local(MARCH_7, 14, 30))
@@ -446,7 +446,7 @@ def test_check_in_before_14_raises_early_checkin_with_server_time(actor):
 
 
 def test_check_in_before_14_with_override_succeeds(actor):
-    """D4: o briefing pede alerta, nao bloqueio."""
+    """O briefing pede alerta, nao bloqueio."""
     reservation = t7_reservation()
     now = local(MARCH_7, 13, 59, 59)
 
@@ -457,7 +457,7 @@ def test_check_in_before_14_with_override_succeeds(actor):
 
 
 def test_check_in_rule_is_evaluated_in_local_time(actor):
-    """SPEC 0.3: 16:30 UTC e 13:30 em Sao Paulo -- e cedo, mesmo parecendo tarde."""
+    """16:30 UTC e 13:30 em Sao Paulo -- e cedo, mesmo parecendo tarde."""
     reservation = t7_reservation()
     now_utc = datetime(2025, 3, 7, 16, 30, tzinfo=UTC)
 
@@ -481,7 +481,7 @@ def test_check_in_rejects_non_pending(trait, actor):
 
 
 def test_check_out_freezes_totals_matching_T7(actor):
-    """Caso T7 da SPEC 3.3 ponta a ponta, pelos fatos reais (D6)."""
+    """Ponta a ponta, pelos fatos reais."""
     reservation = t7_reservation()
     service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False, actor=actor)
 
@@ -509,7 +509,7 @@ def test_check_out_freezes_totals_matching_T7(actor):
 
 
 def test_check_out_charges_real_stay_not_scheduled_dates(actor):
-    """D6: agendado sex->dom, saida real na segunda -> a diaria de domingo entra."""
+    """Agendado sex->dom, saida real na segunda -> a diaria de domingo entra."""
     reservation = t7_reservation()
     service.check_in(reservation, now=local(MARCH_7, 15), allow_early=False, actor=actor)
 
@@ -523,7 +523,7 @@ def test_check_out_charges_real_stay_not_scheduled_dates(actor):
 
 
 def test_check_out_exactly_at_noon_is_exempt(actor):
-    """T8/D3: `ate as 12h00min` inclui o limite."""
+    """`ate as 12h00min` inclui o limite."""
     reservation = ReservationFactory(
         checkin_date=date(2025, 3, 5), checkout_date=date(2025, 3, 7), has_vehicle=False
     )
@@ -572,7 +572,7 @@ def test_cancel_pending_reservation(actor):
 
 @pytest.mark.parametrize("trait", ["checked_in", "checked_out", "cancelled"])
 def test_cancel_rejects_anything_but_pending(trait, actor):
-    """D8: nenhum outro estado cancela -- dinheiro monotonico."""
+    """Nenhum outro estado cancela -- dinheiro monotonico."""
     reservation = _reservation_in_state(trait)
 
     with pytest.raises(service.InvalidStatusError):
@@ -611,7 +611,6 @@ def test_statement_requires_checkout():
 
 
 def test_domain_error_carries_the_envelope_defaults():
-    """SPEC 4.1: cada erro de dominio sabe o proprio `code`."""
     error = ReservationError()
 
     assert error.code == "INVALID_STATUS"
@@ -633,10 +632,10 @@ def _reservation_in_state(trait: str) -> Reservation:
 def test_check_in_rejects_guest_with_an_active_stay(actor):
     """Invariante entre linhas vira 409, nao IntegrityError.
 
-    `resv_one_active_per_guest` (SPEC 1.5) e uma constraint ENTRE linhas. Sem
-    checagem no service ela estourava como IntegrityError e o handler da SPEC
-    4.1 devolvia HTTP 500 -- numa condicao de negocio legitima: hospede com
-    duas reservas PENDING, check-in na segunda.
+    `resv_one_active_per_guest` e uma constraint ENTRE linhas. Sem checagem no
+    service ela estourava como IntegrityError e o handler de erro devolvia
+    HTTP 500 -- numa condicao de negocio legitima: hospede com duas reservas
+    PENDING, check-in na segunda.
     """
     active = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
     service.check_in(active, now=local(MARCH_7, 15), actor=actor)

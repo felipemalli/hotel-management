@@ -20,7 +20,7 @@ ANA_STORED_PHONE = "5521988887777"
 
 
 def test_create_guest_persists_normalized_pii(auth_client):
-    """RF1: os 3 campos minimos persistem normalizados (SPEC 4.3, D9)."""
+    """Os 3 campos minimos persistem normalizados."""
     response = auth_client.post("/api/guests/", ANA, format="json")
 
     assert response.status_code == 201
@@ -42,7 +42,6 @@ def test_create_guest_persists_normalized_pii(auth_client):
 
 
 def test_list_and_detail_return_the_stored_value(auth_client):
-    """SPEC 2.1: listagem e detalhe devolvem o valor gravado (normalizado)."""
     guest = GuestFactory(
         full_name="Ana Souza", document="123.456.789-01", phone="+55 21 98888-7777"
     )
@@ -58,7 +57,7 @@ def test_list_and_detail_return_the_stored_value(auth_client):
 
 
 def test_duplicate_document_returns_409(auth_client):
-    """D12: `document` unico -- o segundo cadastro e conflito, nao payload invalido."""
+    """`document` unico -- o segundo cadastro e conflito, nao payload invalido."""
     assert auth_client.post("/api/guests/", ANA, format="json").status_code == 201
 
     response = auth_client.post("/api/guests/", {**ANA, "document": "12345678901"}, format="json")
@@ -70,7 +69,7 @@ def test_duplicate_document_returns_409(auth_client):
 
 
 def test_duplicate_phone_is_allowed(auth_client):
-    """D12: telefone NAO e unico -- familiares compartilham a linha."""
+    """Telefone NAO e unico -- familiares compartilham a linha."""
     GuestFactory(full_name="Ana Souza", document="11111111111", phone="+55 21 98888-7777")
 
     response = auth_client.post(
@@ -96,7 +95,7 @@ def test_duplicate_phone_is_allowed(auth_client):
     ],
 )
 def test_create_guest_validation_uses_error_envelope(auth_client, payload, field):
-    """SPEC 4.3: minimos de D9 aferidos APOS normalizar; erro no envelope da SPEC 4.1."""
+    """Minimos aferidos APOS normalizar; erro no envelope unico."""
     response = auth_client.post(
         "/api/guests/",
         {"full_name": "Ana Souza", "nationality": "BR", **payload},
@@ -109,7 +108,6 @@ def test_create_guest_validation_uses_error_envelope(auth_client, payload, field
 
 
 def test_missing_minimum_fields_returns_validation_error(auth_client):
-    """RF1: nome, documento e telefone sao obrigatorios."""
     response = auth_client.post("/api/guests/", {}, format="json")
 
     assert response.status_code == 400
@@ -118,7 +116,6 @@ def test_missing_minimum_fields_returns_validation_error(auth_client):
 
 
 def test_search_by_name_fragment_and_pii_fragment(auth_client):
-    """RF3: nome, documento e telefone por fragmento (D5)."""
     GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="+55 21 98888-7777")
     GuestFactory(full_name="Bruno Lima", document="98765432100", phone="+55 11 97777-6666")
 
@@ -129,7 +126,7 @@ def test_search_by_name_fragment_and_pii_fragment(auth_client):
     assert names("sou") == ["Ana Souza"]
     assert names("12345678901") == ["Ana Souza"]  # documento sem mascara
     assert names("+55 21 98888-7777") == ["Ana Souza"]  # telefone com mascara
-    assert names("789") == ["Ana Souza"]  # fragmento de documento acha (D5)
+    assert names("789") == ["Ana Souza"]  # fragmento de documento acha
 
 
 def test_guest_not_found_returns_envelope(auth_client):
@@ -140,7 +137,7 @@ def test_guest_not_found_returns_envelope(auth_client):
 
 
 def test_in_hotel_endpoint_shape(auth_client):
-    """RF4: aba "no hotel" -- valor gravado, com `active_reservation` unico (SPEC 4.3)."""
+    """Aba "no hotel" -- valor gravado, com `active_reservation` unico."""
     today = timezone.localdate()
     inside = GuestFactory(
         full_name="Ana Souza", document="123.456.789-01", phone="+55 21 98888-7777"
@@ -184,7 +181,7 @@ def test_in_hotel_endpoint_shape(auth_client):
 
 
 def test_pending_checkin_endpoint_shape(auth_client):
-    """RF5: aba de pendentes e plural e inclui reserva vencida (D14)."""
+    """Aba de pendentes e plural e inclui reserva vencida."""
     today = timezone.localdate()
     guest = GuestFactory(
         full_name="Ana Souza", document="123.456.789-01", phone="+55 21 98888-7777"
@@ -226,7 +223,7 @@ def test_tab_endpoints_accept_search(auth_client):
 
 
 def test_guest_status_reflects_reservation_states(auth_client):
-    """Sanidade das abas: cancelada nao esta em nenhuma delas (D8)."""
+    """Sanidade das abas: cancelada nao esta em nenhuma delas."""
     guest = GuestFactory(full_name="Ana Souza")
     ReservationFactory(guest=guest, status=ReservationStatus.CANCELLED)
 
@@ -316,7 +313,7 @@ def test_create_guest_rejects_a_nationality_outside_iso_alpha2(auth_client, nati
 
 
 def test_search_still_finds_a_fragment_of_the_stored_phone(auth_client):
-    """RF3 sobrevive ao E.164: `98888` acha, mesmo com o DDI na coluna.
+    """A busca sobrevive ao E.164: `98888` acha, mesmo com o DDI na coluna.
 
     Foi por isso que `normalize_phone` continuou existindo ao lado de
     `to_e164_digits`: a busca aceita fragmento, e fragmento nunca e telefone
@@ -331,7 +328,7 @@ def test_search_still_finds_a_fragment_of_the_stored_phone(auth_client):
 
 
 def test_pending_checkin_lists_companions(auth_client):
-    """Simetria com RF4: quem acompanha depois do check-in, espera antes dele."""
+    """Simetria: quem acompanha depois do check-in, espera antes dele."""
     holder = GuestFactory(full_name="Bruno Lima")
     eva = GuestFactory(full_name="Eva Lima")
     reservation = ReservationFactory(guest=holder, room=RoomFactory(capacity=2))

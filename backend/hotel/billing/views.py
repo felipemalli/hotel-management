@@ -33,7 +33,7 @@ from hotel.billing.serializers import PricingPolicyCreateSerializer, PricingPoli
             "Restrito ao `ADMIN`. A vigência é o instante da publicação, definida "
             "pelo **servidor** — vigência retroativa reescreveria o passado de "
             "reservas já fechadas. A política rege a estadia inteira a partir do "
-            "check-in que a amarrar (D15): diárias, vaga, fator da multa e limite "
+            "check-in que a amarrar: diárias, vaga, fator da multa e limite "
             "de checkout. Horários em `HH:MM` (precisão de minuto)."
         ),
         request=PricingPolicyCreateSerializer,

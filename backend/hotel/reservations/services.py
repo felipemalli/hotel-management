@@ -111,7 +111,7 @@ def create_reservation(
 
 @dataclass(frozen=True)
 class CheckinWindow:
-    """A politica vigente e o que ela diz sobre a hora de agora (D15)."""
+    """A politica vigente e o que ela diz sobre a hora de agora."""
 
     policy: PricingPolicy
     is_early: bool
@@ -122,7 +122,7 @@ class CheckinWindow:
 def checkin_window(*, now: datetime) -> CheckinWindow:
     # Uma consulta e uma fonte de verdade para o 409 do check-in e para quem so
     # precisa narrar o horario: cedo ou nao, a politica e a vigente agora, porque
-    # a amarracao na reserva (D15) acontece depois desta leitura.
+    # a amarracao na reserva acontece depois desta leitura.
     policy = billing_selectors.policy_in_force(now)
     rates = rate_table_of(policy)
     local_now = timezone.localtime(now)
@@ -183,8 +183,7 @@ def check_in(
 def preview_checkout(reservation: Reservation, *, now: datetime) -> Statement:
     """Quanto sairia se o checkout fosse agora. Sem lock, sem escrita."""
     bill = _bill_for(reservation, now=now)
-    extras = reservation.account.lines.filter(kind=LineKind.EXTRA)
-    return Statement.from_bill(bill, extras=extras)
+    return Statement.from_bill(bill)
 
 
 def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUser) -> Statement:

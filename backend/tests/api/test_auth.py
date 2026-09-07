@@ -67,7 +67,7 @@ def test_refresh_cookie_drops_secure_when_the_demo_runs_over_http(api_client, at
 
 
 def test_endpoints_require_auth(api_client):
-    """RF8: sem token nao ha app -- e o erro sai no envelope da SPEC 4.1."""
+    """Sem token nao ha app -- e o erro sai no envelope unico de erros."""
     for path in PROTECTED_PATHS:
         response = api_client.get(path)
 
@@ -213,7 +213,7 @@ def test_logout_requires_the_csrf_header(csrf_client, attendant):
 
 
 def test_invalid_credentials_use_error_envelope(api_client, attendant):
-    """Credencial errada tambem passa pelo envelope unico (SPEC 4.1)."""
+    """Credencial errada tambem passa pelo envelope unico."""
     response = api_client.post(
         "/api/auth/token/",
         {"username": attendant.username, "password": "senha-errada"},
@@ -225,7 +225,7 @@ def test_invalid_credentials_use_error_envelope(api_client, attendant):
 
 
 def test_open_paths_need_no_token(api_client):
-    """As excecoes AllowAny da SPEC 2.3 seguem abertas apos ligar a permissao global."""
+    """As excecoes AllowAny seguem abertas apos ligar a permissao global."""
     for path in OPEN_PATHS:
         assert api_client.get(path).status_code == 200, path
 
@@ -234,8 +234,8 @@ def test_login_is_rate_limited(api_client, attendant, monkeypatch):
     """Forca bruta no login encontra 429, nao 401 infinito.
 
     O endpoint e anonimo: sem limite de taxa nada barra tentativas de senha.
-    O `Throttled` do DRF cai no fallback do handler e sai no envelope da
-    SPEC 4.1 com `code: "THROTTLED"`.
+    O `Throttled` do DRF cai no fallback do handler e sai no envelope unico
+    com `code: "THROTTLED"`.
     """
     # DRF captura THROTTLE_RATES no import da classe; settings.REST_FRAMEWORK nao basta.
     monkeypatch.setattr(LoginRateThrottle, "rate", "3/min", raising=False)

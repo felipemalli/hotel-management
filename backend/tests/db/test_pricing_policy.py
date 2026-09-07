@@ -188,7 +188,7 @@ def test_checkin_binds_policy_in_force_at_now(actor, default_policy):
 
 
 def test_checkout_limit_and_factor_come_from_bound_policy_not_current(actor):
-    """D15, o caso concreto: politica A na entrada, B publicada durante a estadia.
+    """O caso concreto: politica A na entrada, B publicada durante a estadia.
 
     A amarrada tem limite 12:00 e fator 0.5; a nova tem 13:00 e 0.25. A saida
     as 12:30 e ATRASO sob A. Ler o limite da vigente no checkout faria diaria e
@@ -232,7 +232,7 @@ def test_early_checkin_message_follows_the_policy(actor):
 
 
 def test_checkin_opens_comes_from_the_policy_in_force_not_the_bound_one(actor):
-    """O unico valor que NAO pode vir da amarrada: ela e criada aqui (D15)."""
+    """O unico valor que NAO pode vir da amarrada: ela e criada aqui."""
     PricingPolicyFactory(effective_from=local(MARCH_7, 8), checkin_opens=time(13, 0))
     reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
 

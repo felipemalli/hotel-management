@@ -14,7 +14,7 @@ pytestmark = pytest.mark.django_db
 MARCH_7 = date(2025, 3, 7)  # sexta
 MARCH_9 = date(2025, 3, 9)  # domingo
 
-# Extrato do caso T7 da SPEC 3.3: sex 07/03 15:00 -> dom 09/03 12:01, com vaga.
+# Extrato da estadia sex 07/03 15:00 -> dom 09/03 12:01, com vaga.
 T7_LINES = [
     {
         "date": "2025-03-07",
@@ -32,7 +32,7 @@ T7_LINES = [
 
 
 def t7_reservation() -> Reservation:
-    """Reserva agendada do caso T7, ainda PENDING."""
+    """Reserva agendada sex 07/03 -> dom 09/03, com vaga, ainda PENDING."""
     return ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
 
 
@@ -57,7 +57,7 @@ def statement_url(reservation: Reservation) -> str:
 
 
 def test_create_reservation_persists_pending(auth_client):
-    """RF2: reserva nasce PENDING e sem conta (SPEC 4.4)."""
+    """Reserva nasce PENDING e sem conta."""
     guest = GuestFactory()
     today = timezone.localdate()
 
@@ -87,7 +87,7 @@ def test_create_reservation_persists_pending(auth_client):
 
 
 def test_create_reservation_in_the_past_returns_400(auth_client):
-    """D11: reserva e compromisso futuro."""
+    """Reserva e compromisso futuro."""
     guest = GuestFactory()
     today = timezone.localdate()
 
@@ -109,7 +109,7 @@ def test_create_reservation_in_the_past_returns_400(auth_client):
 
 
 def test_create_reservation_requires_one_night(auth_client):
-    """D13: agendamento exige no minimo 1 noite -- day-use so existe como fato."""
+    """Agendamento exige no minimo 1 noite -- day-use so existe como fato."""
     guest = GuestFactory()
     today = timezone.localdate()
 
@@ -149,7 +149,7 @@ def test_create_reservation_requires_existing_guest(auth_client):
 
 
 def test_checkin_after_14_succeeds(auth_client):
-    """RF6: 14:00:00 em ponto NAO e cedo (SPEC 3.3, fronteiras de check-in)."""
+    """14:00:00 em ponto NAO e cedo."""
     reservation = t7_reservation()
 
     with freeze_time(local(MARCH_7, 14, 0, 0)):
@@ -163,7 +163,6 @@ def test_checkin_after_14_succeeds(auth_client):
 
 
 def test_checkin_before_14_returns_409_and_override(auth_client):
-    """RN4/D4: alerta com override -- 409 primeiro, `allow_early: true` depois."""
     reservation = t7_reservation()
 
     with freeze_time(local(MARCH_7, 13, 59, 59)):
@@ -187,7 +186,6 @@ def test_checkin_before_14_returns_409_and_override(auth_client):
 
 
 def test_checkin_twice_returns_invalid_status(auth_client):
-    """SPEC 1.5: `CHECKED_IN -> CHECKED_IN` nao existe."""
     reservation = t7_reservation()
 
     with freeze_time(local(MARCH_7, 15, 0)):
@@ -212,7 +210,7 @@ def test_checkin_on_cancelled_returns_invalid_status(auth_client):
 
 
 def test_checkout_freezes_totals(auth_client):
-    """RF7: os totais do caso T7 ficam congelados na linha (SPEC 1.3, 4.4)."""
+    """Os totais ficam congelados na linha, mesmo que a tarifa mude depois."""
     reservation = t7_reservation()
 
     with freeze_time(local(MARCH_7, 15, 0)):
@@ -232,7 +230,7 @@ def test_checkout_freezes_totals(auth_client):
 
 
 def test_checkout_statement_matches_T7(auth_client):
-    """RN5/RN6: o extrato inteiro e, campo a campo, o caso T7 da SPEC 3.3."""
+    """O extrato inteiro bate, campo a campo, com a estadia sex->dom com vaga e multa."""
     reservation = t7_reservation()
 
     with freeze_time(local(MARCH_7, 15, 0)):
@@ -261,19 +259,16 @@ def test_checkout_statement_matches_T7(auth_client):
                 }
             ],
         },
-        "extras": [],
-        "subtotal_extras": "0.00",
         "total": "425.00",
         "payment": None,
     }
 
 
 def test_statement_reissues_the_exact_checkout_receipt(auth_client):
-    """2a via: mesmo recibo do checkout, recomputado dos fatos (SPEC 1.3).
+    """2a via: mesmo recibo do checkout, recomputado dos fatos.
 
-    E o teste que protege a hipotese da SPEC 1.3 na pratica: se um dia a
-    tarifa mudar por baixo, este assert e o que acusa a divergencia entre o
-    extrato reemitido e o que o hospede pagou.
+    Se um dia a tarifa mudar por baixo, este assert e o que acusa a
+    divergencia entre o extrato reemitido e o que o hospede pagou.
     """
     reservation = t7_reservation()
 
@@ -314,7 +309,7 @@ def test_reservation_detail_returns_the_full_object(auth_client):
 
 
 def test_checkout_at_noon_has_no_late_fee(auth_client):
-    """D3/T8: 12:00:00 em ponto e isento -- `late_fee.applied` sai `false`."""
+    """12:00:00 em ponto e isento -- `late_fee.applied` sai `false`."""
     reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9)
 
     with freeze_time(local(MARCH_7, 15, 0)):
@@ -328,13 +323,11 @@ def test_checkout_at_noon_has_no_late_fee(auth_client):
         "amount": "0.00",
         "days": [],
     }
-    assert response.data["extras"] == []
-    assert response.data["subtotal_extras"] == "0.00"
     assert response.data["total"] == "300.00"
 
 
 def test_double_checkout_returns_invalid_status(auth_client):
-    """SPEC 4.4: duplo checkout e conflito -- o dinheiro nao recalcula."""
+    """Duplo checkout e conflito -- o dinheiro nao recalcula."""
     reservation = t7_reservation()
 
     with freeze_time(local(MARCH_7, 15, 0)):
@@ -359,7 +352,7 @@ def test_checkout_without_checkin_returns_invalid_status(auth_client):
 
 
 def test_cancel_pending_reservation(auth_client):
-    """D8: `PENDING -> CANCELLED` e a unica transicao de cancelamento."""
+    """`PENDING -> CANCELLED` e a unica transicao de cancelamento."""
     reservation = t7_reservation()
 
     response = auth_client.post(cancel_url(reservation), format="json")
@@ -370,7 +363,7 @@ def test_cancel_pending_reservation(auth_client):
 
 
 def test_cancel_checked_in_returns_invalid_status(auth_client):
-    """D8: hospede no hotel nao cancela -- exigiria politica de estorno inexistente."""
+    """Hospede no hotel nao cancela -- exigiria politica de estorno inexistente."""
     reservation = t7_reservation()
 
     with freeze_time(local(MARCH_7, 15, 0)):
@@ -382,7 +375,6 @@ def test_cancel_checked_in_returns_invalid_status(auth_client):
 
 
 def test_list_reservations_filters_by_status_and_guest(auth_client):
-    """SPEC 4.2: `?status=` e `?guest=`."""
     guest = GuestFactory()
     pending = ReservationFactory(guest=guest, checkin_date=MARCH_7, checkout_date=MARCH_9)
     cancelled = ReservationFactory(
@@ -441,10 +433,10 @@ def test_reservation_not_found_returns_envelope(auth_client):
 def test_checkin_with_active_stay_returns_invalid_status_not_500(auth_client):
     """Regressao: hospede com estadia ativa devolvia HTTP 500 com corpo HTML.
 
-    A constraint `resv_one_active_per_guest` (SPEC 1.5) e entre linhas; sem
-    checagem no service ela chegava ao handler como IntegrityError, que a SPEC
-    4.1 nao classifica. O caminho e alcancavel pela UI: duas reservas PENDING
-    do mesmo hospede, check-in nas duas.
+    A constraint `resv_one_active_per_guest` e entre linhas; sem checagem no
+    service ela chegava ao handler como IntegrityError, que o envelope de erro
+    nao classifica. O caminho e alcancavel pela UI: duas reservas PENDING do
+    mesmo hospede, check-in nas duas.
     """
     first = t7_reservation()
     second = ReservationFactory(
@@ -528,18 +520,6 @@ def test_checkin_response_carries_an_open_account(auth_client, attendant):
         "method": "PIX",
         "received_by": {"id": attendant.pk, "username": attendant.username},
     }
-
-
-def test_checkout_statement_has_empty_extras_by_default(auth_client):
-    reservation = t7_reservation()
-
-    with freeze_time(local(MARCH_7, 15, 0)):
-        auth_client.post(checkin_url(reservation), {}, format="json")
-    with freeze_time(local(MARCH_9, 12, 1)):
-        response = auth_client.post(checkout_url(reservation), format="json")
-
-    assert response.data["extras"] == []
-    assert response.data["subtotal_extras"] == "0.00"
 
 
 def test_pay_twice_returns_409(auth_client):

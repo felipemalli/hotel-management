@@ -128,7 +128,7 @@ def test_available_rooms_endpoint(auth_client):
 
 
 def test_available_rooms_rejects_an_inverted_interval(auth_client):
-    """FORMA, não D13: `daterange(fim, inicio)` levantaria `DataError` no PG."""
+    """FORMA, nao a constraint: `daterange(fim, inicio)` levantaria `DataError` no PG."""
     today = timezone.localdate()
 
     response = auth_client.get(

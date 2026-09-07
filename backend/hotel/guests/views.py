@@ -19,21 +19,21 @@ from hotel.guests.serializers import GuestCreateSerializer, GuestSerializer
     list=extend_schema(
         summary="Lista e busca hóspedes",
         description=(
-            "`search` acha nome, documento e telefone por fragmento (trigram, D5). "
-            "Documento e telefone aceitam máscara no termo (D9)."
+            "`search` acha nome, documento e telefone por fragmento (trigram). "
+            "Documento e telefone aceitam máscara no termo."
         ),
         parameters=[GUEST_SEARCH_PARAMETER],
         responses={200: GuestSerializer(many=True)},
     ),
     retrieve=extend_schema(
         summary="Detalhe do hóspede",
-        description="Devolve o valor gravado (documento e telefone já normalizados, SPEC 2.1).",
+        description="Devolve o valor gravado (documento e telefone já normalizados).",
         responses={200: GuestSerializer, 404: ErrorEnvelopeSerializer},
     ),
     create=extend_schema(
         summary="Cadastra hóspede",
         description=(
-            "O telefone exige o código do país com `+` (D9): sem ele, os dígitos "
+            "O telefone exige o código do país com `+`: sem ele, os dígitos "
             "seriam interpretados como de outro país em silêncio. A coluna guarda "
             "apenas dígitos E.164 (`5521988887777`), e a busca por fragmento "
             "continua achando `98888`. `nationality` é ISO 3166-1 alpha-2."

@@ -57,7 +57,7 @@ def test_post_line_quantizes_quantity_times_unit():
 
     line = billing.post_line(
         account,
-        kind=LineKind.EXTRA,
+        kind=LineKind.LATE_FEE,
         service_date=MARCH_7,
         unit_amount=Decimal("120.00"),
         quantity=Decimal("0.3333"),
@@ -196,23 +196,6 @@ def test_daily_line_is_unique_per_service_date():
         daily(account)
 
     assert "accountline_one_per_kind_date" in str(excinfo.value)
-
-
-def test_extra_lines_may_repeat_a_date():
-    account = billing.open_account(now=NOW)
-
-    for description in ("Frigobar", "Lavanderia"):
-        billing.post_line(
-            account,
-            kind=LineKind.EXTRA,
-            service_date=MARCH_7,
-            unit_amount=Decimal("12.50"),
-            description=description,
-            posted_by=None,
-            now=NOW,
-        )
-
-    assert AccountLine.objects.filter(account=account, kind=LineKind.EXTRA).count() == 2
 
 
 def test_only_one_late_fee_per_day():

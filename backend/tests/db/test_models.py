@@ -20,7 +20,7 @@ def test_guest_save_normalizes_pii():
 
 
 def test_normalization_is_idempotent_across_formats():
-    """Cadastrado com mascara, encontrado sem ela -- e vice-versa (D9)."""
+    """Cadastrado com mascara, encontrado sem ela -- e vice-versa."""
     GuestFactory(document="123.456.789-01", phone="+55 21 98888-7777")
 
     assert Guest.objects.filter(document=normalize_document("12345678901")).exists()
@@ -45,7 +45,7 @@ def test_save_with_update_fields_also_normalizes():
 
 
 def test_pii_is_plaintext_at_rest():
-    """Leitura crua da coluna devolve o valor normalizado (SPEC 2.1)."""
+    """Leitura crua da coluna devolve o valor normalizado."""
     guest = GuestFactory(document="123.456.789-01", phone="+55 21 98888-7777")
 
     with connection.cursor() as cursor:
@@ -60,7 +60,6 @@ def test_pii_is_plaintext_at_rest():
 
 
 def test_document_is_unique_across_formats():
-    """D12: o segundo cadastro do mesmo documento nao existe."""
     GuestFactory(document="123.456.789-01")
 
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -68,7 +67,7 @@ def test_document_is_unique_across_formats():
 
 
 def test_phone_is_not_unique():
-    """Familiares compartilham telefone (D12)."""
+    """Familiares compartilham telefone."""
     GuestFactory(document="111.111.111-11", phone="+55 21 98888-7777")
     GuestFactory(document="222.222.222-22", phone="+55 21 98888-7777")
 
@@ -88,14 +87,14 @@ def test_guest_requires_nationality():
 
 
 def test_guest_save_upcases_the_nationality():
-    """`Guest.save()` e a autoridade da normalizacao, tambem aqui (D9)."""
+    """`Guest.save()` e a autoridade da normalizacao, tambem aqui."""
     guest = GuestFactory(nationality="ar")
 
     assert Guest.objects.get(pk=guest.pk).nationality == "AR"
 
 
 def test_checkout_date_must_be_after_checkin_date():
-    """Constraint resv_checkout_after_checkin: agendamento minimo de 1 noite (D13)."""
+    """Constraint resv_checkout_after_checkin: agendamento minimo de 1 noite."""
     guest = GuestFactory()
 
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -155,7 +154,7 @@ def test_account_must_match_status_constraint(trait, account):
 
 
 def test_guest_with_reservations_is_protected_from_deletion():
-    """on_delete=PROTECT: hospede com historico financeiro nao some (SPEC 1.3)."""
+    """on_delete=PROTECT: hospede com historico financeiro nao some."""
     reservation = ReservationFactory()
 
     with pytest.raises(IntegrityError), transaction.atomic():
@@ -180,7 +179,7 @@ def test_reservation_defaults_are_pending_and_unpriced():
     ],
 )
 def test_icontains_uses_the_functional_trigram_index(column, index_name, pattern):
-    """Regressao do spike V4/V5 (SPEC 1.4): o indice funcional casa o SQL do icontains."""
+    """Regressao do spike V4/V5: o indice funcional casa o SQL do icontains."""
     GuestFactory(full_name="Ana Souza", document="123.456.789-01", phone="+55 21 98888-7777")
     GuestFactory(full_name="Mariana Costa", document="987.654.321-00", phone="+55 11 97777-6666")
 

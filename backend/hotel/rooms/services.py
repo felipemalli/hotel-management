@@ -3,7 +3,7 @@ from __future__ import annotations
 from core.errors import DomainError, DomainValidationError, translate_integrity_error
 from hotel.reservations import selectors as reservation_selectors
 
-# Unica aresta do grafo que sobe de uma folha para `reservations` (ARQUITECTURE.md):
+# Unica dependencia de uma folha do grafo de camadas para `reservations`:
 # as guardas de desativacao e de capacidade sao leituras da agenda. O selector
 # encapsula os status, entao `rooms` nao conhece o ciclo de vida da reserva.
 from hotel.rooms.models import ROOM_NUMBER_UNIQUE, Room

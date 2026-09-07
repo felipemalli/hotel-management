@@ -10,5 +10,5 @@ MONEY = {"max_digits": 10, "decimal_places": 2}
 
 
 def quantize_money(value: Decimal) -> Decimal:
-    """Unico ponto de arredondamento do projeto (D3): meia unidade para cima."""
+    """Unico ponto de arredondamento do projeto: meia unidade para cima."""
     return value.quantize(CENTS, rounding=ROUND_HALF_UP)

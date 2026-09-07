@@ -10,7 +10,7 @@ D = Decimal
 
 
 def dt(day: int, hour: int, minute: int = 0, second: int = 0) -> datetime:
-    """Datetime em marco/2025, o calendario de referencia da SPEC 3.3."""
+    """Datetime em marco/2025, o calendario de referencia da tabela de precos."""
     return datetime(2025, 3, day, hour, minute, second)
 
 
@@ -222,7 +222,7 @@ def test_truth_table_amounts_are_decimal_with_two_places(checkin, checkout, has_
     ],
 )
 def test_early_checkin_boundaries(now, expected):
-    """14:00:00 em ponto ja permite o check-in; 13:59:59 alerta (SPEC 3.3/D4)."""
+    """14:00:00 em ponto ja permite o check-in; 13:59:59 alerta."""
     assert pricing.early_checkin(now.time()) is expected
 
 
@@ -237,7 +237,7 @@ def test_early_checkin_boundaries(now, expected):
     ],
 )
 def test_late_checkout_boundaries(now, expected):
-    """`ate as 12h00min` inclui o limite: 12:00:00 e isento (SPEC 3.3/T8/D3)."""
+    """`ate as 12h00min` inclui o limite: 12:00:00 e isento."""
     assert late_on(now) is expected
 
 
@@ -292,12 +292,11 @@ def test_late_checkout_is_measured_against_the_booked_last_day(checkout, booked_
 
 
 def test_stay_dates_is_semi_open_interval():
-    """Uma diaria por data em [check-in, checkout) -- a data de saida nao entra (D1)."""
+    """Uma diaria por data em [check-in, checkout) -- a data de saida nao entra."""
     assert [day.day for day in pricing.stay_dates(dt(3, 15).date(), dt(6, 11).date())] == [3, 4, 5]
 
 
 def test_stay_dates_charges_one_daily_for_day_use():
-    """Intervalo vazio (day-use) cobra a diaria do dia do check-in (D1)."""
     assert pricing.stay_dates(dt(3, 14).date(), dt(3, 18).date()) == [dt(3, 0).date()]
 
 
@@ -327,9 +326,9 @@ def test_bill_is_immutable():
 
 
 def test_rate_table_is_a_parameter_not_a_global():
-    """SPEC 3.1: a tarifa entra por argumento, e o passado permanece reconstituivel.
+    """A tarifa entra por argumento, e o passado permanece reconstituivel.
 
-    O caso T1 (seg 03 15:00 -> qua 05 11:00, sem vaga) vale 240,00 com as
+    A estadia seg 03 15:00 -> qua 05 11:00, sem vaga, vale 240,00 com as
     tarifas do briefing. Com uma tabela futura de 140,00 a diaria, a MESMA
     estadia vale 280,00 -- e o motor devolve um ou outro conforme a tabela que
     recebe, em vez de reescrever o historico quando um valor global mudar.
@@ -345,16 +344,16 @@ def test_rate_table_is_a_parameter_not_a_global():
     with_default = bill_of(dt(3, 15), dt(5, 11), False)
     with_future = bill_of(dt(3, 15), dt(5, 11), False, rates=future_rates)
 
-    assert with_default.total == D("240.00")  # tabela SPEC 3.3, caso T1
+    assert with_default.total == D("240.00")
     assert with_future.total == D("280.00")
 
 
 def test_rate_table_reaches_parking_and_late_fee():
     """A tabela custom vale para vaga e multa, nao so para a diaria.
 
-    Sex 07 15:00 -> dom 09 12:01 com vaga e o caso T7 (425,00 no default).
+    Sex 07 15:00 -> dom 09 12:01 com vaga vale 425,00 no default.
     Com a tabela futura: diarias 140 + 200 = 340, vagas 18 + 25 = 43, multa
-    50% x 200 (domingo, dia da saida -- D3) = 100. Total 483,00.
+    50% x 200 (domingo, dia da saida) = 100. Total 483,00.
     """
     future_rates = pricing.RateTable(
         weekday_rate=D("140.00"),
@@ -385,7 +384,7 @@ def test_rate_table_times_are_parameters():
     Enquanto 14h/12h eram constantes de modulo, "configurar o horario" exigiria
     monkeypatch -- e a regra passaria a depender de estado global. Como campo
     com default, a politica de 15:00 e apenas outro argumento, e as 9 tuplas da
-    tabela SPEC 3.3 seguem construidas posicionalmente sem mudar um byte.
+    tabela de precos seguem construidas posicionalmente sem mudar um byte.
     """
     late_shift = replace(pricing.DEFAULT_RATES, checkin_opens=time(15, 0))
 
@@ -405,7 +404,7 @@ def test_checkout_limit_is_a_parameter_and_the_exact_minute_is_exempt():
 
 
 def test_calculate_bill_uses_the_checkout_limit_from_the_rates():
-    """A multa segue o limite da politica, nao a constante do modulo (D15).
+    """A multa segue o limite da politica, nao a constante do modulo.
 
     Sem repassar `rates` a `late_checkout`, uma politica com limite as 13:00
     ainda multaria a saida as 12:30: os valores viriam da politica e a decisao

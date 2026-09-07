@@ -124,7 +124,7 @@ def search_stays(*, status: str, term: str = "") -> QuerySet[Reservation]:
     if not term:
         return queryset
     # Acompanhante entra aqui e nao em list_reservations: quem pergunta por uma
-    # pessoa nao sabe se ela e titular; a tela de reservas lista por reserva (D19).
+    # pessoa nao sabe se ela e titular; a tela de reservas lista por reserva.
     return queryset.filter(
         _reservation_search_predicate(term) | Q(companions__full_name__icontains=term)
     ).distinct()

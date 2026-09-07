@@ -157,35 +157,6 @@ def test_late_checkout_under_a_zero_fee_policy_still_closes(actor):
     assert late_fee.amount == Decimal("0.00")
 
 
-def test_extra_line_posted_during_the_stay_enters_the_checkout_total(actor):
-    """Prova da expansao: o livro aceita lancamento avulso sem tocar em reservations."""
-    reservation = t7_checked_in(actor)
-    billing.post_line(
-        reservation.account,
-        kind=LineKind.EXTRA,
-        service_date=MARCH_8,
-        description="Frigobar",
-        quantity=Decimal("2"),
-        unit_amount=Decimal("12.50"),
-        posted_by=actor,
-        now=local(MARCH_8, 21),
-    )
-
-    preview = service.preview_checkout(reservation, now=local(MARCH_9, 12, 1))
-    assert preview.total == Decimal("450.00")
-
-    statement = service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
-
-    assert statement.total == Decimal("450.00")
-    assert statement.subtotal_extras == Decimal("25.00")
-    assert statement.extras[0].description == "Frigobar"
-    assert statement.subtotal_daily == Decimal("300.00")
-    assert statement.subtotal_parking == Decimal("35.00")
-    assert statement.late_fee == Decimal("90.00")
-    assert reservation.account.total_amount == Decimal("450.00")
-    assert service.statement(Reservation.objects.get(pk=reservation.pk)) == statement
-
-
 def test_statement_hydrates_without_recomputing(actor, monkeypatch):
     """Prova direta: com o motor sabotado, a 2a via continua correta.
 
@@ -229,6 +200,22 @@ def test_statement_without_lines_returns_invalid_status(actor):
     AccountLine.objects.filter(account=reservation.account).delete()
 
     with pytest.raises(service.InvalidStatusError):
+        service.statement(Reservation.objects.get(pk=reservation.pk))
+
+
+def test_statement_rejects_a_line_kind_it_cannot_render(actor):
+    """Tipo sem renderizacao no extrato: erro alto, nunca dinheiro omitido.
+
+    `choices` e validacao de formulario, nao do banco: um `kind` fora do enum
+    entra por escrita direta. Se o extrato o ignorasse em silencio, a soma das
+    linhas exibidas divergiria do `total_amount` congelado na conta.
+    """
+    reservation = t7_checked_out(actor)
+    AccountLine.objects.filter(account=reservation.account, kind=LineKind.PARKING).update(
+        kind="MINIBAR"
+    )
+
+    with pytest.raises(ValueError, match="MINIBAR"):
         service.statement(Reservation.objects.get(pk=reservation.pk))
 
 

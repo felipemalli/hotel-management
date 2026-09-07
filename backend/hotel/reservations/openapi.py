@@ -28,7 +28,7 @@ INVALID_STATUS_EXAMPLE = OpenApiExample(
 )
 
 T7_STATEMENT_EXAMPLE = OpenApiExample(
-    "Extrato do caso T7 (SPEC 3.3)",
+    "Extrato com pernoite tardio",
     value={
         "reservation_id": 7,
         "guest": {"id": 1, "full_name": "Ana Souza"},
@@ -51,8 +51,6 @@ T7_STATEMENT_EXAMPLE = OpenApiExample(
         "subtotal_daily": "300.00",
         "subtotal_parking": "35.00",
         "late_fee": {"applied": True, "base_rate": "180.00", "amount": "90.00"},
-        "extras": [],
-        "subtotal_extras": "0.00",
         "total": "425.00",
         "payment": None,
     },

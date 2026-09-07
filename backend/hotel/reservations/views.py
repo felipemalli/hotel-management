@@ -79,7 +79,7 @@ from hotel.rooms.serializers import RoomSerializer
         summary="Cria reserva",
         description=(
             "Nasce `PENDING` sem conta (`account: null`). Exige `checkout_date > "
-            "checkin_date` (D13) e `checkin_date >= hoje` local (D11)."
+            "checkin_date` e `checkin_date >= hoje` local."
         ),
         request=ReservationCreateSerializer,
         responses={
@@ -87,7 +87,7 @@ from hotel.rooms.serializers import RoomSerializer
             400: ErrorEnvelopeSerializer,
             409: OpenApiResponse(
                 response=ErrorEnvelopeSerializer,
-                description="Quarto sem disponibilidade no período (D16).",
+                description="Quarto sem disponibilidade no período.",
                 examples=[ROOM_UNAVAILABLE_EXAMPLE],
             ),
         },
@@ -149,17 +149,17 @@ class ReservationViewSet(
         summary="Efetiva o check-in",
         description=(
             "Antes das 14:00 locais responde `409 EARLY_CHECKIN` com o horário do "
-            "servidor — alerta, não bloqueio (D4). O atendente reenvia com "
+            "servidor — alerta, não bloqueio. O atendente reenvia com "
             "`allow_early: true` para confirmar. Quarto ainda ocupado, ou chegada "
             "antecipada que tomaria o quarto de outra reserva, respondem "
-            "`409 ROOM_UNAVAILABLE` (D7/D16)."
+            "`409 ROOM_UNAVAILABLE`."
         ),
         request=CheckInRequestSerializer,
         responses={
             200: ReservationSerializer,
             409: OpenApiResponse(
                 response=ErrorEnvelopeSerializer,
-                description="Check-in antecipado (D4) ou transição ilegal (SPEC 1.5).",
+                description="Check-in antecipado ou transição ilegal.",
                 examples=[
                     OpenApiExample(
                         "EARLY_CHECKIN",
@@ -195,14 +195,14 @@ class ReservationViewSet(
         description=(
             "Exige `CHECKED_IN`. Lança as linhas e fecha a conta na mesma transação; "
             "duplo checkout responde `409 INVALID_STATUS`. O extrato é calculado pelos "
-            "fatos reais (D6) por `hotel/billing/engine.py` — a view não faz dinheiro."
+            "fatos reais por `hotel/billing/engine.py` — a view não faz dinheiro."
         ),
         request=None,
         responses={
             200: StatementSerializer,
             409: OpenApiResponse(
                 response=ErrorEnvelopeSerializer,
-                description="Reserva não está `CHECKED_IN` (SPEC 1.5).",
+                description="Reserva não está `CHECKED_IN`.",
                 examples=[INVALID_STATUS_EXAMPLE],
             ),
             404: ErrorEnvelopeSerializer,
@@ -220,10 +220,10 @@ class ReservationViewSet(
     @extend_schema(
         summary="2ª via do extrato de uma reserva finalizada",
         description=(
-            "RN6 exige o extrato **durante** o checkout, e o POST acima cumpre isso. "
+            "O extrato já é exigido **durante** o checkout, e o POST acima cumpre isso. "
             "Esta rota cobre a operação de balcão: o atendente fechou o modal e o "
             "hóspede quer o recibo de novo. Não guarda estado novo — hidrata as linhas "
-            "congeladas da conta (SPEC 1.3), nunca recomputa. "
+            "congeladas da conta, nunca recomputa. "
             "Reserva que ainda não fez checkout responde `409 INVALID_STATUS`."
         ),
         responses={
@@ -245,7 +245,7 @@ class ReservationViewSet(
     @extend_schema(
         summary="Registra o pagamento da conta",
         description=(
-            "Pagamento **único e integral** (D18): não há valor no payload, nem "
+            "Pagamento **único e integral**: não há valor no payload, nem "
             "pagamento parcial, nem estorno. Exige `CHECKED_OUT` — só se paga o "
             "que foi fechado. Pagar duas vezes responde `409 INVALID_STATUS` com "
             "`extra.paid_at`: é uma operação ilegal para o estado atual do "
@@ -291,13 +291,13 @@ class ReservationViewSet(
 
     @extend_schema(
         summary="Cancela uma reserva pendente",
-        description="`PENDING -> CANCELLED`. Nenhum outro estado cancela (D8).",
+        description="`PENDING -> CANCELLED`. Nenhum outro estado cancela.",
         request=None,
         responses={
             200: ReservationSerializer,
             409: OpenApiResponse(
                 response=ErrorEnvelopeSerializer,
-                description="Reserva não está `PENDING` (D8).",
+                description="Reserva não está `PENDING`.",
                 examples=[INVALID_STATUS_EXAMPLE],
             ),
             404: ErrorEnvelopeSerializer,
@@ -318,7 +318,7 @@ class ReservationViewSet(
     tags=[GUESTS_TAG],
     summary="Hóspedes que ainda estão no hotel",
     description=(
-        "Reserva `CHECKED_IN` (RF4). `active_reservation` é único (SPEC 1.5). "
+        "Reserva `CHECKED_IN`. `active_reservation` é único. "
         "`search` compõe com a aba: mesmo termo de `GET /guests/`, sobre quem está no hotel."
     ),
     parameters=[GUEST_SEARCH_PARAMETER],
@@ -335,8 +335,8 @@ class GuestsInHotelView(generics.ListAPIView):
     tags=[GUESTS_TAG],
     summary="Hóspedes com reserva sem check-in",
     description=(
-        "Reservas `PENDING` (RF5). Pendência vencida continua listada até "
-        "ação do atendente (D14). `search` compõe com a aba: mesmo termo de "
+        "Reservas `PENDING`. Pendência vencida continua listada até "
+        "ação do atendente. `search` compõe com a aba: mesmo termo de "
         "`GET /guests/`, sobre quem tem check-in pendente."
     ),
     parameters=[GUEST_SEARCH_PARAMETER],
@@ -356,7 +356,7 @@ class GuestsPendingCheckinView(generics.ListAPIView):
         "Ativos, com capacidade suficiente e sem reserva ativa cruzando o "
         "intervalo. Quando o período começa hoje ou antes, quartos com hóspede "
         "ainda dentro (`CHECKED_IN` de qualquer data) também saem da lista — "
-        "a agenda pode ter liberado, o quarto não (D6/D7/D14)."
+        "a agenda pode ter liberado, o quarto não."
     ),
     parameters=[RoomAvailabilityQuerySerializer],
     responses={200: RoomSerializer(many=True), 400: ErrorEnvelopeSerializer},

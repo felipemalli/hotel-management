@@ -410,7 +410,6 @@ def test_copilot_previews_checkout_without_writing(auth_client, ai_on, calls, t7
     }
     assert statement["checked_out_at"] is None
     assert statement["payment"] is None
-    assert statement["extras"] == []
 
     t7.refresh_from_db()
     assert t7.status == ReservationStatus.CHECKED_IN

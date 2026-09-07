@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -17,8 +17,6 @@ class Statement:
     subtotal_parking: Decimal
     late_fees: list[LateFee]
     late_fee: Decimal
-    extras: list[AccountLine]
-    subtotal_extras: Decimal
     total: Decimal
 
     @property
@@ -26,19 +24,14 @@ class Statement:
         return bool(self.late_fees)
 
     @classmethod
-    def from_bill(cls, bill: Bill, *, extras: Iterable[AccountLine] = ()) -> Statement:
-        # list(...) sempre: `()` e `[]` nao sao iguais na comparacao do dataclass.
-        extras = list(extras)
-        subtotal_extras = quantize_money(sum((line.amount for line in extras), ZERO))
+    def from_bill(cls, bill: Bill) -> Statement:
         return cls(
             lines=bill.lines,
             subtotal_daily=bill.subtotal_daily,
             subtotal_parking=bill.subtotal_parking,
             late_fees=bill.late_fees,
             late_fee=bill.late_fee,
-            extras=extras,
-            subtotal_extras=subtotal_extras,
-            total=quantize_money(bill.total + subtotal_extras),
+            total=bill.total,
         )
 
 
@@ -47,7 +40,6 @@ def statement_from_lines(lines: Sequence[AccountLine], *, total: Decimal) -> Sta
     dailies: dict = {}
     parkings: dict = {}
     late_fee_lines: list[AccountLine] = []
-    extras: list[AccountLine] = []
 
     for line in lines:
         if line.kind == LineKind.DAILY:
@@ -57,7 +49,9 @@ def statement_from_lines(lines: Sequence[AccountLine], *, total: Decimal) -> Sta
         elif line.kind == LineKind.LATE_FEE:
             late_fee_lines.append(line)
         else:
-            extras.append(line)
+            # O extrato soma linha a linha e tem de fechar com o `total` congelado:
+            # engolir um tipo que ninguem renderiza esconderia dinheiro da conta.
+            raise ValueError(f"AccountLine de tipo {line.kind!r} nao tem renderizacao no extrato")
 
     if not dailies:
         raise InvalidStatusError("Extrato indisponível: esta reserva não tem linhas gravadas.")
@@ -82,14 +76,11 @@ def statement_from_lines(lines: Sequence[AccountLine], *, total: Decimal) -> Sta
         for line in sorted(late_fee_lines, key=lambda line: line.service_date)
     ]
 
-    subtotal_extras = quantize_money(sum((line.amount for line in extras), ZERO))
     return Statement(
         lines=bill_lines,
         subtotal_daily=quantize_money(sum((line.daily_rate for line in bill_lines), ZERO)),
         subtotal_parking=quantize_money(sum((line.parking_fee for line in bill_lines), ZERO)),
         late_fees=late_fees,
         late_fee=quantize_money(sum((fee.amount for fee in late_fees), ZERO)),
-        extras=extras,
-        subtotal_extras=subtotal_extras,
         total=total,
     )

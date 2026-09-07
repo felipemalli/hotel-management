@@ -8,7 +8,7 @@ from rest_framework import serializers
 from core.serializers import UserMinimalSerializer, money_field
 from hotel.billing.models import PaymentMethod
 from hotel.billing.selectors import payment_of
-from hotel.billing.serializers import AccountSerializer, ExtraLineSerializer, PaymentSerializer
+from hotel.billing.serializers import AccountSerializer, PaymentSerializer
 from hotel.guests.models import Guest
 from hotel.guests.serializers import GuestMinimalSerializer, GuestSerializer
 from hotel.reservations.models import Reservation, ReservationStatus
@@ -225,8 +225,6 @@ class StatementSerializer(serializers.Serializer):
     subtotal_daily = money_field()
     subtotal_parking = money_field()
     late_fee = LateFeeSerializer()
-    extras = ExtraLineSerializer(many=True)
-    subtotal_extras = money_field()
     total = money_field()
     payment = PaymentSerializer(allow_null=True)
 
@@ -245,8 +243,6 @@ def build_statement(reservation: Reservation, statement: Statement) -> dict[str,
             "amount": statement.late_fee,
             "days": statement.late_fees,
         },
-        "extras": statement.extras,
-        "subtotal_extras": statement.subtotal_extras,
         "total": statement.total,
         "payment": payment_of(reservation.account),
     }

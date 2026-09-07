@@ -64,11 +64,3 @@ class AccountSerializer(serializers.Serializer):
     closed_at = serializers.DateTimeField(read_only=True, allow_null=True)
     payment = PaymentSerializer(read_only=True, allow_null=True)
 
-
-class ExtraLineSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    service_date = serializers.DateField(read_only=True)
-    description = serializers.CharField(read_only=True)
-    quantity = serializers.DecimalField(max_digits=7, decimal_places=4, read_only=True)
-    unit_amount = money_field(read_only=True)
-    amount = money_field(read_only=True)

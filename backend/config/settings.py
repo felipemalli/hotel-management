@@ -36,9 +36,12 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "localhost,127.0.0.1,backend")
 
-# O proxy do Vite reescreve o Host e repassa o Origin: sem a lista, CSRF recusa por origem.
+# Vite (5173) na demo; Caddy (:80) no compose de producao. O proxy reescreve o Host
+# mas repassa o Origin do navegador, entao mesma origem nao dispensa a lista: sem
+# ela o CSRF recusa por origem.
 CSRF_TRUSTED_ORIGINS = env_list(
-    "CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost,http://127.0.0.1",
 )
 
 INSTALLED_APPS = [
@@ -139,8 +142,11 @@ else:
         "default": {
             "BACKEND": "django.core.cache.backends.db.DatabaseCache",
             "LOCATION": "django_cache",
-        }
     }
+}
+
+# 0 = gunicorn exposto (demo): ignora X-Forwarded-For. 1 = atras do Caddy.
+_NUM_PROXIES = int(env("NUM_PROXIES", "0"))
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -157,7 +163,7 @@ REST_FRAMEWORK = {
     },
     # Default do DRF (None) usa X-Forwarded-For. Gunicorn atende direto, entao
     # o cliente inventa o IP e zera o throttle. 0 = REMOTE_ADDR, ignora o header.
-    "NUM_PROXIES": int(env("NUM_PROXIES", "0")),
+    "NUM_PROXIES": _NUM_PROXIES,
     "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
 }
 
@@ -187,6 +193,11 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
+
+# Caddy termina o TLS: sem isto o Django ve http interno e cookie Secure / HSTS
+# nao batem com o que o navegador usou.
+if _NUM_PROXIES > 0:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 COOKIE_SECURE = env_bool("COOKIE_SECURE", not DEBUG)
 CSRF_COOKIE_SECURE = COOKIE_SECURE
 

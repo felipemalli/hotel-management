@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
 
     operations = [
         # pg_trgm ANTES dos indices: os GinIndex funcionais de Guest dependem da
-        # classe de operadores gin_trgm_ops (SPEC 1.4).
+        # classe de operadores gin_trgm_ops.
         TrigramExtension(),
         migrations.CreateModel(
             name='Guest',

@@ -21,8 +21,8 @@ class GuestManager(models.Manager):
 
     def bulk_create(self, *args, **kwargs):
         raise NotImplementedError(
-            "Guest.objects.bulk_create nao normaliza document/phone "
-            "(SPEC 2.1). Crie um por um com save(), ou use os services."
+            "Guest.objects.bulk_create nao normaliza document/phone. "
+            "Crie um por um com save(), ou use os services."
         )
 
 

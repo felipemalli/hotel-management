@@ -121,7 +121,7 @@ class Command(BaseCommand):
             # get_or_create nao mexe em linha existente: bancos antigos
             # guardariam para sempre um superusuario com senha publicada.
             user_model.objects.filter(pk=attendant.pk).update(is_staff=False, is_superuser=False)
-            self.stdout.write("  atendente rebaixado para usuario comum (SPEC 1.1)")
+            self.stdout.write("  atendente rebaixado para usuario comum")
             attendant.refresh_from_db()
         return attendant
 
@@ -182,7 +182,7 @@ class Command(BaseCommand):
             has_vehicle=has_vehicle,
             actor=actor,
             # today=checkin, nao localdate(): fichas de Bruno/Carla sao passadas
-            # e D11 recusa agendamento no passado.
+            # e agendamento no passado e recusado.
             today=checkin,
         )
         self.stdout.write(f"  reserva criada: {guest.full_name} {checkin} -> {checkout}")

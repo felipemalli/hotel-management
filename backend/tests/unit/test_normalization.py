@@ -20,7 +20,6 @@ from hotel.guests.normalization import (
     ],
 )
 def test_normalize_document_keeps_uppercase_alphanumerics(raw, expected):
-    """D9: documento e alfanumerico maiusculo -- passaporte nao perde as letras."""
     assert normalize_document(raw) == expected
 
 
@@ -33,7 +32,6 @@ def test_normalize_document_keeps_uppercase_alphanumerics(raw, expected):
     ],
 )
 def test_normalize_phone_keeps_digits_only(raw, expected):
-    """D9: telefone e digitos -- so a mascara de formatacao varia."""
     assert normalize_phone(raw) == expected
 
 
@@ -48,7 +46,7 @@ def test_normalize_phone_keeps_digits_only(raw, expected):
     ],
 )
 def test_to_e164_digits_accepts_international_numbers(raw, expected):
-    """A saida e digito puro: o `+` nao persiste (D9), so garante a entrada."""
+    """A saida e digito puro: o `+` nao persiste, so garante a entrada."""
     assert to_e164_digits(raw) == expected
 
 
@@ -82,7 +80,7 @@ def test_normalize_phone_still_accepts_fragments_for_search():
     """A funcao de BUSCA continua total: fragmento nao e telefone valido.
 
     Se `to_e164_digits` tivesse substituido `normalize_phone`, `?search=98888`
-    levantaria erro em vez de achar a Ana -- RF3 morreria junto com a validacao.
+    levantaria erro em vez de achar a Ana -- a busca morreria junto com a validacao.
     """
     assert normalize_phone("98888") == "98888"
     assert normalize_phone("(21) 98888") == "2198888"

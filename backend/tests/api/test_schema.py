@@ -47,7 +47,7 @@ def test_schema_covers_every_endpoint_of_the_contract(schema):
 
 
 def test_custom_actions_are_documented(schema):
-    """SPEC 4.4: cada action custom traz summary, request/response e erro 409."""
+    """Cada action custom traz summary, request/response e erro 409."""
     for path in CUSTOM_ACTIONS:
         operation = schema["paths"][path]["post"]
         assert operation["summary"], path
@@ -64,7 +64,7 @@ def test_docs_page_renders(api_client):
 
 
 def test_docs_page_is_csp_exempt_while_api_is_not(api_client):
-    """SPEC 2.4: o bootstrap inline do Swagger exige isencao pontual (V2)."""
+    """O bootstrap inline do Swagger exige isencao pontual de CSP."""
     docs = api_client.get("/api/docs/")
     api = api_client.get("/api/health/")
 
@@ -80,7 +80,7 @@ def test_docs_page_is_csp_exempt_while_api_is_not(api_client):
 
 
 def test_security_headers_are_present(api_client):
-    """SPEC 2.4: nosniff, referrer-policy e clickjacking."""
+    """nosniff, referrer-policy e clickjacking."""
     headers = api_client.get("/api/health/").headers
 
     assert headers["X-Content-Type-Options"] == "nosniff"

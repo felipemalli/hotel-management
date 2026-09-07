@@ -40,7 +40,7 @@ def test_seed_populates_the_three_tabs():
 
 
 def test_seed_freezes_a_weekend_statement_with_a_late_fee():
-    """Cenario da Carla: sex->dom com vaga e saida 12:01 = caso T7 (425,00)."""
+    """Cenario da Carla: sex->dom com vaga e saida 12:01 = 425,00."""
     run_seed()
 
     carla = Reservation.objects.get(
@@ -60,10 +60,10 @@ def test_seed_writes_through_the_services():
 
     O seed afirma no proprio docstring que passa pelos services, e por muito
     tempo isso valia apenas para as transicoes: hospede e reserva eram gravados
-    direto no ORM, contornando D12 e D11. Como o seed esta na cadeia de subida
-    do compose, ele e o primeiro cliente do dominio a rodar -- se ele pode
-    driblar a camada de mutacao, a afirmacao "toda escrita passa por servico"
-    (SPEC 0.3) e falsa na pratica.
+    direto no ORM, contornando as validacoes de servico. Como o seed esta na
+    cadeia de subida do compose, ele e o primeiro cliente do dominio a rodar --
+    se ele pode driblar a camada de mutacao, a afirmacao "toda escrita passa
+    por servico" e falsa na pratica.
     """
     created_guests: list[str] = []
     created_reservations: list[date] = []
@@ -94,7 +94,7 @@ def test_seed_writes_through_the_services():
     ]
     assert Guest.objects.count() == len(created_guests)
     assert len(created_reservations) == Reservation.objects.count()
-    # today=checkin: a ficha de Carla e passada e D11 recusa agendamento no passado.
+    # today=checkin: a ficha de Carla e passada e o servico recusa agendamento no passado.
     assert min(created_reservations) < timezone.localdate()
 
 
@@ -147,7 +147,6 @@ def test_seed_creates_admin_role_without_staff_flag():
 
 
 def test_seed_never_logs_pii():
-    """SPEC 2.2: log nao contem documento nem telefone."""
     output = run_seed()
 
     assert "123.456.789-01" not in output

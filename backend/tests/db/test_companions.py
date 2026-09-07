@@ -153,7 +153,7 @@ def test_checkin_rejects_holder_who_is_companion_elsewhere(actor):
 
 
 def test_bill_ignores_companions(actor):
-    """T7 com dois acompanhantes continua 425,00: preco nao muda com pessoas."""
+    """Com dois acompanhantes continua 425,00: preco nao muda com pessoas."""
     reservation = book(
         actor=actor,
         room=RoomFactory(capacity=4),
@@ -198,7 +198,7 @@ def test_search_in_hotel_matches_companion_by_own_name(actor):
 
 
 def test_pending_includes_own_and_companion_reservations(actor):
-    """Simetria com RF4: se conta como hospedado depois, conta como esperado antes."""
+    """Simetria: se conta como hospedado depois, conta como esperado antes."""
     eva = GuestFactory(full_name="Eva Lima")
     book(actor=actor, guest=GuestFactory(full_name="Bruno Lima"), companions=[eva])
 

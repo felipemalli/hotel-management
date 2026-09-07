@@ -1,295 +1,88 @@
 # Gestão de Hóspedes de Hotel
 
-Sistema de recepção para o balcão: cadastro de hóspedes, reservas, localização
-por nome/documento/telefone, check-in com alerta antes das 14h, checkout com
-extrato detalhado (diária a diária, taxa de vaga e multa de saída após as 12h).
+Sistema de recepção para o balcão de um hotel: cadastro de hóspedes, reservas,
+localização por nome/documento/telefone, check-in com alerta antes das 14h e
+checkout com extrato detalhado — diária a diária, taxa de vaga e multa de saída
+após as 12h.
 
 **Stack:** Python 3.13 · Django 5.2 LTS · DRF · PostgreSQL 17 · React 18 · Vite ·
 TypeScript · Tailwind · Base UI (shadcn) · `uv` · Docker Compose · Playwright.
 
-Princípio de projeto: **escopo mínimo do briefing, executado com acabamento
-sênior.** Nada entra sem contrato documentado e sem teste que o comprove — e o
-que o briefing não pede fica de fora de propósito (§ [8](#8-escopo-deliberadamente-fora)).
-
-| | |
-|---|---|
-| Aplicação | <http://localhost:5173> |
-| API | <http://localhost:8000/api/> |
-| Swagger (contrato navegável) | <http://localhost:8000/api/docs/> |
-| Credenciais do seed | `atendente` / `atendente123` · `admin` / `admin123` |
-| Atenção | O esquema mudou (quarto obrigatório, nacionalidade obrigatória): rode `docker compose down -v` antes de subir sobre um volume antigo. |
-
-**Índice**
-
-1. [Quickstart com Docker (caminho canônico)](#1-quickstart-com-docker-caminho-canônico)
-2. [Execução sem Docker completo (caminho híbrido)](#2-execução-sem-docker-completo-caminho-híbrido)
-3. [Verificação: as suítes de teste](#3-verificação-as-suítes-de-teste)
-   - 3.1. [Matriz de rastreabilidade (RF/RN → prova)](#31-matriz-de-rastreabilidade-rfrn--prova)
-4. [Decisões de interpretação](#4-decisões-de-interpretação)
-5. [Chaves, variáveis de ambiente e privacidade](#5-chaves-variáveis-de-ambiente-e-privacidade)
-6. [Mapa da API](#6-mapa-da-api)
-7. [Arquitetura em uma página](#7-arquitetura-em-uma-página)
-8. [Escopo deliberadamente fora](#8-escopo-deliberadamente-fora)
-9. [Ferramentas de desenvolvimento](#9-ferramentas-de-desenvolvimento)
+|                              |                                                             |
+| ---------------------------- | ----------------------------------------------------------- |
+| Aplicação                    | <http://localhost:5173>                                     |
+| API                          | <http://localhost:8000/api/>                                |
+| Swagger (contrato navegável) | <http://localhost:8000/api/docs/>                           |
+| Credenciais do seed          | `atendente` / `atendente123` · `admin` / `admin123`         |
 
 ---
 
-## 1. Quickstart com Docker (caminho canônico)
+## 1. Subir
 
-Pré-requisitos: **Docker** com o plugin **Compose v2** (`docker compose`, sem
-hífen) e `git`. Nem Python, nem Node, nem PostgreSQL na máquina — só a geração
-das chaves usa um `python3` local, e há alternativa em container para quem não
-o tem.
-
-### 1.1 Passo a passo
+Pré-requisitos: **Docker** com Compose v2 e `git`. Nem Python, nem Node, nem
+PostgreSQL na máquina.
 
 ```bash
-# 1. clonar
 git clone https://github.com/felipemalli/hotel-management.git
 cd hotel-management
-
-# 2. criar o .env a partir do exemplo documentado
 cp .env.example .env
 
-# 3. gerar a SECRET_KEY (uma linha, sem espaços)
+# gere a SECRET_KEY e cole no .env (sem python3 na máquina: ver docs/COMO-RODAR.md)
 python3 -c "import secrets; print(secrets.token_urlsafe(50))"
-```
 
-Cole o valor em `SECRET_KEY` no `.env`. Sem `python3` na máquina, gere dentro
-da própria imagem do backend:
-
-```bash
-docker compose build backend
-docker compose run --rm --no-deps backend uv run python -c "import secrets; print(secrets.token_urlsafe(50))"
-```
-
-> **Se a porta 5432 já estiver ocupada** na sua máquina (um PostgreSQL local,
-> por exemplo), ajuste no `.env` **as duas** variáveis de porta antes de subir:
-> `DB_PORT_HOST=5433` (porta publicada no host) e `DB_PORT=5433` (usada apenas
-> fora do Compose — dentro dele o backend fala com `db:5432`). Ver a matriz da
-> seção [5.2](#52-matriz-de-variáveis-de-ambiente).
-
-```bash
-# 4. subir tudo
 docker compose up --build
 ```
 
-> A demo serve em `http://localhost`, sem TLS, então o Compose sobe com
-> `COOKIE_SECURE=0` e os cookies saem sem a flag `Secure`. Sobre http, só
-> Chromium e Firefox aceitam cookie `Secure` em loopback; sem isso o login
-> responde 200 mas o cookie do refresh é descartado, e o F5 devolve a tela de
-> entrar. Atrás de TLS, `COOKIE_SECURE=1` (ver
-> [5.2](#52-matriz-de-variáveis-de-ambiente)).
->
-> Para abrir a demo de outra máquina, pelo IP da rede, não basta: as rotas de
-> sessão comparam o `Origin`, então acrescente `http://<ip>:5173` a
-> `CSRF_TRUSTED_ORIGINS` no `.env` — senão renovar e sair respondem 403.
+O Compose encadeia `migrate → createcachetable → collectstatic → seed_demo →
+gunicorn` sem nenhum script `.sh` no repositório, e o frontend espera o
+healthcheck do backend. Ao fim, o log do seed imprime as credenciais.
 
-O que acontece nessa ordem, sem nenhum script `.sh` no repositório (a cadeia
-vive no próprio `docker-compose.yml`): o `db` sobe e fica `healthy`; o backend
-roda `migrate`, `collectstatic` e `seed_demo`, e só então sobe o `gunicorn`; o
-frontend espera o healthcheck do backend e sobe o Vite. Fim da subida, o log do
-seed mostra algo assim:
+> Subindo sobre um volume antigo, rode `docker compose down -v` antes: o
+> esquema mudou (quarto e nacionalidade obrigatórios).
 
-```
-Seed de demonstracao aplicado.
-Atendente: atendente / atendente123 | Admin: admin / admin123 | hospedes: 4 | reservas: 3
-```
-
-As duas contas são credenciais de **demonstração**, e as duas são usuários
-comuns: `is_staff=False` nas duas, inclusive na de `admin`. O papel
-(`role=ATTENDANT` / `role=ADMIN`) é do produto e decide o acesso às rotas
-administrativas da API — é o único permissionamento que existe aqui. **O admin
-do Django não está instalado:** ele seria uma porta que grava na base sem passar
-por service nenhum, e nenhuma regra deste domínio sobreviveria a ela. Para
-inspecionar dados, use o Swagger (`/api/docs/`) ou `docker compose exec db psql`.
-`GET /api/auth/me/` devolve `{id, username, role}`: é como o frontend sabe se
-deve oferecer o painel administrativo.
-
-### 1.2 Verificação rápida (o mesmo que o CI faz)
+**Produção num único host (EC2).** O `docker-compose.yml` é a demo (Vite na
+5173, `seed_demo` no boot, portas do banco publicadas). No servidor:
 
 ```bash
-curl -sf localhost:8000/api/health/            # {"status":"ok"}
-curl -sf localhost:8000/api/docs/  >/dev/null  # Swagger UI
-curl -sf localhost:5173            >/dev/null  # app
+# no .env: SECRET_KEY, COOKIE_SECURE=1, ALLOWED_HOSTS e CSRF_TRUSTED_ORIGINS
+# do dominio (ou deixe COOKIE_SECURE=0 e DOMAIN=:80 para HTTP no IP da VM)
+docker compose -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.prod.yml exec backend uv run python manage.py seed_demo
 ```
 
-### 1.3 Dados de demonstração
+Caddy na 80/443 faz o papel do proxy do Vite (`/api` e `/static` → Django, o
+resto → SPA). Postgres e Redis não saem na internet. Variáveis: `.env.example`.
 
-O seed é **idempotente** e usa **datas relativas** — não há literal de data no
-código, então o cenário é válido em qualquer dia em que você rodar. Ele nunca
-escreve `status` na mão: as transições passam pelos mesmos *services* que a API
-usa, com o relógio injetado.
+**Porta 5432 ocupada, execução sem Docker, matriz completa de variáveis de
+ambiente e um roteiro de demonstração de 5 minutos:**
+[`docs/COMO-RODAR.md`](docs/COMO-RODAR.md).
 
-| Hóspede | Situação | Serve para demonstrar |
-|---|---|---|
-| **Ana Souza** | Reserva `PENDING` com entrada **hoje**, com veículo | aba "Check-in pendente" e o fluxo de check-in |
-| **Bruno Lima** | `CHECKED_IN` (check-in ontem às 15:00), no quarto 102 com a acompanhante **Eva Lima** | aba "No hotel", o fluxo de checkout e a listagem de acompanhantes (D19) |
-| **Eva Lima** | Acompanhante do Bruno — hóspede completa, argentina (`+54 11 5555-4444`) | que as abas listam quem não reservou, e o telefone com DDI de estrangeiro |
-| **Carla Nunes** | `CHECKED_OUT` — sexta→domingo passados, com vaga, saída 12:01 | extrato com diária de fim de semana (R$ 180,00) **e** multa de R$ 90,00 |
-| **Davi Rocha** | Sem reserva | busca por nome, documento e telefone |
+### Dados de demonstração
 
-Quatro quartos, com capacidades diferentes — a capacidade é o único freio ao
-número de pessoas numa reserva (D17):
+O seed é idempotente e usa **datas relativas** — o cenário é válido em qualquer
+dia. Ele nunca escreve `status` na mão: as transições passam pelos mesmos
+services que a API usa, com o relógio injetado.
 
-| Quarto | Capacidade |
-|---|---|
-| 101 | 2 |
-| 102 | 2 (Bruno e Eva) |
-| 103 | 3 |
-| 201 | 4 |
+| Hóspede         | Situação                                              | Demonstra                                    |
+| --------------- | ----------------------------------------------------- | -------------------------------------------- |
+| **Ana Souza**   | `PENDING`, entrada hoje, com veículo                  | aba "Check-in pendente" e o fluxo de check-in |
+| **Bruno Lima**  | `CHECKED_IN` no quarto 102, com a acompanhante Eva    | aba "No hotel", checkout, acompanhantes (D19) |
+| **Eva Lima**    | Acompanhante do Bruno, argentina (`+54 11 5555-4444`) | telefone com DDI estrangeiro                  |
+| **Carla Nunes** | `CHECKED_OUT` sex→dom, com vaga, saída 12:01          | extrato com diária de fds **e** multa de 90,00 |
+| **Davi Rocha**  | Sem reserva                                           | busca por nome, documento e telefone          |
 
-Dois usuários: **`atendente` / `atendente123`** faz o dia do balcão, e
-**`admin` / `admin123`** é quem também cadastra quarto e publica tarifa. Os
-dois têm `is_staff=False`: o papel é do produto, e o admin do Django não está
-instalado.
+Quatro quartos — 101 (cap. 2), 102 (2), 103 (3), 201 (4). A capacidade é o
+único freio ao número de pessoas numa reserva (D17).
 
-### 1.4 Fluxo de demonstração (≈ 5 minutos)
-
-1. Abra <http://localhost:5173> e entre com **`atendente` / `atendente123`**.
-2. **Aba "Todos" — localizar (RF3).** Digite `ana` na busca: o nome acha por
-   fragmento. Agora `789` e depois `123.456.789-01`: os dois acham a
-   mesma Ana Souza — documento e telefone estão em claro, já normalizados, e a
-   busca é por fragmento em qualquer formatação. O mesmo vale para `98888`.
-   Na tabela, CPF e telefone aparecem formatados pelo frontend, o telefone já
-   com o código do país (`+55 (21) 98888-7777`), e a nacionalidade aparece pelo
-   código, com o nome por extenso no `title`.
-3. **Cadastrar (RF1).** "Novo hóspede" → nome, documento, telefone e
-   nacionalidade → cadastrar. O telefone exige o **código do país**
-   (`+55 21 98888-7777`): digitar `(21) 98888-7777` para no próprio campo, com
-   a mesma frase que o servidor usaria, e a coluna guarda só os dígitos E.164
-   (D9). A nacionalidade é um código ISO 3166-1 alpha-2, escolhido numa lista
-   com o Brasil no topo. O formulário abre em seguida a criação da reserva
-   desse hóspede (RF2): a entrada não pode ser no passado e o mínimo é 1 noite.
-4. **Reservar com quarto e acompanhantes (RF2, D16, D19).** No formulário de
-   reserva, escolher entrada e saída carrega a lista de **quartos livres no
-   período** (`GET /api/rooms/available/`), já filtrada pela capacidade — somar
-   um acompanhante refaz a consulta com uma pessoa a mais, e um quarto que sai
-   da lista é desmarcado em vez de seguir para um 409 certo. Acompanhante é
-   hóspede completo: só se escolhe quem já está cadastrado. Se outro atendente
-   tomar o quarto no meio do caminho, o `409 ROOM_UNAVAILABLE` aparece no topo
-   do formulário com a data da reserva conflitante, e a lista é recarregada.
-5. **Check-in (RF6, RN4).** Aba "Check-in pendente" → linha da Ana Souza →
-   "Check-in". Antes do horário de abertura, a API responde `409 EARLY_CHECKIN`
-   e a aplicação abre o alerta com a hora do servidor ("São 13:45 — o check-in
-   abre às 14:00. Confirmar mesmo assim?"); confirmar reenvia com `allow_early:
-   true` e efetiva. O horário do texto é o `opens_at` da **política vigente**,
-   não uma constante da tela: publicar outra abertura muda a frase. A partir
-   dele, o check-in é direto. O briefing pede *alerta*, não bloqueio (D4).
-6. **Checkout com extrato (RF7, RN5, RN6).** Aba "No hotel" → a estadia do
-   Bruno aparece em duas linhas, a dele e a da acompanhante Eva, as duas com o
-   quarto 102 e a segunda marcada como "Acompanhante". Linha do Bruno Lima →
-   "Checkout". Abre o extrato: uma linha por diária (data, dia da
-   semana, diária, vaga), subtotais, a linha de multa **apenas** se houve saída
-   após as 12h, e o total em destaque. A linha da multa nomeia a **base** sobre
-   a qual ela incide, e não uma porcentagem: o fator vem da política e o extrato
-   não o carrega. Os totais ficam congelados na reserva na mesma transação — um
-   segundo checkout responde `409 INVALID_STATUS`. Abaixo do total, a conta
-   aparece como **"Em aberto"**: escolha a forma de pagamento e clique em
-   "Registrar pagamento" (D18). O extrato passa a mostrar "Pago em … · Pix ·
-   por atendente" e não muda em mais nada — pagar não recalcula. Pagar de novo
-   responde `409 INVALID_STATUS` com o `paid_at`, e a tela relê o extrato já
-   pago em vez de insistir num botão que não cabe mais.
-7. **Reservas (`/reservas`).** O menu leva à lista completa, com filtro por
-   status e — só sobre conta fechada — por pagamento. Os filtros e a página
-   vivem na **URL** (`?status=CHECKED_OUT&paid=false`), então recarregar,
-   voltar e compartilhar preservam a consulta. O filtro de pagamento aparece
-   apenas em "Finalizada" de propósito: no servidor `paid=false` casa também
-   toda reserva que ainda não pagou porque nem fechou.
-8. **Detalhe da reserva (`/reservas/:id`).** "Detalhes" abre a ficha: quarto e
-   datas, titular com documento, telefone e nacionalidade formatados,
-   acompanhantes, e o **histórico com ator** — quem criou, quem fez o check-in,
-   quem fechou, quem recebeu. A conta congelada aparece só depois do checkout,
-   e "Ver extrato" reimprime a 2ª via (idêntica, porque o servidor hidrata as
-   linhas gravadas em vez de recalcular). As ações disponíveis seguem o status:
-   uma reserva cancelada não oferece nenhuma.
-9. **Quartos (`/quartos`).** O atendente vê o inventário em leitura — número,
-   capacidade e situação —, o que ajuda no balcão. Saia e entre como **`admin`
-   / `admin123`**: aparecem o chip "admin" no cabeçalho, "Novo quarto" e, em
-   cada linha, o menu **"⋯"** ("Ações do quarto 101") com "Editar capacidade" e
-   "Desativar"/"Reativar". Cadastre o 301, edite uma capacidade pelo menu
-   (abaixo do maior grupo com reserva ativa o servidor recusa no próprio
-   campo) e tente desativar o 102, que tem estadia em curso: `409` no aviso, e
-   a confirmação continua aberta. Nenhum 403 chega ao atendente, porque nem o
-   menu nem "Novo quarto" são renderizados para ele.
-10. **Tarifas (`/tarifas`).** Ainda como `admin`: a tarifa vigente aparece com
-    diárias, vagas, fator da multa e horários; o histórico lista o que já
-    valeu, com quem publicou. "Publicar nova tarifa" abre o formulário **já
-    preenchido com a vigente** — mude a abertura do check-in para `23:00` e
-    publique. O próximo check-in responde "Check-in permitido a partir das
-    23:00", e o extrato da Carla continua **R$ 425,00**: a política é amarrada
-    no check-in (D15), então publicar muda o futuro e nunca o passado. O
-    formulário aceita `120,5` e envia `"120.50"` — a normalização é de texto
-    (`toDecimalString`), sem passar por ponto flutuante.
-11. **Contrato navegável.** Abra <http://localhost:8000/api/docs/>: todos os
-   endpoints da seção [6](#6-mapa-da-api), com exemplos de request, de resposta
-   e dos erros de cada rota.
-
-Para derrubar tudo: `docker compose down` (some com os containers) ou
-`docker compose down -v` (some também com o volume do banco).
+Os dois usuários do seed são **usuários comuns** (`is_staff=False` nos dois): o
+papel `ATTENDANT`/`ADMIN` é do produto e decide o acesso às rotas
+administrativas. **O admin do Django não está instalado** — ele seria uma porta
+que grava na base sem passar por service nenhum. Para inspecionar dados, use o
+Swagger ou `docker compose exec db psql`.
 
 ---
 
-## 2. Execução sem Docker completo (caminho híbrido)
-
-O briefing pede os procedimentos "**dos projetos**" — lido aqui como *dos dois
-projetos* (backend e frontend), e não como *vários métodos de execução*. O
-Compose cobre os dois em um comando, e é o caminho canônico da seção 1.
-
-Ainda assim, documenta-se o caminho híbrido por resiliência: se o Docker do
-avaliador não colaborar com a build das imagens, o banco em container e as duas
-aplicações nativas resolvem. Pré-requisitos extras: **Python 3.12+** com
-[`uv`](https://docs.astral.sh/uv/) e **Node 24**, a mesma versão da imagem do
-frontend e do CI — é a única em que este caminho foi de fato exercitado.
-
-```bash
-# 0. o .env da seção 1 já preenchido; para o caminho híbrido, DB_PORT deve valer
-#    o mesmo que DB_PORT_HOST (fora do Compose fala-se com a porta publicada).
-
-# 1. só o banco em container
-docker compose up -d db
-
-# 2. backend nativo (novo terminal, na raiz do repositório)
-cd backend
-set -a && . ../.env && set +a   # o Django lê variáveis do ambiente, não do .env
-uv sync
-uv run python manage.py migrate
-uv run python manage.py createcachetable          # tabela do cache: sem ela o login responde 500
-uv run python manage.py collectstatic --noinput   # CSS do Swagger com DEBUG=0
-uv run python manage.py seed_demo
-uv run python manage.py runserver 0.0.0.0:8000
-
-# 3. frontend nativo (outro terminal, na raiz do repositório)
-cd frontend
-pnpm install --frozen-lockfile
-pnpm run dev
-```
-
-Aplicação em <http://localhost:5173>, API em <http://localhost:8000>. O Vite faz
-proxy de `/api` para `http://localhost:8000` (é o default fora do Compose; dentro
-dele, `VITE_API_PROXY_TARGET=http://backend:8000`) — por isso **não existe CORS
-neste projeto**: no browser, tudo é a mesma origem.
-
-Três notas honestas sobre esse caminho:
-
-- `DB_HOST=localhost` é o default do `settings.py` justamente para ele; é o
-  Compose que injeta `DB_HOST=db`.
-- o `collectstatic` está na lista pelo mesmo motivo que está na cadeia do
-  Compose: com `DEBUG=0`, quem serve estático é o WhiteNoise a partir do
-  `STATIC_ROOT`, e ele monta o índice dos arquivos **na subida**. Sem esse
-  passo (ou rodando-o com o servidor já no ar), `/api/docs/` responde 200 mas
-  sem CSS.
-- `runserver` é servidor de desenvolvimento, sem gunicorn: o runtime
-  **entregue e testado** é o da seção 1.
-
----
-
-## 3. Verificação: as suítes de teste
-
-Três suítes: backend em Pytest (unitários puros do motor financeiro, testes de
-banco com PostgreSQL real e testes de API ponta a ponta), frontend em Vitest +
-Testing Library, e e2e em Playwright contra o backend real. Os comandos abaixo
-são a verdade; contagem de testes envelhece a cada commit e não vale como prova.
+## 2. Verificar
 
 ```bash
 # backend — comando canônico, com o piso de cobertura
@@ -298,677 +91,249 @@ docker compose exec backend uv run pytest --cov=hotel --cov=accounts --cov=core 
 # grafo de dependências entre os apps (o mesmo contrato que o CI cobra)
 docker compose exec backend uv run lint-imports
 
-# frontend — o script único, na mesma ordem em que o CI o executa passo a passo
+# frontend — typecheck · lint · format:check · test:coverage · build
 cd frontend && pnpm run check
 
-# e2e — sobe backend (gunicorn) e frontend (vite) sozinho, contra o banco real
+# e2e — sobe gunicorn e Vite sozinho, contra o banco real
 cd frontend && pnpm exec playwright install chromium && pnpm run e2e
 ```
 
-`pnpm run check` é `typecheck && lint && format:check && test:coverage && build`.
-Os cinco também rodam soltos quando você quer só um (`pnpm run lint`,
-`pnpm run test -- --run`, `pnpm run format` para corrigir a formatação em vez de
-apenas conferi-la).
+Três suítes de backend (unitários puros do motor financeiro, testes de banco
+com PostgreSQL real, testes de API ponta a ponta), Vitest + Testing Library no
+frontend e Playwright contra o backend real. **Nenhum teste toca a rede**, e
+isso é fiscalizado: dois fixtures `autouse` no `conftest.py` zeram a
+`OPENAI_API_KEY` e bloqueiam o `httpx.post` na suíte inteira.
 
-Sem a stack de pé, o mesmo pelo caminho híbrido: `cd backend && uv run pytest -q`
-(precisa do `db` no ar e das variáveis exportadas, como na seção 2).
-
-**O que é "integração" aqui, e por que MSW foi rejeitado.** A maioria dos testes
-de frontend monta a página ou o componente real com `QueryClient`, roteador e
-RHF de verdade; o único ponto dublado é `@/features/*/api.ts` (`vi.mock`, zero
-mock de hook, de axios ou de router). MSW foi cogitado e recusado: ele dublaria
-a mesma camada uma porta mais abaixo, sem provar nada que o mock de API já não
-prove, pelo custo de manter handlers sincronizados com o contrato. Unitário
-puro fica para lógica sem UI (dinheiro, PII, datas, schemas com regra); e2e
-fica para o fluxo real contra o backend — só Chromium, porque o objetivo é
-provar o contrato ponta a ponta, não compatibilidade entre motores de
-navegador (nenhuma regra de negócio depende de um `overflow` ou de uma
-API do WebKit). Um project `webkit` funcionaria com `COOKIE_SECURE=0`, o default
-da demo; com a flag ligada, o WebKit descarta cookie `Secure` sobre http e o dev
-precisaria de TLS.
-
-**Cobertura condicionada ao que importa, não perseguida como meta.** O piso
-global é propositalmente baixo (80% de linhas) — é um alarme contra regressão
-grosseira, não uma barra a escalar. Pinos altos (95–100%) ficam só onde há
-regra ou contrato: `money.ts`, `dates.ts`, `normalize.ts` e os `schemas.ts` de
-cada feature. Percentual não prova requisito — a **matriz de rastreabilidade**
-abaixo prova, e o CI a guarda com um teste próprio (ela não pode divergir do
-código sem que a suíte quebre).
-
-Duas garantias que valem mencionar porque são incomuns:
-
-- **A tabela de casos numéricos é a fonte da verdade, e é replicada 1:1** em
-  `backend/tests/unit/test_pricing.py` (9 casos parametrizados, incluindo as
-  fronteiras 11:59 / 12:00:00 / 12:01 e o day-use) e em
-  `frontend/src/features/reservations/__fixtures__/bills.ts` (render do
-  extrato). Divergência entre backend, frontend e tabela quebra a suíte.
-- **Nenhum teste toca a rede** — e isso não é convenção, é fiscalizado. Dois
-  fixtures `autouse` no `conftest.py` zeram a `OPENAI_API_KEY` e bloqueiam o
-  `httpx.post` na suíte inteira, então um teste novo que esquecesse de dublar o
-  transporte falha alto em vez de gastar crédito do provedor. A Íris (seção 5.4)
-  é testada com o transporte HTTP dublado: a fila de respostas do teste encena o
-  laço de *tool use* rodada por rodada, e o caminho sem chave é exercitado de
-  verdade.
-
-### 3.1 Matriz de rastreabilidade (RF/RN → prova)
-
-Os ids abaixo são **normativos** (RESUMO-DO-PROJETO.md §10, local e fonte
-única): um arquivo pode mudar de pasta, mas o nome do arquivo e o id do caso
-não mudam sem que a matriz mude primeiro. `describe(...)` no frontend carrega
-a mesma tag (`'CheckoutStatementDialog · RF7 · RN1 · RN2 · RN3 · RN5 · RN6'`),
-o que permite rodar só uma fatia: `pnpm test -- --run -t "RN5"` no frontend,
-`pnpm e2e --grep @RN5` no e2e.
-
-| ID | Prova backend | Prova frontend (unitário/integração) | Prova e2e |
-| --- | --- | --- | --- |
-| RF1 | `test_create_guest_persists_normalized_pii` | `GuestForm.test.tsx::test_requires_name_document_phone` | `reception.spec.ts` |
-| RF2 | `test_create_reservation_persists_pending` | `ReservationForm.test.tsx::test_submits_dates_and_vehicle_flag` | `reception.spec.ts` |
-| RF3 | `test_search_name_fragment` e afins | `GuestTable.test.tsx::test_search_input_debounces_and_queries` | `reception.spec.ts` |
-| RF4 | `test_in_hotel_only_checked_in` | `GuestTable.test.tsx::test_tab_in_hotel_switches_dataset` | — |
-| RF5 | `test_pending_checkin_lists_pending` | `GuestTable.test.tsx::test_tab_pending_switches_dataset` | `reception.spec.ts` |
-| RF6 | `test_checkin_after_14_succeeds` | `EarlyCheckinFlow.test.tsx::test_checkin_success_updates_row` | `reception.spec.ts` |
-| RF7 | `test_checkout_freezes_totals` | `CheckoutStatementDialog.test.tsx::test_T7_full_statement` | `reception.spec.ts`, `checkout.spec.ts` |
-| RF8 | `test_login_returns_access_and_sets_refresh_cookie` | `ProtectedRoute.test.tsx::test_redirects_anonymous_to_login` | `login.spec.ts`, `admin.spec.ts` |
-| RN1 | `test_truth_table[T1]`, `[T4]` | `test_T1_no_late_fee_line` | `checkout.spec.ts` |
-| RN2 | `test_truth_table[T2]` | `test_T7_full_statement` | `checkout.spec.ts` |
-| RN3 | `test_truth_table[T2]`, `[T3]`, `[T9]` | `test_T7_full_statement` | `checkout.spec.ts` |
-| RN4 | `test_early_checkin_boundaries` | `EarlyCheckinFlow.test.tsx::test_409_opens_dialog_and_retry_allow_early` | `reception.spec.ts` (fronteira 14h não afirmada ponta a ponta — relógio real) |
-| RN5 | `test_truth_table[T5]`, `[T7]`, `[T8]` | `test_T7_full_statement` (+ `test_T1_no_late_fee_line`) | `checkout.spec.ts` |
-| RN6 | `test_checkout_statement_matches_T7` | `test_T7_full_statement` (prova primária de exibição) | `checkout.spec.ts` |
-
-O CI (`.github/workflows/ci.yml`) roda três jobs em `ubuntu-latest` a partir do
-checkout — que é, por construção, a simulação contínua do clone limpo do
-avaliador — e o `e2e` só começa depois que `backend` e `frontend` passam. Cada
-verificação é um passo nomeado, para que a falha aponte o culpado sem abrir o
-log; duas delas são guardas de texto contra dinheiro em ponto flutuante (uma
-por lado), e o frontend tem mais duas guardas próprias — os ids normativos
-acima existem de verdade, e os arquivos que os pinos de cobertura apontam
-também existem (glob sem arquivo passa em silêncio: mapa vazio é 100%):
-
-```bash
-# backend: nada no domínio, no núcleo ou na Íris constrói um float
-! grep -RnE "float\(" backend/hotel backend/accounts backend/core backend/ai
-
-# frontend: o módulo que formata dinheiro e o extrato não convertem para número
-! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" \
-    src/lib/format/money.ts src/features/reservations/components/CheckoutStatementDialog \
-    src/features/reservations/components/ReservationSections \
-    src/features/reservations/components/ReservationTable src/features/pricing
-```
+Doutrina de teste, política de cobertura e o ferramental do CI:
+[`docs/QUALIDADE.md`](docs/QUALIDADE.md).
 
 ---
 
-## 4. Decisões de interpretação
+## 3. Rastreabilidade: cada requisito do briefing → a prova
+
+Esta é a seção que responde "o que foi pedido está feito?". Os ids são
+**normativos**: um arquivo pode mudar de pasta, mas o nome do arquivo e o id do
+caso não mudam sem que esta matriz mude primeiro. O CI a guarda com um teste
+próprio — ela não pode divergir do código sem que a suíte quebre.
+
+| ID  | Requisito do briefing               | Prova backend                                     | Prova frontend                                     | e2e                     |
+| --- | ----------------------------------- | ------------------------------------------------- | -------------------------------------------------- | ----------------------- |
+| RF1 | Cadastro persistente de hóspede     | `test_create_guest_persists_normalized_pii`       | `GuestForm.test.tsx::test_requires_name_document_phone`     | `reception.spec.ts`     |
+| RF2 | Reservas persistentes               | `test_create_reservation_persists_pending`        | `ReservationForm.test.tsx::test_submits_dates_and_vehicle_flag` | `reception.spec.ts` |
+| RF3 | Localizar por nome, documento, tel. | `test_search_name_fragment` e afins               | `GuestTable.test.tsx::test_search_input_debounces_and_queries` | `reception.spec.ts`  |
+| RF4 | Hóspedes ainda no hotel             | `test_in_hotel_only_checked_in`                   | `GuestTable.test.tsx::test_tab_in_hotel_switches_dataset`   | —                       |
+| RF5 | Com reserva, sem check-in           | `test_pending_checkin_lists_pending`              | `GuestTable.test.tsx::test_tab_pending_switches_dataset`    | `reception.spec.ts`     |
+| RF6 | Atendente realiza o check-in        | `test_checkin_after_14_succeeds`                  | `EarlyCheckinFlow.test.tsx::test_checkin_success_updates_row` | `reception.spec.ts`   |
+| RF7 | Atendente realiza o checkout        | `test_checkout_freezes_totals`                    | `CheckoutStatementDialog.test.tsx::test_T7_full_statement`  | `reception.spec.ts`, `checkout.spec.ts` |
+| RF8 | Login                               | `test_login_returns_access_and_sets_refresh_cookie` | `ProtectedRoute.test.tsx::test_redirects_anonymous_to_login` | `login.spec.ts`, `admin.spec.ts` |
+| RN1 | Diária útil R$ 120,00               | `test_truth_table[T1]`, `[T4]`                    | `test_T1_no_late_fee_line`                         | `checkout.spec.ts`      |
+| RN2 | Diária de fim de semana R$ 180,00   | `test_truth_table[T2]`                            | `test_T7_full_statement`                           | `checkout.spec.ts`      |
+| RN3 | Vaga R$ 15,00 / R$ 20,00            | `test_truth_table[T2]`, `[T3]`, `[T9]`            | `test_T7_full_statement`                           | `checkout.spec.ts`      |
+| RN4 | Check-in a partir das 14h, c/ alerta | `test_early_checkin_boundaries`                  | `test_409_opens_dialog_and_retry_allow_early`      | `reception.spec.ts` (fronteira 14h não afirmada — relógio real) |
+| RN5 | Checkout até 12h, multa de 50%      | `test_truth_table[T5]`, `[T7]`, `[T8]`            | `test_T7_full_statement`                           | `checkout.spec.ts`      |
+| RN6 | Extrato detalhado no checkout       | `test_checkout_statement_matches_T7`              | `test_T7_full_statement`                           | `checkout.spec.ts`      |
+
+`describe(...)` no frontend carrega a mesma tag, então dá para rodar uma fatia:
+`pnpm test -- --run -t "RN5"`.
+
+---
+
+## 4. As regras de negócio em números
+
+Calendário de referência **março/2025** (03=seg … 08=sáb, 09=dom, 10=seg). Esta
+tabela é a fonte da verdade do dinheiro e é replicada **1:1** em
+`backend/tests/unit/test_pricing.py` e em
+`frontend/src/features/reservations/__fixtures__/bills.ts` — divergência entre
+os três quebra a suíte.
+
+| ID  | Check-in real | Checkout real       | Vaga | Diárias         | Vaga R$ | Multa | **TOTAL**  |
+| --- | ------------- | ------------------- | ---- | --------------- | ------- | ----- | ---------- |
+| T1  | Seg 03 15:00  | Qua 05 11:00        | Não  | 120+120=240     | 0       | 0     | **240,00** |
+| T2  | Sáb 08 14:00  | Seg 10 10:00        | Sim  | 180+180=360     | 40      | 0     | **400,00** |
+| T3  | Sex 07 16:00  | Seg 10 11:30        | Sim  | 120+180+180=480 | 55      | 0     | **535,00** |
+| T4  | Ter 04 14:00  | Qui 06 **11:59**    | Não  | 240             | 0       | 0     | **240,00** |
+| T5  | Ter 04 14:00  | Qui 06 **12:01**    | Não  | 240             | 0       | 60    | **300,00** |
+| T6  | Sex 07 15:00  | Dom 09 **11:59**    | Não  | 120+180=300     | 0       | 0     | **300,00** |
+| T7  | Sex 07 15:00  | Dom 09 **12:01**    | Sim  | 300             | 35      | 90    | **425,00** |
+| T8  | Qua 05 18:00  | Sex 07 **12:00:00** | Não  | 240             | 0       | 0     | **240,00** |
+| T9  | Seg 03 14:00  | Seg 03 18:00        | Sim  | mínimo 1: 120   | 15      | 60    | **195,00** |
+
+Fronteiras que o briefing deixa em aberto e que os testes fixam: **12:00:00 em
+ponto é isento** de multa (T8) e o check-in abre em **14:00:00** (13:59:59 →
+`409 EARLY_CHECKIN`).
 
 O briefing tem ambiguidades reais — como contar diárias, qual tarifa aplica em
-cada uma, o que exatamente acontece às 12h00min em ponto. Esta seção é o
-registro de **como cada uma foi resolvida e por quê**, incluindo a leitura
-alternativa que foi rejeitada e o caso concreto em que as duas divergem. As
-decisões são normativas: todo código e todo teste deriva delas, e cada linha
-carrega um identificador `Dx` para ser citável em revisão.
-
-> Leitura das referências: `§x.y` aponta para a especificação técnica interna do
-> projeto (documento de orquestração, não versionado); `Tn` são os casos da
-> tabela de casos numéricos, replicada em
-> `backend/tests/unit/test_pricing.py` e em
-> `frontend/src/features/reservations/__fixtures__/bills.ts`;
-> `RFn` / `RNn` são os requisitos funcionais e de negócio do briefing.
-
-### 4.1 Decisões que resolvem ambiguidades do briefing
-
-As regras de negócio ficam em [`backend/docs/BUSINESS_RULE.md`](backend/docs/BUSINESS_RULE.md) —
-é ele a fonte da verdade. A tabela abaixo é a **leitura** dessas regras onde o texto admitia mais
-de uma; divergiu, o arquivo vence e esta tabela é que se corrige.
-
-| ID | Ambiguidade | Decisão |
-|----|-------------|---------|
-| D1 | Como contar diárias? | Uma diária por **data** no intervalo `[data(check-in real), max(data(checkout real), data(checkout contratado)))`. **Saída antecipada não devolve diária** — o hóspede paga o período que reservou. Se o intervalo for vazio (day-use), cobra-se **mínimo de 1 diária** (a do dia do check-in). |
-| D2 | Qual tarifa aplica em cada diária? | A do dia da semana **da própria data da diária**. Sex→Seg = sex 120 + sáb 180 + dom 180. |
-| D3 | Multa de checkout tardio | Cobrada **por dia**, a partir do dia de saída contratado, inclusive ele. Um dia entra se o hóspede permaneceu nele **depois das 12:00:00** — os dias anteriores ao da saída entram sempre (ficou o dia inteiro); o dia da saída entra só se ele vagou passado o limite. **Exatamente 12:00:00 é isento.** Cada multa vale 50% da tarifa **do seu próprio dia** (útil 60,00 / fds 90,00) e independe de vaga. Quem sai antes do prazo nunca é multado. |
-| D4 | Check-in antes das 14h | Permitido se `hora local >= 14:00:00`. Antes disso a API responde `409 EARLY_CHECKIN` (alerta). O atendente pode **confirmar mesmo assim** reenviando com `allow_early: true` — o briefing pede *alerta*, não bloqueio. |
-| D5 | Busca parcial em documento/telefone | `documento` e `telefone` em claro, **já normalizados** (D9). Busca **parcial** (trigram/`icontains`) nos três campos: nome, documento e telefone. Cifra em repouso foi rejeitada — custa o `LIKE` e o negócio não a usa. |
-| D6 | Cobrança usa datas agendadas ou reais? | **As duas.** A entrada segue o fato (`checked_in_at`). A saída cobra o **maior** entre o fato (`checked_out_at`) e o contratado (`checkout_date`): estender custa mais, antecipar não desconta. |
-| D7 | Check-in fora da data agendada | Não validamos correspondência com a data agendada (fora de escopo). D6 garante que a cobrança permanece correta. |
-| D8 | Cancelamento | Enum inclui `CANCELLED`; transição `PENDING → CANCELLED` exposta via endpoint. Nenhum outro estado cancela. |
-| D9 | Documento sem dígito / passaporte / telefone internacional | Normalização de **armazenamento** é **por tipo**: documento = alfanumérico maiúsculo (`re.sub(r"[^A-Z0-9]", "", v.upper())`), telefone = dígitos **E.164 sem o `+`** (`5521988887777`). A coluna guarda o valor normalizado; a máscara digitada não persiste. Validação: documento ≥ 4 alfanuméricos; telefone **exige o `+` e o código do país na entrada**, validado por `phonenumberslite` (`is_valid_number`). A presença do DDI é garantida na **entrada** — o `+` não persiste e o banco não distingue. Nacionalidade obrigatória em ISO 3166-1 alpha-2. |
-| D10 | Vaga no dia da saída em checkout tardio | **Não** se cobra vaga do dia de saída: a taxa de vaga acompanha as diárias (intervalo semiaberto de D1) e a única consequência do atraso é a multa de D3 — o briefing enumera a penalidade de forma exaustiva. |
-| D11 | Reserva com data no passado | Criação exige `checkin_date >= data local de hoje` (`400 VALIDATION_ERROR`). O passado entra no sistema pelos fatos (check-in/checkout reais), nunca pelo agendamento. |
-| D12 | Hóspede duplicado | `document` é único (`409 DUPLICATE_DOCUMENT` no segundo cadastro). Como a coluna já está normalizada (D9), a unicidade é tolerante a máscara. Telefone **não** é único (familiares compartilham). |
-| D13 | Day-use agendado | Agendamento exige mínimo de 1 noite (constraint §1.5 mantida). Day-use existe apenas como **fato** (check-in e checkout reais no mesmo dia — T9), coberto por D1. |
-| D14 | Reserva PENDING vencida | Continua listada em `pending-checkin` até ação do atendente (check-in ou cancelamento). O sistema não muda estado sem gesto humano. |
-| D19 | Titular e acompanhantes | Cada acompanhante é um `Guest` completo (documento e telefone próprios). O preço **não** muda com o número de pessoas; a capacidade do quarto é o freio. As abas "no hotel" e "pendentes" listam acompanhantes. |
-| D16 | Overbooking de quarto | Três camadas: o `EXCLUDE` gist protege a **agenda** (datas que se cruzam), a unique parcial protege o **fato físico** (dois `CHECKED_IN` no mesmo quarto), e overstay e chegada antecipada — que dependem de "hoje" — são guardas de leitura sob lock. |
-| D17 | Capacidade do quarto | `capacity` é a única propriedade do quarto que outra regra consome. Lotação total do hotel **não** se guarda: é derivada (`Sum(capacity)` dos ativos) e já imposta por construção. |
-| D18 | Pagamento da conta fechada | Pagamento **único e integral**, com forma e ator, registrado depois do checkout. Não é um status: `CHECKED_OUT` continua sendo o estado terminal. Sem pagamento parcial e sem estorno. |
-| D15 | Qual política de tarifa rege a estadia | A política **amarrada no check-in** rege tudo: diárias, vaga, fator da multa **e** limite de checkout. Só o horário de abertura do check-in vem da política vigente no ato, porque antecede a amarração. |
-
-### 4.2 Leituras alternativas rejeitadas
-
-Para cada decisão: a leitura alternativa em uma frase testável, um caso concreto onde as duas divergem, e por que a adotada venceu.
-
-**D1 — mínimo de 1 diária.** Alternativa: "cobra-se uma diária por noite dormida; estadia sem pernoite gera zero diárias." Divergência: T9 (seg 03/03 14:00 → 18:00, com vaga) valeria ~R$ 60,00 (só multa) em vez de **R$ 195,00**. Venceu a adotada: quarto ocupado e higienizado tem custo; fatura zero contradiz "total geral da reserva **a ser paga**"; mínimo de 1 diária é praxe hoteleira.
-
-**D2 — tarifa pela data da diária.** Alternativa: "a diária é precificada pelo dia em que a noite termina." Divergência: qui 06/03 15:00 → sáb 08/03 10:00 = qui 120 + sex 120 = **R$ 240,00** (adotada) vs sex 120 + sáb 180 = R$ 300,00 (alternativa). Venceu a adotada: "diárias de segunda à sexta" qualifica o dia em que a diária ocorre, e é assim que tarifa é anunciada em balcão.
-
-**D3 — multa pela tarifa do dia da saída; 12:00:00 isento.** Alternativa: "a multa usa a tarifa da última diária dormida, não a do dia da saída." Divergência: sáb 08/03 14:00 → seg 10/03 12:30 = diárias 360,00 + multa 50%×120 (seg) = **R$ 420,00** (adotada) vs multa 50%×180 (dom) = R$ 450,00. Venceu a adotada: o briefing atrela a variação útil/fds ao **procedimento** de checkout, que ocorre na segunda. Fronteira: "até as 12h00min" lido como inclusivo → 12:00:00 em ponto isento (T8); "até", em pt-BR, inclui o limite.
-
-**D4 — alerta com override (e a defesa do 409).** Alternativa: "antes das 14h o check-in é bloqueado, sem exceção." Divergência: hóspede no balcão às 13:59 → adotada: modal + confirmação = hospedado; alternativa: espera forçada. Venceu a adotada: o briefing manda **permitir** o check-in e **emitir alerta** — alerta não é proibição. Defesa do 409 (devolutiva técnica, três linhas): (1) RFC 9110 define 409 como conflito que o cliente pode resolver **alterando a requisição e reenviando** — exatamente o ciclo `allow_early`; (2) preserva a semântica binária do POST mutador (2xx ⇔ check-in efetivado), sem "200 que não muta"; (3) com o envelope §4.1, `EARLY_CHECKIN` é ramo de protocolo de primeira classe no cliente — e o caminho comum (≥ 14h) segue `200` direto, sem passar por erro.
-
-**D5 — PII em claro + busca parcial nos três campos.** Alternativa: "cifrar documento/telefone em repouso (Fernet) e buscar só por igualdade via blind index." Divergência: buscar `789` acharia a Ana na adotada e devolveria vazio na alternativa. Venceu a adotada: o briefing pede localizar por documento e telefone, o atendente busca por fragmento, e cifra + `LIKE` são objetivos incompatíveis. Criptografia de campo é excesso que o negócio não usa.
-
-**D6 — cobrança pelos fatos.** Alternativa: "a fatura usa as datas agendadas da reserva." Divergência: agendado seg 03 → qua 05 (R$ 240,00); hóspede sai qui 06/03 11:00 → adotada: seg+ter+qua = **R$ 360,00**; alternativa: R$ 240,00 (R$ 120,00 de subfaturamento). Venceu a adotada: dinheiro segue ocupação real; e a simetria protege o hóspede na saída antecipada.
-
-**D7 — check-in fora da data agendada.** Alternativa: "check-in só na data agendada." Divergência: reserva para 05/03, hóspede chega 04/03 15:00 → adotada hospeda (e cobra desde 04, por D6); alternativa exige recriar a reserva. Venceu a adotada: validação não pedida, e D6 blinda o financeiro.
-
-**D8 — cancelamento só de PENDING.** Alternativa: "CHECKED_IN também cancela (estorno)." Divergência: cancelar após uma noite dormida exigiria política de estorno inexistente no briefing. Venceu a adotada: dinheiro monotônico, extrato único.
-
-**D9 — normalização alfanumérica do documento.** Alternativa: "normalizar documento por dígitos." Divergência: passaportes `AB123456` e `CD123456` colidiriam na coluna única → `409 DUPLICATE_DOCUMENT` indevido no segundo. Venceu a adotada: preserva a unicidade real; telefone segue por dígitos porque só a máscara varia.
-
-**D19 — titular + acompanhantes, e por que as abas os listam.** Alternativa: guardar só o número de pessoas na reserva. Divergência: `GET /api/guests/in-hotel/` responde "quem está hospedado", e um número não é uma pessoa — o acompanhante não apareceria em busca nenhuma, apesar de estar no hotel. Adotada: cada acompanhante é um `Guest` completo, e as duas abas os listam. Em "pendentes" é **simetria**: se alguém conta como hospedado depois do check-in, conta como esperado antes dele. O front deriva "esta linha é de acompanhante" de `guest_id != row.id` — dois ids já dizem isso, e um campo `role` computado só repetiria.
-
-O preço não muda com o número de pessoas (o briefing cobra por diária, não por pessoa): a capacidade do quarto é o único freio, e `test_bill_ignores_companions` fixa isso com T7 e dois acompanhantes em R$ 425,00. O M2M é **implícito**: a unicidade `(reservation, guest)` vem de graça, e não há atributo por vínculo que justifique um `through`.
-
-**A invariante "uma estadia ativa por pessoa" tem duas autoridades diferentes.** Para o titular é a constraint `resv_one_active_per_guest`. Para o acompanhante **não existe constraint cross-table** sem denormalizar `status` na tabela intermediária, então a autoridade é o lock ordenado de `_lock_people` mais a guarda de leitura: sob `READ COMMITTED`, a segunda transação espera no lock e relê depois do commit da primeira. Três detalhes do lock, cada um com uma falha real por trás: `sorted(...)` porque ordens diferentes dão deadlock; `filter(pk__in=ids)` **sem join** porque o PostgreSQL recusa `FOR UPDATE` no lado anulável de um outer join (e o ORM gera outer join ao atravessar M2M); e `list(...)` porque queryset preguiçoso nunca chega a executar o `FOR UPDATE`. **Fraqueza assumida:** uma escrita que não passe por `check_in` fura a regra do acompanhante — hoje não existe outra, porque acompanhante só é gravado na criação, que nasce `PENDING`. **Gatilho** para uma tabela única de participantes com constraint: o *segundo* caminho de escrita.
-
-**D16 — overbooking em três camadas, e por que não dá para ser só uma.** O `EXCLUDE` gist (`resv_room_no_overlap`) impede duas reservas ativas com datas cruzadas no mesmo quarto; `'[)'` deixa passar estadias adjacentes — sai dia 09, entra dia 09 — que é a mesma semântica de D1. Mas ele olha datas **agendadas**, e D6 cobra pelos fatos reais: um hóspede que fica além do `checkout_date` continua `CHECKED_IN` com a agenda já liberada, e nada impediria um segundo `CHECKED_IN` no mesmo quarto. Daí a unique parcial (`resv_one_active_per_room`), que protege o fato físico. Sobram dois casos que **nenhuma constraint pode expressar**, porque dependem de "hoje": (a) oferecer um quarto com overstay na disponibilidade; (b) uma chegada antecipada (D7) tomar um quarto prometido a outra `PENDING`. Esses são guardas de leitura sob lock, com o `today`/`now` que a view já injeta.
-
-**D7 (complemento) — chegar antes continua permitido, salvo se toma o quarto de alguém.** Divergência com caso: a reserva de 09→11 aparece no balcão dia 07 e quer entrar já; existe outra reserva de 07→09 no mesmo quarto. Adotada: `409 ROOM_UNAVAILABLE` com o id da reserva prometida. Alternativa (permitir): o `EXCLUDE` não pega — as datas agendadas 07→09 e 09→11 não se cruzam — e o hóspede das 07 chega a um quarto ocupado.
-
-**D14 (complemento) — a pendência vencida retém o quarto.** Consequência direta de "o sistema não muda estado sem gesto humano": enquanto ninguém cancela nem faz o check-in, o quarto segue reservado. É registrado aqui porque é o custo assumido de não ter no-show automático; a saída é o `cancel`.
-
-**A ordem de lock é `Guest → Room → Reservation → Account`,** por tabela, e dentro de `Guest` por pk crescente. Duas transações que travem as mesmas linhas em ordens diferentes fazem deadlock, e o atendente vê um 500. `create_reservation` não trava nada: a autoridade dela é o `EXCLUDE` sob savepoint, que traduz a corrida no mesmo `409 ROOM_UNAVAILABLE` da guarda.
-
-**D17 — capacidade sim, lotação do hotel não.** `capacity` é a única propriedade do quarto que outra regra consome (titular + acompanhantes ≤ capacidade); sem ela, "reserva com mais pessoas" não tem freio. Lotação total é derivada (`Sum(capacity)` dos ativos) e já imposta por construção pelo anti-overbooking. **Gatilho:** lotação legal (alvará) *menor* que a soma — aí é uma linha de configuração e uma guarda no check-in. Sem preço por quarto, sem `RoomType` e sem foto: a costura para preço é `hotel.billing.services.rate_table_of`, ponto único, e foto exigiria `MEDIA_ROOT`, volume no compose e Pillow no Dockerfile — não é a coluna que custa.
-
-**D18 — pagamento único e integral (decisão revista).** A leitura do briefing continua a mesma: não há pagamento parcial nem estorno, e `PAID` **não** é um quinto estado da reserva — pago é um fato sobre a estadia encerrada, não um estágio dela. O que mudou foi onde o fato mora. A primeira versão guardava `paid_at`, `payment_method` e `paid_by` como três colunas da reserva, com a CHECK `resv_payment_complete` impedindo meio pagamento. O argumento contra uma tabela `Payment` era que ela duplicaria os quatro totais e o ator — argumento que caiu quando os totais saíram da reserva. Hoje o dinheiro inteiro vive em `hotel/billing`: `Account` (OPEN → CLOSED → PAID), `AccountLine` por item cobrado e `Payment` **1:1** com a conta, e a reserva guarda só a FK `account`. A CHECK `account_closed_is_complete` faz o papel da antiga: conta fechada tem `closed_at` e `total_amount`, conta aberta não tem nenhum dos dois. Pagar duas vezes segue respondendo `409 INVALID_STATUS` com `extra.paid_at`, e **não** um código `ALREADY_PAID`: é operação ilegal para o estado atual do recurso, o mesmo significado de D8. O ator do recebimento chama-se `received_by` (não `paid_by`): a coluna guarda o atendente logado, como `checked_in_by`/`checked_out_by` — não o pagador. **Gatilho para `Payment` virar N:1:** o primeiro pagamento parcial ou estorno — aí `Payment.account` deixa de ser OneToOne e o status da conta passa a derivar da soma.
-
-**O extrato é um fato, não uma função.** A 2ª via já não recomputava; agora nem os totais são colunas. O checkout lança uma `AccountLine` por diária, uma por vaga e, se houver, uma de multa (`quantity` = fator da política, `unit_amount` = tarifa do dia da saída), e fecha a conta somando as linhas na mesma transação do flip de status. `statement()` hidrata dessas linhas e **nunca** chama o motor. `calculate_bill` passa a ter exatamente **dois** chamadores, ambos em `hotel/reservations/services.py`: `check_out`, que persiste, e `preview_checkout`, que projeta sem escrever — o mesmo cálculo, um com efeito e outro sem. `late_fee_applied` deriva da presença da linha `LATE_FEE`, não de uma coluna: dois lugares para o mesmo fato podem discordar. `weekday_label` continua fora do banco — nome de dia da semana é formatação na fronteira de I/O, e congelá-lo guardaria o idioma junto com o dinheiro.
-
-**D15 — a política amarrada no check-in rege a estadia inteira.** Alternativa: "ler o limite de checkout da política vigente no momento do checkout." Divergência com caso numérico: política A (`checkout_limit=12:00`, multa 50%) amarrada na sexta; o admin publica B (`13:00`, 25%) no sábado; a saída é domingo 12:30. Adotada: **atraso sob A** — multa de R$ 90,00 e total de R$ 425,00 (o T7). Alternativa: isento, porque 12:30 < 13:00 — e a diária viria de A enquanto a decisão de multar viria de B, duas políticas dentro do mesmo extrato. Venceu a adotada: o hóspede combinou uma política na entrada, e é a combinada que fecha a conta.
-
-A exceção é o horário de **abertura** do check-in: ele decide se o check-in pode acontecer, logo antecede a amarração e só pode vir da política vigente no ato. É por isso que `EARLY_CHECKIN` traz `extra.opens_at` — o cliente monta a mensagem sem parsear `detail`, e com a política do briefing o texto sai idêntico ao de sempre ("Check-in permitido a partir das 14:00.").
-
-**Valores configuráveis não quebram o briefing.** Os números do desafio (120/180/15/20, multa de 50%, 14h/12h) passam a ser o **estado inicial** do sistema, em três camadas redundantes: (1) `engine.DEFAULT_RATES` segue a constante, agora com os horários como campos com default — `tests/unit/test_pricing.py` não passa `rates`, e T1–T9 não mudam um byte; (2) uma data migration insere a mesma linha com os **mesmos literais** (migração é registro histórico e não importa constante de código), e `test_default_policy_row_matches_default_rates` amarra as duas fontes campo a campo; (3) `effective_from` é o instante da publicação e a política é amarrada por FK no check-in, então **mudar a política é mudar o futuro, nunca o passado**. Isto é *mais* fiel ao briefing que antes: antes da política versionada, mudar `DEFAULT_RATES` reescreveria silenciosamente a 2ª via de um extrato já emitido. Sem uma ação deliberada de um `ADMIN`, cada número e cada mensagem do sistema é idêntico ao de hoje.
-
-**D9 (emenda) — o telefone exige `+` e código do país na entrada.** Alternativa: "aceitar o número como vier e inferir o país." Divergência: `11933334444` é um celular de São Paulo; sem o `+`, `phonenumbers` o lê como `+1 193…` (EUA) — e `31…` vira Holanda, `41…` vira Suíça. Adotada: `400` no campo `phone`, e o atendente completa o DDI. Alternativa: o número entra no banco com o país errado, passa a busca e a unicidade sem levantar nada, e nunca mais volta ao dono. Por isso a checagem é `is_valid_number` (plano de numeração do país) e não `is_possible_number` (só comprimento) — a segunda aceitaria os três casos acima. A regra mora em `hotel.guests.services.create_guest`, não no serializer, pelo mesmo motivo de D11/D13: tem de valer para o seed e para o shell.
-
-**D9 (emenda) — nacionalidade obrigatória, ISO 3166-1 alpha-2.** Alternativa: `django-countries`/`pycountry`. Divergência: o que o sistema precisa é recusar `ZZ`, não traduzir nomes de país para 40 idiomas nem servir um `<select>` — isso é do frontend, que já tem a lista. Adotada: um `frozenset` de 249 strings estáveis em `hotel/guests/normalization.py`, zero dependência. O model **não** tem `default`: default silencioso faria todo hóspede estrangeiro nascer brasileiro no primeiro caminho de escrita que esquecesse o campo (o `"BR"` da migração é one-off, `preserve_default=False`).
-
-**D10 — sem vaga no dia da saída.** Alternativa: "checkout tardio cobra também a vaga do dia da saída." Divergência: T7 iria de **R$ 425,00** para R$ 445,00 (+ dom 20,00). Venceu a adotada: a consequência do atraso está enumerada exaustivamente no briefing (os 50%); cobrar vaga extra é regra inventada — e alteraria a §3.3, já conferida.
-
-**D11 — sem reserva no passado.** Alternativa: "aceitar `checkin_date` passado." Divergência: POST em 01/09 com check-in 25/08 → alternativa cria pendência já vencida no primeiro dia de uso; adotada responde `400`. Venceu a adotada: reserva é compromisso futuro.
-
-**D12 — documento único.** Alternativa: "documento repetido cria segunda ficha." Divergência: 2º POST com o mesmo CPF → duas fichas; busca e abas mostram o mesmo humano duas vezes. Venceu a adotada: documento é o identificador civil; histórico não fragmenta.
-
-**D13 — agendamento mínimo de 1 noite.** Alternativa: "permitir agendar `checkout_date = checkin_date`." Divergência: a constraint §1.5 teria que cair. Venceu a adotada: constraint simples; o motor (D1/T9) já protege o caixa quando o day-use acontece de fato.
-
-**D14 — pendência vencida fica visível.** Alternativa: "PENDING vencida some ou auto-cancela." Divergência: reserva de ontem sem check-in desapareceria sem gesto do atendente. Venceu a adotada: decisão comercial é humana; automatizar no-show é escopo novo (§0.1).
+cada uma, o que acontece às 12h em ponto. Cada uma foi resolvida com um id
+citável (D1–D19), a leitura alternativa rejeitada e **o caso numérico em que as
+duas divergem**: [`docs/DECISOES.md`](docs/DECISOES.md).
 
 ---
 
-## 5. Chaves, variáveis de ambiente e privacidade
+## 5. Escopo: o que o briefing pede, e o que foi além
 
-### 5.1 Geração de chaves
+O briefing pede oito requisitos funcionais e seis regras de negócio. Os catorze
+estão construídos, testados e rastreados na matriz da seção 3.
 
-Nenhum segredo vive no repositório. O `.env.example` documenta cada variável; o
-`.env` é local e está no `.gitignore`.
+Além deles, sete expansões entraram — **nenhuma por antecipação**. Cada uma
+resolve um problema que o próprio briefing cria, e cada uma tem tela e teste:
 
-```bash
-# SECRET_KEY — assinatura do Django
-python3 -c "import secrets; print(secrets.token_urlsafe(50))"
-```
+| Expansão                                    | O problema do briefing que ela resolve                                                                        |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `Room` + anti-overbooking (D16)             | "Realizar reservas" sem inventário reserva o quê? Sem quarto, duas reservas ocupam o mesmo lugar e nada impede. |
+| `PricingPolicy` amarrada no check-in (D15)  | Onde vivem 120/180/15/20? Como constante, mudar a tarifa reescreveria a 2ª via de um extrato já emitido.        |
+| Ator em cada transição (`checked_in_by`, …) | "Permitir ao atendente" pressupõe saber **qual** atendente. Uma coluna e um `*_at` por transição.               |
+| Pagamento único da conta fechada (D18)      | "Total geral **a ser paga**" implica um fato de recebimento; sem ele o extrato nunca fecha.                     |
+| Titular + acompanhantes (D19)               | "Localizar hóspedes que estão no hotel" — um número de pessoas não é uma pessoa, e não apareceria em busca.     |
+| Nacionalidade e telefone com DDI (D9)       | "Localizar por telefone" exige normalizar; sem o `+`, `119…` é lido como EUA e o hóspede nunca volta ao dono.  |
+| Papéis `ATTENDANT` / `ADMIN`                | Cadastrar quarto e publicar tarifa não são gestos de balcão.                                                   |
 
-### 5.2 Matriz de variáveis de ambiente
+E uma **oitava, opcional e desacoplada**: a [Íris](docs/IRIS.md), copiloto que
+responde em linguagem natural pedindo consultas ao Django, uma por vez, sem
+nunca gravar nada. Desligada sem `OPENAI_API_KEY`, e removível por construção —
+o núcleo do sistema não sabe que ela existe, e o import-linter cobra isso.
 
-O Django lê **variáveis de ambiente** (não há carregador de `.env` embutido).
-Dentro do Compose, quem as entrega é `env_file: .env` no serviço `backend`;
-fora dele, exporte com `set -a && . ../.env && set +a`, como na seção 2.
-
-| Variável | Obrigatória | Default | Papel |
-|---|---|---|---|
-| `SECRET_KEY` | **sim** | `insecure-dev-key-change-me` | Assinatura do Django. Gere a sua (5.1). |
-| `DEBUG` | não | `0` | O Compose fixa `0` no serviço `backend`. |
-| `COOKIE_SECURE` | não | `not DEBUG` | Flag `Secure` dos cookies (sessão, `csrftoken` e refresh). O `.env.example` e o Compose usam `0`: sobre `http://`, só Chromium e Firefox aceitam cookie `Secure` em loopback; Safari e IPs de rede o descartam. Atrás de TLS, `1`. |
-| `ALLOWED_HOSTS` | não | `localhost,127.0.0.1,backend` | O Compose fixa o valor acima. |
-| `CSRF_TRUSTED_ORIGINS` | não | `http://localhost:5173,http://127.0.0.1:5173` | Origens que o CSRF aceita. O proxy do Vite reescreve o `Host` mas repassa o `Origin` do navegador; sem esta lista as rotas de sessão respondem 403. O `127.0.0.1` é o `baseURL` do Playwright. |
-| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | não | `hotel` / `hotel` / `hotel` | Credenciais do banco; valem para o serviço `db` e para o backend. |
-| `DB_HOST` | não | `localhost` | Host do banco **visto pelo backend**. O Compose injeta `db`; o default serve ao caminho híbrido. |
-| `DB_PORT` | não | `5432` | Porta do banco **vista pelo backend**. O Compose injeta `5432` (rede interna); no caminho híbrido, iguale a `DB_PORT_HOST`. |
-| `DB_PORT_HOST` | não | `5432` | Porta que o serviço `db` **publica no host**. Troque (ex.: `5433`) se 5432 já estiver em uso na sua máquina — foi exatamente o caso na máquina de desenvolvimento deste projeto. |
-| `THROTTLE_LOGIN` | não | `10/min` | Limite do login, por IP. |
-| `THROTTLE_REFRESH` | não | `60/min` | Limite da renovação, por IP. Escopo próprio: o boot do frontend renova a cada carga de página, e o balcão divide um IP atrás do NAT. |
-| `SECURE_HSTS_SECONDS` | não | `31536000` | HSTS; só tem efeito atrás de TLS. |
-| `THROTTLE_AI` | não | `20/min` | Limite da Íris, por usuário autenticado. Cada pergunta gasta uma unidade aqui e de 2 a 7 chamadas no provedor. |
-| `OPENAI_API_KEY` | não | vazio | **Liga** a Íris (seção 5.4). Vazio = feature desligada. |
-| `OPENAI_MODEL` | não | `gpt-4.1-nano` | Modelo usado pela Íris. Opcional; troque sem tocar no código se quiser o degrau seguinte (`gpt-4.1-mini`). Se você a adicionar ao `.env`, o Compose a entrega ao backend como qualquer outra. |
-
-### 5.3 PII e busca
-
-`documento` e `telefone` ficam em claro, **já normalizados** (D9): a coluna
-guarda `12345678901` e `5521988887777`, não a máscara digitada — o telefone em
-dígitos E.164, sem o `+`. A busca
-(`?search=`) acha por **fragmento** nos três campos — nome, documento e
-telefone — via `icontains` e índice trigram. Termo com máscara (`789-01`,
-`(21) 98888`) é normalizado antes do predicado, então casa o valor gravado.
-Documento é único nessa forma normalizada (D12); telefone não.
-
-A API devolve o valor gravado. A máscara de CPF/telefone na tabela é
-formatação de exibição no frontend (`formatDocument` / `formatPhone`). Logs
-jamais contêm PII: nenhum `print`/log de payload de hóspede, e o exception
-handler não ecoa o body.
-
-### 5.4 Diferencial opcional: Íris, copiloto do hotel
-
-A Íris tem uma página própria (`/iris`, primeiro item de OPERAÇÃO). O atendente
-pergunta em linguagem natural — "a Ana Souza chegou", "alguém passou do horário
-de checkout?", "quanto faturamos até agora?" — e recebe um texto curto e, quando
-há uma ação clara, **um** botão.
-
-O que a torna diferente de um chat colado no produto é quem faz as consultas. O
-modelo não recebe o banco: ele **pede** uma consulta por vez, e o Django a
-executa pelos mesmos selectors e serviços que as telas usam. São quatro
-leituras, e nenhuma escrita:
-
-| Ferramenta          | O que devolve                                                                    |
-| ------------------- | -------------------------------------------------------------------------------- |
-| `find_reservations` | Reservas de um status, achadas por titular, **acompanhante**, quarto ou nº        |
-| `preview_checkout`  | O extrato que sairia agora — diárias, vaga, multa, total — sem gravar nada        |
-| `available_rooms`   | Quartos livres num período, com a capacidade de cada um                          |
-| `revenue_summary`   | Faturamento das estadias encerradas: fechado, recebido, multas (hoje / mês / tudo)|
-
-A resposta termina numa função `answer`, então a saída é **estruturada por
-construção** — nenhum JSON é garimpado de dentro de prosa. Se a pergunta tem uma
-ação, ela vem em `proposed_action` e o clique passa pelos endpoints de check-in e
-de checkout de sempre: o `409 EARLY_CHECKIN` ainda abre o diálogo de confirmação,
-e o checkout ainda mostra o extrato com os mesmos números. **A IA não grava
-nada** (*human-in-the-loop*).
-
-> ⚠️ **Aviso de envio a provedor externo.** Com a chave configurada, saem para
-> a OpenAI (`https://api.openai.com/v1/responses`) os **nomes** (titular e
-> acompanhantes), quartos, datas, o extrato projetado e os agregados de
-> faturamento. **Documento e telefone nunca saem** — o recorte que vai para o
-> provedor não tem esses campos. Nada do conteúdo é registrado em log, e o
-> request pede `store: false`: a conversa não fica retida do lado do provedor.
-> Esta é a única saída de dados do sistema para fora da sua infraestrutura, e
-> ela só existe se você configurar a chave. Se isso não for aceitável no seu
-> contexto, deixe a variável vazia: a aplicação inteira continua funcionando e
-> a página diz que a Íris está desligada.
-
-Como ligar:
-
-```bash
-# 1. crie a chave em platform.openai.com (a conta precisa de crédito)
-# 2. confira os limites de taxa da sua conta antes de uma demonstração ao vivo:
-#    uma pergunta gasta de 2 a 7 chamadas
-# 3. no .env
-OPENAI_API_KEY=...
-# opcional
-OPENAI_MODEL=gpt-4.1-nano
-
-docker compose up -d --build backend
-```
-
-Para conferir que a chave pegou, sem abrir o navegador (é a única forma de exercitar
-o provedor — **nenhum teste automatizado chama a API**, seção 3):
-
-```bash
-docker compose exec -T backend uv run python manage.py shell -c "
-from django.utils import timezone; from ai.copilot import answer
-print(answer('Quem ainda está no hotel?', now=timezone.now()))"
-```
-
-Portão de fallback (a parte que interessa em revisão):
-
-| Estado | `GET /api/ai/status/` | `POST /api/ai/copilot/` | Frontend |
-|---|---|---|---|
-| Sem chave | `{"enabled": false}` | `503 AI_DISABLED` | a página diz que a Íris está desligada |
-| Com chave | `{"enabled": true}` | `200 {reply, proposed_action}` | resposta e, quando houver, o botão da ação |
-| Com chave, provedor falhando | `{"enabled": true}` | `502 AI_UPSTREAM_ERROR` | aviso em toast; o resto do produto intacto |
-
-Saída de modelo é **input não confiável**, e em três frentes:
-
-- **argumentos**: cada chamada de ferramenta passa por um serializer antes de
-  virar consulta. Onde o modelo costuma omitir um campo, o serializer é
-  tolerante — um argumento faltante custa uma rodada com `{"error": …}`, que o
-  modelo lê e corrige, nunca um `502`;
-- **identidade**: um botão só aparece se a reserva **apareceu** num resultado e
-  foi **isolada** nele. Um id que já apareceu ao lado de outro fica travado pelo
-  resto da requisição, mesmo que o modelo afunile sozinho depois — nesse caso
-  quem escolheu foi ele, não o atendente. Id inventado derruba o botão, não a
-  resposta: o texto foi construído com dados reais e continua valendo;
-- **status**: antes de devolver a ação, o servidor relê a reserva. Um check-in
-  concorrente entre a busca e a resposta zera a ação em vez de oferecer um botão
-  que já falharia.
-
-Tudo isso dentro de um orçamento de **15 s** para o laço inteiro (no máximo 4
-rodadas de ferramentas), com folga sobre o timeout de 30 s do worker: no pior
-caso o atendente vê um toast, nunca um worker morto.
-
-O app é **removível por construção** — o núcleo do sistema não sabe que ele
-existe. `ai/` importa só `hotel.reservations` e `core/` (e o import-linter cobra
-isso: `ai` não pode tocar `billing`, `rooms` ou `guests` direto), nenhum app de
-`hotel/` importa `ai/`, o pacote não entra em `INSTALLED_APPS` (não tem models
-nem migrações) e nada no resto do frontend importa `features/ai/`. A feature
-inteira cabe em:
-
-- `backend/ai/` e `backend/tests/api/test_ai.py`;
-- uma linha de rota em `backend/config/urls.py` e o quarto contrato em
-  `backend/pyproject.toml`;
-- `frontend/src/features/ai/` e `frontend/src/pages/IrisPage/` (com seus testes);
-- a rota `iris` em `lib/routing/routes.ts`, a linha do lazy em `app/router.tsx`
-  e o item de menu em `AppLayout.tsx`;
-- a dependência `httpx` no `backend/pyproject.toml`.
-
-O `useCheckInFlow` fica: ele é refatoração da recepção, não da Íris, e a página
-de reservas o usa.
-
-**Roteiro da demonstração** (com o seed, `docker compose down -v` antes):
-"a Ana Souza chegou" → o texto cita o horário de abertura e oferece o check-in;
-"o Bruno quer sair agora" → os valores do extrato projetado e o botão de
-checkout; "quem ainda está no hotel?" → a lista, sem botão; "a Eva chegou" → a
-estadia do Bruno, achada pelo nome da acompanhante; "quais quartos estão
-livres?"; "quanto faturamos até agora?". Aqueça com uma pergunta antes de
-apresentar: a primeira chamada do dia é mais lenta.
-
+**O que ficou deliberadamente fora:** tarifa por quarto e vigência futura
+agendada, troca de quarto no meio da estadia, estorno e pagamento parcial,
+edição/exclusão de hóspede ou reserva via API (registros imutáveis após a
+criação, exceto transições — o briefing pede armazenar e localizar, não
+editar), no-show automático (D14), gestão de usuários via API, recuperação de
+senha, Celery/Redis, WebSockets, i18n, multi-tenancy, tema dark, Storybook,
+hexagonal, DDD tático, CQRS. O gatilho de cada um está em
+[`ARCHITECTURE.md`](ARCHITECTURE.md); nenhum deles adicionaria ponto na
+avaliação, e todos adicionariam superfície de bug.
 
 ---
 
-## 6. Mapa da API
+## 6. API
 
-Base `/api/`. Rotas de negócio com `Authorization: Bearer <access>` (JWT, access
-de 60 min, **em memória no cliente**). O refresh não trafega em JSON: sai num
-cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/auth/`, e o `exp` fixado no
-login é o teto de 12 h: renovar não estende a sessão. As duas rotas
-que se autenticam por esse cookie (`/auth/token/refresh/` e `/auth/logout/`)
-exigem `X-CSRFToken`; as de negócio não precisam, porque header não é credencial
-ambiente. O desenho inteiro está em `backend/docs/TECHNICAL_GUIDE.md`.
-Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**
-(`"120.00"`) — o frontend formata, nunca calcula. Paginação padrão do DRF
-(`page_size=20`). O extrato traz `lines`, `subtotal_daily`, `subtotal_parking`,
-`late_fee`, `extras`, `subtotal_extras`, `total` e `payment`.
+Base `/api/`. Rotas de negócio com `Authorization: Bearer <access>` (JWT de 60
+min, **em memória no cliente**). O refresh não trafega em JSON: sai num cookie
+`HttpOnly; Secure; SameSite=Strict; Path=/api/auth/`, e o `exp` fixado no login
+é o teto de 12 h — renovar não estende a sessão. As duas rotas que se
+autenticam por esse cookie exigem `X-CSRFToken`; as de negócio não, porque
+header não é credencial ambiente. Datas `YYYY-MM-DD`; dinheiro sempre **string
+decimal** (`"120.00"`) — o frontend formata, nunca calcula. Paginação DRF
+(`page_size=20`).
 
-| Método & rota | Auth | Função |
-|---|---|---|
-| `POST /api/auth/token/` | — | Login → `{access}` no corpo + refresh no cookie |
-| `POST /api/auth/token/refresh/` | — | Renova o access a partir do cookie (exige `X-CSRFToken`) |
-| `POST /api/auth/logout/` | — | Revoga o refresh na denylist e apaga o cookie (exige `X-CSRFToken`) |
-| `GET /api/auth/me/` | ✔ | `{id, username, role}` — o papel vem do servidor, nunca do token |
-| `GET /api/health/` | — | `{"status":"ok"}` (healthcheck do Compose) |
-| `GET /api/rooms/` · `/{id}/` | ✔ | Inventário (`?is_active=false` inclui os desativados) |
-| `GET /api/rooms/available/` | ✔ | Quartos livres em `?checkin_date=&checkout_date=&people=` (servido por `hotel/reservations`) |
-| `POST /api/rooms/` · `PATCH /api/rooms/{id}/` | **admin** | Cadastro e ajuste de capacidade/situação |
-| `GET /api/pricing-policies/` · `/current/` | ✔ | Histórico e tarifa vigente |
-| `POST /api/pricing-policies/` | **admin** | Publica tarifa (append-only; vigência = agora) |
-| `GET/POST /api/guests/` | ✔ | Lista + busca (`?search=`) / cadastro |
-| `GET /api/guests/{id}/` | ✔ | Detalhe (PII completa) |
-| `GET /api/guests/in-hotel/` | ✔ | Hóspedes com reserva `CHECKED_IN` (`?search=` compõe; servido por `hotel/reservations`) |
-| `GET /api/guests/pending-checkin/` | ✔ | Hóspedes com reservas `PENDING` (`?search=` compõe; servido por `hotel/reservations`) |
-| `GET/POST /api/reservations/` | ✔ | Lista (`?status=&guest=&paid=`; `paid=true` = conta `PAID`) / criação (`room_id`, `companion_ids`) |
-| `GET /api/reservations/{id}/` | ✔ | Detalhe da reserva, com a conta aninhada em `account` (`null` fora de `CHECKED_IN`/`CHECKED_OUT`) |
-| `GET /api/reservations/{id}/statement/` | ✔ | 2ª via do extrato (após o checkout) |
-| `POST /api/reservations/{id}/check-in/` | ✔ | Efetiva o check-in (com override `allow_early`) |
-| `POST /api/reservations/{id}/checkout/` | ✔ | Efetiva o checkout → extrato |
-| `POST /api/reservations/{id}/cancel/` | ✔ | `PENDING → CANCELLED` |
-| `GET /api/reservations/{id}/statement/` | ✔ | 2ª via do extrato (só `CHECKED_OUT`) |
-| `POST /api/reservations/{id}/pay/` | ✔ | Registra o pagamento único (D18) → extrato com `payment {paid_at, method, received_by}` |
-| `GET /api/ai/status/` · `POST /api/ai/copilot/` | ✔ | Diferencial opcional: a Íris (5.4) |
-| `GET /api/schema/` · `/api/docs/` | — | OpenAPI 3 + Swagger UI |
+| Método & rota                                       | Auth      | Função                                                       |
+| --------------------------------------------------- | --------- | ------------------------------------------------------------ |
+| `POST /api/auth/token/`                             | —         | Login → `{access}` no corpo + refresh no cookie              |
+| `POST /api/auth/token/refresh/`                     | —         | Renova pelo cookie (exige `X-CSRFToken`)                     |
+| `POST /api/auth/logout/`                            | —         | Revoga na denylist e apaga o cookie (exige `X-CSRFToken`)    |
+| `GET /api/auth/me/`                                 | ✔         | `{id, username, role}` — o papel vem do servidor             |
+| `GET /api/health/`                                  | —         | `{"status":"ok"}` (healthcheck do Compose)                   |
+| `GET /api/guests/` · `POST`                         | ✔         | Lista + busca (`?search=`) / cadastro                        |
+| `GET /api/guests/{id}/`                             | ✔         | Detalhe (valor gravado, não mascarado)                       |
+| `GET /api/guests/in-hotel/`                         | ✔         | **RF4** — `CHECKED_IN`; `?search=` compõe com o status       |
+| `GET /api/guests/pending-checkin/`                  | ✔         | **RF5** — `PENDING`, inclui vencidas (D14)                   |
+| `GET /api/reservations/` · `POST`                   | ✔         | Lista (`?status=&guest=&paid=&search=`) / criação            |
+| `GET /api/reservations/{id}/`                       | ✔         | Detalhe, com a conta aninhada em `account`                   |
+| `POST /api/reservations/{id}/check-in/`             | ✔         | **RF6** — `{allow_early}` (D4)                               |
+| `POST /api/reservations/{id}/checkout/`             | ✔         | **RF7** — efetiva e devolve o extrato (**RN6**)              |
+| `POST /api/reservations/{id}/cancel/`               | ✔         | `PENDING → CANCELLED` (D8)                                   |
+| `POST /api/reservations/{id}/pay/`                  | ✔         | Registra o pagamento único (D18)                             |
+| `GET /api/reservations/{id}/statement/`             | ✔         | 2ª via do extrato (só `CHECKED_OUT`)                         |
+| `GET /api/rooms/` · `/{id}/` · `/available/`        | ✔         | Inventário e disponibilidade (`?search=` no número)          |
+| `POST /api/rooms/` · `PATCH /api/rooms/{id}/`       | **admin** | Cadastro e ajuste de capacidade/situação                     |
+| `GET /api/pricing-policies/` · `/current/`          | ✔         | Histórico e tarifa vigente                                   |
+| `POST /api/pricing-policies/`                       | **admin** | Publica tarifa (append-only; vigência = agora)               |
+| `GET /api/ai/status/` · `POST /api/ai/copilot/`     | ✔         | A Íris ([`docs/IRIS.md`](docs/IRIS.md))                      |
+| `GET /api/schema/` · `/api/docs/`                   | —         | OpenAPI 3 + Swagger UI                                       |
 
 Todo erro sai no **mesmo envelope**, para o cliente ramificar por código e
 nunca por texto:
 
 ```json
-{ "code": "EARLY_CHECKIN", "detail": "Check-in permitido a partir das 14:00.", "extra": { "server_time": "13:45" } }
+{ "code": "EARLY_CHECKIN", "detail": "Check-in permitido a partir das 14:00.", "extra": { "server_time": "13:45", "opens_at": "14:00" } }
 ```
 
-| Código | HTTP | Quando |
-|---|---|---|
-| `VALIDATION_ERROR` | 400 | Payload inválido (`extra` = erros por campo) |
-| `NOT_AUTHENTICATED` | 401 | Token ausente ou expirado |
-| `PERMISSION_DENIED` | 403 | Atendente numa rota restrita ao `ADMIN` (`IsHotelAdmin`) |
-| `NOT_FOUND` | 404 | Recurso inexistente |
-| `EARLY_CHECKIN` | 409 | Check-in antes da abertura da política vigente (default do briefing: 14h) sem `allow_early` (D4). `extra`: `server_time`, `opens_at` |
-| `INVALID_STATUS` | 409 | Transição de status ilegal; pagamento fora de `CHECKED_OUT` ou conta já paga (`extra.paid_at`) |
-| `DUPLICATE_DOCUMENT` | 409 | Documento já cadastrado (D12) |
-| `ROOM_UNAVAILABLE` | 409 | Quarto sem disponibilidade: agenda cruzada, ainda ocupado, ou chegada antecipada que tomaria o quarto de outra reserva (D16). `extra`: `room_id`, `conflicting_reservation_id`, `conflicting_status`, `conflicting_checkin_date` |
-| `AI_UPSTREAM_ERROR` | 502 | Provedor de IA indisponível ou resposta inutilizável |
-| `THROTTLED` | 429 | Login 10/min por IP; IA 20/min por usuário |
-| `AI_DISABLED` | 503 | IA sem chave configurada |
+| Código               | HTTP | Quando                                                                                    |
+| -------------------- | ---- | ----------------------------------------------------------------------------------------- |
+| `VALIDATION_ERROR`   | 400  | Payload inválido (`extra` = erros por campo)                                              |
+| `NOT_AUTHENTICATED`  | 401  | Token ausente ou expirado                                                                 |
+| `PERMISSION_DENIED`  | 403  | Atendente em rota restrita ao `ADMIN`                                                     |
+| `CSRF_FAILED`        | 403  | Rota de cookie sem `X-CSRFToken` válido, ou `Origin` fora da lista                        |
+| `NOT_FOUND`          | 404  | Recurso inexistente                                                                       |
+| `EARLY_CHECKIN`      | 409  | Check-in antes da abertura, sem `allow_early` (D4). `extra`: `server_time`, `opens_at`    |
+| `INVALID_STATUS`     | 409  | Transição ilegal, hóspede já hospedado, ou conta já paga (`extra.paid_at`)                |
+| `DUPLICATE_DOCUMENT` | 409  | Documento já cadastrado (D12)                                                             |
+| `ROOM_UNAVAILABLE`   | 409  | Agenda cruzada, quarto ainda ocupado, ou chegada antecipada que tomaria o quarto (D16)    |
+| `THROTTLED`          | 429  | Login 10/min e refresh 60/min por IP; Íris 20/min por usuário                             |
+| `AI_UPSTREAM_ERROR`  | 502  | Provedor de IA indisponível ou resposta inutilizável                                      |
+| `AI_DISABLED`        | 503  | Íris sem chave configurada                                                                |
+
+O contrato navegável, com exemplos de request, resposta e erro de cada rota,
+está no Swagger: <http://localhost:8000/api/docs/>.
 
 ---
 
-## 7. Arquitetura em uma página
+## 7. Arquitetura
+
+Monólito Django modular com **camada de serviço** (Django Styleguide) e um
+**núcleo funcional puro** no lugar exato onde a correção precisa ser auditável.
+Não é hexagonal e não é DDD, por decisão: o domínio importa Django de propósito,
+porque a única fronteira que paga aqui é a do motor financeiro —
+`hotel/billing/engine.py`, sem ORM, sem I/O e sem relógio, o único módulo que
+sobreviveria intacto a uma troca de framework.
 
 ```
-hotel-management/
-├── docker-compose.yml          # db (PG 17) · backend (gunicorn) · frontend (Vite)
-├── .github/workflows/ci.yml    # três jobs: backend (com PG de serviço), frontend, e2e
-├── .claude/skills/              # testing-frontend · frontend-ui-components · adding-shadcn-component
-├── backend/
-│   ├── config/                 # settings, urls (só includes), health
-│   ├── core/                   # erros, envelope, money (quantize), serializers e tags comuns
-│   ├── accounts/               # CustomUser (o atendente nasce do seed)
-│   ├── hotel/                  # pacote namespace: quatro apps, um por domínio
-│   │   ├── guests/             # quem: cadastro, normalização de PII, busca
-│   │   ├── rooms/              # onde: inventário, capacidade, operação
-│   │   ├── billing/            # quanto: PricingPolicy · engine.py (motor PURO) · Account/AccountLine/Payment
-│   │   └── reservations/       # quando: agenda, transições, extrato, seed_demo
-│   ├── ai/                     # a Íris (5.4): importa só hotel.reservations e core/
-│   └── tests/{unit,db,api}/
-└── frontend/
-    ├── e2e/                    # Playwright: support · auth.setup · 4 specs contra o backend real
-    ├── playwright.config.ts
-    └── src/
-        ├── app/                # casca: App, providers, router (rota de layout)
-        │                       #   e app/layout/: AppLayout (menu), SessionMenu, PageFallback
-        ├── pages/              # uma pasta por rota (Página.tsx + testes + index.ts);
-        │                       #   não conhece `app/`; inclui IrisPage (5.4)
-        ├── lib/                # sem UI: api (apiClient, Bearer + refresh-once pelo cookie),
-        │                       #   auth (session em memória, csrf),
-        │                       #   errors, format (money, dates, pii, countries),
-        │                       #   forms (schemas/normalize, zod), a11y (foco),
-        │                       #   auth (sessão), notify (toast), routing, utils (cn)
-        ├── components/
-        │   ├── ErrorBoundary/  # boundary + fallback "Algo deu errado", com retry
-        │   ├── ui/             # shadcn (Base UI): button, input, select, dialog,
-        │   │                   #   alert-dialog, dropdown-menu, tabs, table, typography…
-        │   │                   #   vendorizados, sem teste próprio
-        │   └── common/         # compostos autorais: DataTable, PageHeader, FormField,
-        │                       #   Toaster, Pagination, Alert, EmptyState, ErrorState…
-        └── features/{auth,guests,reservations,rooms,pricing,ai}/
-                                # api · hooks · schemas · types · lib (lógica pura) ·
-                                # components/<Componente>/ (Componente.tsx + teste + index.ts)
-                                # · __fixtures__
+backend/
+├── config/       settings, urls (só includes)
+├── core/         sem models: erros, envelope, money (quantize), serializers comuns
+├── accounts/     CustomUser + Role; o atendente nasce do seed
+├── hotel/        pacote namespace: quatro apps, um por pergunta do domínio
+│   ├── guests/       QUEM  — cadastro, normalização de PII, busca
+│   ├── rooms/        ONDE  — inventário, capacidade, operação
+│   ├── billing/      QUANTO— engine.py (PURO) · PricingPolicy · Account/AccountLine/Payment
+│   └── reservations/ QUANDO— agenda, transições, extrato, seed_demo
+├── ai/           a Íris: importa só hotel.reservations e core/
+└── tests/{unit,db,api}/
+
+frontend/src/
+├── app/          casca: providers, router, AppLayout, SessionGate
+├── pages/        uma pasta por rota (Página.tsx + testes + index.ts)
+├── lib/          sem UI: api, auth, errors, format, forms, a11y, notify, routing
+├── components/   ui/ (shadcn vendorizado) · common/ (DataTable, PageHeader, …)
+└── features/     {auth,guests,reservations,rooms,pricing,ai}: api · hooks · schemas · components
 ```
 
-**O estilo tem nome.** Isto é um monólito Django modular com **camada de
-serviço** (o padrão que a comunidade Django chama de *service layer*, do
-Django Styleguide) e um **núcleo funcional puro** no lugar exato onde a
-correção precisa ser auditável — o que a literatura chama de *functional core,
-imperative shell*. Não é hexagonal e não é DDD, por decisão: o domínio importa
-Django de propósito, porque a única fronteira que paga aqui é a do motor
-financeiro, e ela é mantida por ausência de imports em `hotel/billing/engine.py`
-— o único módulo do repositório que sobreviveria intacto a uma troca de
-framework. O mapa dos quatro apps, o grafo de dependências e as invariantes por
-domínio estão em [`ARQUITECTURE.md`](ARQUITECTURE.md).
+O grafo de dependências entre os apps não é convenção: é **fiscalizado** por
+import-linter (`uv run lint-imports`, passo do CI). As camadas do frontend
+(`lib → components → features → pages → app`) são cobradas por
+`no-restricted-imports` no ESLint.
 
 Quatro invariantes atravessam o código inteiro e explicam a maior parte das
 escolhas de estrutura:
 
 1. **Dinheiro é `Decimal`, sempre.** Nunca `float`, em lugar nenhum — há uma
-   guarda no CI. O valor é serializado como string e o frontend só formata.
-2. **Relógio injetável.** Regra de horário recebe `now` como parâmetro
-   explícito: a view injeta `timezone.now()`, o teste injeta o que quiser. Fuso
+   guarda de texto no CI. Serializado como string; o frontend só formata.
+2. **Relógio injetável.** Regra de horário recebe `now`/`today` como parâmetro:
+   a view injeta `timezone.now()`, o teste injeta o que quiser. Fuso
    `America/Sao_Paulo`, banco em UTC, e **toda** comparação de regra (14h, 12h)
    acontece em hora local.
-3. **Camadas, sem exceção.** Em cada app: models enxutos → `selectors.py`
-   (leitura) → `services.py` (**toda** mutação e todo dinheiro) → serializers
-   (I/O) → views finas. A regra vale para a criação como vale para o check-in: view nunca
-   calcula dinheiro, model nunca conhece request, e **serializer nunca lê o
-   relógio nem aplica regra de negócio**. É por isso que "reserva não pode ser
-   no passado" é testável passando uma data como argumento, sem subir HTTP e
-   sem congelar o tempo.
+3. **Camadas, sem exceção.** models enxutos → `selectors.py` (leitura) →
+   `services.py` (**toda** mutação e todo dinheiro) → serializers (I/O) → views
+   finas. View nunca calcula dinheiro, model nunca conhece request, serializer
+   nunca lê o relógio.
 4. **O cálculo mora no backend.** Nenhum teste de frontend re-prova aritmética:
-   os fixtures são cópia literal da tabela de casos numéricos, então o que o
-   frontend prova é consumo fiel do contrato, apresentação da consequência da
-   regra e condução do protocolo (409 → alerta → reenvio com `allow_early`).
+   os fixtures são cópia literal da tabela da seção 4.
 
-### O frontend: erros, formulários e contrato
-
-**Cada falha tem um lugar na tela, e só um.** Erro de validação de campo vai ao
-**campo culpado** (`aria-invalid` + mensagem, com a dica de formato ainda
-visível ao lado). O `409 EARLY_CHECKIN` abre o **diálogo** de alerta com a hora
-do servidor e o botão de confirmar (D4). Erro de mutation que nenhuma tela
-apresenta vira **toast** — nunca um boundary, que apagaria o formulário e o que
-o atendente digitou. Erro de render, e `5xx` na **primeira** carga de uma query,
-caem no **ErrorBoundary** ("Algo deu errado", com "Tentar novamente" e
-"Recarregar"); o boundary da tabela é local, então uma quebra nela mantém o
-header, o "Novo hóspede" e os diálogos vivos. `4xx` e backend fora do ar seguem
-inline, com retry, porque recarregar a aplicação não traz o servidor de volta.
-E a **sessão expirada** é anunciada pelo interceptor de 401, não pela tela que
-por acaso pediu a requisição: toast "Sua sessão expirou. Entre novamente.",
-cache limpo e volta ao login. A tabela desse roteamento está em
-`frontend/src/lib/queryClient.ts:9-22`.
-
-**Formulários.** Login, cadastro de hóspede e criação de reserva usam
-**react-hook-form + zod**, com um schema por feature
-(`frontend/src/features/<x>/schemas.ts`) que **espelha as regras do servidor** —
-documento com ≥ 4 alfanuméricos e telefone internacional válido (D9), entrada não
-anterior a hoje e mínimo de 1 noite (D11/D13) — para o balcão errar antes da
-rede. Espelhar não é confiar: o servidor continua **autoritativo**, e o
-`400 VALIDATION_ERROR` que ele devolver é remapeado campo a campo; chave que o
-formulário não declara (`non_field_errors`, `detail`) aparece no alerta de topo
-em vez de sumir em silêncio.
-
-**Contrato validado em runtime.** Toda resposta da API passa por um schema zod
-antes de chegar à tela, e dinheiro só é aceito como string decimal de duas casas
-(`frontend/src/lib/schemas.ts`). Um desvio de contrato vira `CONTRACT_ERROR`
-visível — nunca um total plausível e errado na conta do hóspede.
-
-### Como isto cresce (e o que foi recusado)
-
-Escalar em carga, aqui, é operação e não arquitetura: um PostgreSQL de nó único
-serve o volume de um hotel com folga, e os selectors de leitura já resolvem as
-abas em 2 queries, sem N+1. Escalar em código e em time é o que a estrutura
-acima endereça — e o que ela deliberadamente **não** antecipa:
-
-**O que já cresceu.** Sete expansões entraram depois da primeira entrega, cada
-uma com a sua tela — o que segue é o mapa de uma para a outra:
-
-| Expansão do backend | Onde ela aparece na tela |
-|---|---|
-| `Room` + `EXCLUDE` gist e unique parcial (D16) | `/quartos` e o seletor de quarto na reserva, alimentado por `/rooms/available/` |
-| `PricingPolicy` append-only, amarrada no check-in (D15) | `/tarifas`: vigente, histórico e publicação; o extrato de quem já entrou não muda |
-| Ator em cada transição (`created_by`, `checked_in_by`, …) | O histórico em `/reservas/:id`, e o "Publicada por" das tarifas |
-| Pagamento único da conta fechada (D18) | O bloco "Em aberto → Pago" no extrato, e o filtro `?paid=` |
-| Titular + acompanhantes (D19) | O seletor de acompanhantes na reserva e as linhas marcadas nas abas |
-| Nacionalidade e telefone com DDI (D9) | Os dois campos novos no cadastro, e a máscara E.164 na tabela |
-| Papéis `ATTENDANT`/`ADMIN` | O chip no cabeçalho e a existência (não o desabilitar) dos controles de escrita |
-
-**O que ainda não foi construído**, e o gatilho de cada coisa:
-
-| Se acontecer isto… | …a resposta é |
-|---|---|
-| Tarifa que varia por quarto, e não só por dia da semana | `RoomType` (ou preço no `Room`), consumido por `catalog.rate_table_of` |
-| Vigência futura agendada de tarifa | `effective_from` no futuro já é suportado pelo modelo; falta a tela e a leitura por data |
-| Troca de quarto no meio da estadia | Tabela de ocupação por trecho — a reserva deixa de ser a unidade de alocação |
-| Estorno ou pagamento parcial | Livro-caixa append-only: a primeira transição repetível quebra as três colunas de D18 |
-| Segundo hotel no negócio | Constraint composta de `document` **antes** da coluna de tenant |
-| Segundo cliente da API (mobile, integrador) | Versionar a rota antes de ele existir, nunca depois |
-| Efeito externo que não pode ser perdido (e-mail, channel manager) | Outbox transacional — não um broker no caminho crítico |
-| Consumidor do domínio fora do processo Django | Aí sim, considerar inversão de dependência |
-
-Hexagonal, DDD tático e CQRS foram avaliados e recusados **para este tamanho**,
-com o custo e o gatilho de cada um registrados no documento de arquitetura. O
-resumo da recusa: `pricing.py` já é o hexágono, e o que sobra em
-`services/reservations.py` é orquestração de transação — justamente a coisa que
-ports & adapters abstrai pior. Comprar essas camadas agora seria vender curva de
-aprendizado como robustez.
-
-A hipótese que essa tabela registrava — "o extrato é recomputado dos fatos, e
-isso só é determinístico enquanto a tarifa não mudar" — **deixou de valer por
-construção**: o extrato é persistido linha a linha no checkout e `statement()`
-hidrata, nunca recalcula. A tarifa pode mudar amanhã e a 2ª via de ontem sai
-igual.
-
-Segurança, em uma linha cada: JWT com permissão global fechada
-(`IsAuthenticated`) e exceções explícitas; documento e telefone em claro
-normalizado, busca por fragmento, PII fora de log; CSP estrita **nas respostas
-do Django**, montada por middleware do backend, com isenção pontual só na página
-do Swagger; headers de nosniff, referrer-policy e clickjacking; imagens Docker
-rodando como usuário **non-root**; assets do Swagger servidos localmente
-(funciona offline).
-
-Sobre o trade-off que este README registrava como evolução em aberto — "os
-tokens vivem em `localStorage`, logo um XSS os lê" —: **ele foi fechado.**
-Nenhuma credencial mora em disco. O access fica numa variável de módulo
-(`frontend/src/lib/auth/session.ts`) e morre com a aba; o refresh saiu do
-alcance de qualquer script, num cookie `HttpOnly; Secure; SameSite=Strict;
-Path=/api/auth/` que o navegador só anexa às duas rotas de sessão. Há teste em
-cada camada afirmando que `localStorage` e `sessionStorage` ficam vazios.
-
-O que veio junto: `POST /auth/logout/` que revoga o refresh na denylist do
-servidor — antes "Sair" só limpava o cliente e o refresh seguia válido 12 h — e um
-teto absoluto de sessão, sem código próprio: o `exp` fixado no login é o prazo, e
-renovar devolve um access novo sem estendê-lo. O CSRF ficou confinado às rotas de
-cookie: rota autenticada por `Bearer` é imune por construção, já que o navegador
-não anexa header sozinho.
-`backend/docs/TECHNICAL_GUIDE.md` explica cada uma dessas decisões, incluindo
-por que a denylist não foi para o Redis e por que a sessão nativa do Django foi
-avaliada e recusada.
-
-O que **continua** em aberto, dito com o nome certo: a CSP não cobre o
-documento HTML da aplicação, porque quem o serve é o Vite e o cabeçalho vem do
-middleware do Django. Com XSS ativo na página, `HttpOnly` impede a exfiltração
-do refresh, não o abuso da sessão enquanto a aba está aberta. Servir a aplicação
-por nginx com CSP própria trocaria o caminho canônico do Compose, e fica
-registrado como o próximo passo — não escondido como defeito.
+O mapa dos quatro apps, o grafo, as invariantes por domínio e o gatilho de cada
+coisa ainda não construída estão em [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
 
-## 8. Escopo deliberadamente fora
+## 8. Documentação
 
-A tese desta entrega é **briefing + evolução declarada**: o que o briefing pede
-está construído e testado, e o que veio depois (quartos, tarifa versionada,
-acompanhantes, pagamento, papéis) entrou com contrato documentado e teste que o
-comprova — nunca por antecipação. A seção 7 mapeia cada expansão à sua tela.
-
-O que continua **fora**, e por quê: tarifa por quarto e vigência futura
-agendada (o gatilho está na tabela da seção 7), troca de quarto no meio da
-estadia, estorno e pagamento parcial (quebrariam as três colunas de D18),
-edição ou exclusão de hóspede e reserva via API (registros imutáveis após a
-criação, exceto as transições de status — o briefing pede armazenar e
-localizar, não editar), no-show automático de reservas vencidas (D14), gestão
-de usuários via API (os dois usuários nascem do seed), recuperação de senha,
-WebSockets, i18n, multi-tenancy, tema dark, Storybook.
-
-Cada um desses adicionaria superfície de bug sem adicionar ponto na avaliação.
-Em conflito entre "mais feature" e "mais qualidade", venceu a qualidade.
-
----
-
-## 9. Ferramentas de desenvolvimento
+| Documento                                                        | Responde                                                                 |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Este README**                                                  | O que é, como subir, como verificar, e onde cada requisito está provado.  |
+| [`docs/COMO-RODAR.md`](docs/COMO-RODAR.md)                       | Execução sem Docker, variáveis de ambiente, roteiro de demonstração.     |
+| [`docs/DECISOES.md`](docs/DECISOES.md)                           | D1–D19: cada ambiguidade do briefing, a leitura rejeitada e o caso que as separa. |
+| [`docs/QUALIDADE.md`](docs/QUALIDADE.md)                         | Doutrina de teste, política de cobertura, ferramental do CI.             |
+| [`docs/IRIS.md`](docs/IRIS.md)                                   | A Íris: laço de ferramentas, fronteira de PII, fallback sem chave.       |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md)                             | Os quatro apps, o grafo fiscalizado, e o gatilho do que não foi feito.   |
+| [`backend/docs/`](backend/docs/)                                 | Regras de negócio, autenticação, envelope de exceções, guia técnico.     |
 
 Desenvolvido com agentes de codificação sob revisão humana; todo commit passou
 pela suíte completa.
-
-O que está configurado — e é exatamente o que o CI cobra, para que "passa na
-minha máquina" e "passa no CI" signifiquem a mesma coisa:
-
-| Ferramenta | Configuração | Papel |
-|---|---|---|
-| **Ruff** | `backend/pyproject.toml` | lint e formatação do Python |
-| **import-linter** | `backend/pyproject.toml` (`[tool.importlinter]`) | fiscaliza o grafo de dependências entre `core`, `accounts`, os quatro apps de `hotel/` e `ai/` (ARQUITECTURE.md §3). Passo `uv run lint-imports` no CI |
-| **Prettier** | `frontend/.prettierrc` | formatação única do frontend (sem `;`, aspas simples, 100 colunas), com `prettier-plugin-tailwindcss` ordenando as classes utilitárias — inclusive dentro de `cn()`/`cva()` (`tailwindFunctions`). `pnpm run format:check` é passo do CI |
-| **ESLint 9**, flat config | `frontend/eslint.config.js` | `typescript-eslint` **type-aware** (`strictTypeChecked`), `jsx-a11y`, `react-hooks`, `simple-import-sort`, `testing-library`/`jest-dom` nos testes — e `no-restricted-imports` por pasta impondo as camadas `lib → components → features → pages → app`: `lib` não importa ninguém, `components` não importa features nem páginas, nenhuma feature alcança `pages` ou `app`, e uma página não alcança `app`; dentro de `features/**`/`pages/**` também é proibido `../../*` (sempre `@/`). Roda com `--max-warnings 0` |
-| **TypeScript** | `frontend/tsconfig{,.app,.test,.node,.e2e}.json` | quatro programas por `references` (aplicação, testes, `vite.config.ts`, `e2e/` + `playwright.config.ts`), para que `node`, os globais de teste e o Playwright não tipem código de produção. `strict` + `noUncheckedIndexedAccess`; `pnpm run typecheck` é `tsc -b` |
-| **Vitest** + cobertura v8 | `frontend/vite.config.ts` | `mockReset`/`restoreMocks` globais (nenhum teste herda dublê do vizinho) e **piso de cobertura** condicionado (§3) que falha o CI ao regredir |
-| **Playwright** | `frontend/playwright.config.ts` | e2e só Chromium, `workers: 1`; `webServer` sobe gunicorn e o Vite dev sozinho; `pnpm run e2e` / `e2e:ui` / `e2e:report` |
-| **`.editorconfig`** e `.vscode/` | raiz do repositório | fim de linha, indentação e format-on-save iguais para quem clonar; as extensões sugeridas cobrem os dois lados |
-| **Node fixado** | `frontend/.nvmrc` (24) e `engines` no `package.json` | a versão da imagem, do CI e do caminho híbrido é uma só |
-| **pnpm fixado** | `packageManager` no `package.json` (`pnpm@11.25.0`) | `corepack` (embutido no Node) lê o campo e baixa esse exato binário — mesma versão na imagem, no CI e no caminho híbrido |
-
-Um comando cobre o frontend inteiro (`pnpm run check`, seção
-[3](#3-verificação-as-suítes-de-teste)); o job de frontend do CI repete os
-mesmos passos, um por um e nomeados, mais a guarda de dinheiro e o upload do
-relatório de cobertura.

@@ -20,7 +20,7 @@ Regras:
 - Mais de uma reserva casa o termo? Liste titular, quarto e nº de cada uma, peça o critério \
 e use `action_type: none`.
 - Valores em reais copiados dos resultados, nunca recalculados: cite o total e, quando \
-houver, diárias, estacionamento, multa e extras.
+houver, diárias, estacionamento e multa.
 - Checkout atrasado é estadia CHECKED_IN com `checkout_date` anterior a hoje, ou de hoje já \
 passado o limite. Narre com os valores de preview_checkout.
 - Proponha `check_in` ou `checkout` só quando o atendente pedir a ação ou contar que a pessoa \

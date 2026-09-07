@@ -29,7 +29,7 @@ def actor():
 
 
 def t7_checked_out(actor) -> Reservation:
-    """Estadia T7 fechada pelo servico: sex 07 15:00 -> dom 09 12:01, com vaga."""
+    """Estadia fechada pelo servico: sex 07 15:00 -> dom 09 12:01, com vaga."""
     reservation = ReservationFactory(checkin_date=MARCH_7, checkout_date=MARCH_9, has_vehicle=True)
     service.check_in(reservation, now=local(MARCH_7, 15), actor=actor)
     service.check_out(reservation, now=local(MARCH_9, 12, 1), actor=actor)
@@ -37,7 +37,7 @@ def t7_checked_out(actor) -> Reservation:
 
 
 def test_search_name_fragment():
-    """RF3: nome acha por fragmento, com e sem diferenca de caixa (trigram, D5)."""
+    """Nome acha por fragmento, com e sem diferenca de caixa (trigram)."""
     ana = GuestFactory(full_name="Ana Souza")
     mariana = GuestFactory(full_name="Mariana Costa")
     bruno = GuestFactory(full_name="Bruno Lima")
@@ -49,7 +49,6 @@ def test_search_name_fragment():
 
 
 def test_search_document_any_format():
-    """RF3: documento acha por valor exato em qualquer formatacao (D9)."""
     ana = GuestFactory(full_name="Ana Souza", document="123.456.789-01")
     GuestFactory(full_name="Bruno Lima", document="987.654.321-00")
 
@@ -58,7 +57,7 @@ def test_search_document_any_format():
 
 
 def test_search_document_by_fragment():
-    """D5: fragmento de documento acha -- cifra nao esta mais no caminho."""
+    """Fragmento de documento acha -- cifra nao esta mais no caminho."""
     ana = GuestFactory(full_name="Ana Souza", document="123.456.789-01")
 
     assert set(guest_selectors.search_guests("789")) == {ana}
@@ -66,7 +65,7 @@ def test_search_document_by_fragment():
 
 
 def test_search_phone_by_fragment():
-    """D5: fragmento de telefone acha, com ou sem mascara no termo."""
+    """Fragmento de telefone acha, com ou sem mascara no termo."""
     ana = GuestFactory(full_name="Ana Souza", phone="+55 21 98888-7777")
 
     assert set(guest_selectors.search_guests("98888")) == {ana}
@@ -74,7 +73,6 @@ def test_search_phone_by_fragment():
 
 
 def test_search_phone_any_format():
-    """RF3: telefone acha por valor exato em qualquer formatacao (D9)."""
     ana = GuestFactory(full_name="Ana Souza", phone="+55 21 98888-7777")
     GuestFactory(full_name="Bruno Lima", phone="+55 11 97777-6666")
 
@@ -83,7 +81,7 @@ def test_search_phone_any_format():
 
 
 def test_search_passport_does_not_collide_with_another_passport():
-    """D9: normalizacao alfanumerica preserva as letras do passaporte."""
+    """Normalizacao alfanumerica preserva as letras do passaporte."""
     carla = GuestFactory(full_name="Carla Nunes", document="AB123456")
     GuestFactory(full_name="Davi Rocha", document="CD123456")
 
@@ -105,7 +103,6 @@ def test_search_term_without_alphanumerics_matches_nothing():
 
 
 def test_in_hotel_only_checked_in():
-    """RF4: so hospedes com reserva CHECKED_IN."""
     inside = ReservationFactory(checked_in=True).guest
     ReservationFactory()  # PENDING
     ReservationFactory(checked_out=True)
@@ -135,7 +132,7 @@ def test_in_hotel_lists_each_guest_once():
 
 
 def test_pending_checkin_lists_pending():
-    """RF5: pendentes, inclusive as vencidas (D14)."""
+    """Pendentes, inclusive as vencidas."""
     guest = GuestFactory(full_name="Ana Souza")
     today = timezone.localdate()
     overdue = ReservationFactory(
@@ -267,12 +264,12 @@ def test_revenue_summary_sums_closed_accounts(actor):
     summary = selectors.revenue_summary()
 
     assert summary.stays == 2
-    assert summary.billed == Decimal("850.00")  # 2 x T7
+    assert summary.billed == Decimal("850.00")  # 2 x 425 (mesma estadia duas vezes)
     assert summary.paid == Decimal("0.00")  # fechadas, nenhuma recebida
 
 
 def test_revenue_summary_separates_paid_and_late_fees(actor):
-    """T7 pago: o total da tabela-verdade, tudo recebido, multa de R$ 90,00."""
+    """Pago: o total da estadia padrao, tudo recebido, multa de R$ 90,00."""
     reservation = t7_checked_out(actor)
     service.mark_paid(reservation, now=local(MARCH_9, 13), actor=actor, payment_method="PIX")
 

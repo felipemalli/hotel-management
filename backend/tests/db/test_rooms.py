@@ -52,7 +52,7 @@ def test_room_overlap_rejected_by_exclusion():
 
 
 def test_adjacent_stays_in_same_room_are_allowed():
-    """Sai dia 09, entra dia 09: `[)` deixa passar -- mesma semantica de D1."""
+    """Sai dia 09, entra dia 09: `[)` deixa passar."""
     room = RoomFactory()
     ReservationFactory(room=room, checkin_date=MARCH_7, checkout_date=MARCH_9)
 
@@ -77,7 +77,7 @@ def test_cancelled_and_checked_out_release_the_room(trait):
 
 
 def test_one_checked_in_per_room_constraint():
-    """O FATO fisico: a agenda pode ter liberado, o quarto nao (D6/D7/D14)."""
+    """O FATO fisico: a agenda pode ter liberado, o quarto nao."""
     room = RoomFactory()
     ReservationFactory(room=room, checkin_date=MARCH_7, checkout_date=MARCH_9, checked_in=True)
 
@@ -155,7 +155,7 @@ def test_create_reservation_rejects_inactive_room(actor):
 
 
 def test_overdue_pending_holds_the_room_until_cancelled(actor):
-    """D14 complementada: pendencia vencida RETEM o quarto ate o cancel.
+    """Pendencia vencida RETEM o quarto ate o cancel.
 
     O sistema nao muda estado sem gesto humano, e a consequencia e que o quarto
     fica preso. Ou o atendente cancela, ou faz o check-in.
@@ -185,7 +185,7 @@ def test_checkin_blocked_while_room_still_occupied(actor):
 
 
 def test_early_arrival_cannot_take_a_room_promised_to_another_pending(actor):
-    """D7 complementada: chegar antes segue permitido, salvo se toma o quarto.
+    """Chegar antes segue permitido, salvo se toma o quarto.
 
     A reserva de 09->11 aparece no balcao no dia 07 e quer entrar ja. Sem a
     guarda, ela ocuparia o quarto que esta prometido a outra reserva de 07->09
@@ -203,7 +203,7 @@ def test_early_arrival_cannot_take_a_room_promised_to_another_pending(actor):
 
 
 def test_early_arrival_is_allowed_when_the_room_is_free(actor):
-    """A guarda e estreita: sem quarto prometido, D7 continua valendo."""
+    """A guarda e estreita: sem quarto prometido, a chegada antecipada continua valendo."""
     room = RoomFactory()
     early = ReservationFactory(room=room, checkin_date=MARCH_9, checkout_date=MARCH_11)
 
