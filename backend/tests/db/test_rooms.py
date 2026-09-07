@@ -2,7 +2,8 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from core.errors import DomainValidationError
@@ -323,6 +324,22 @@ def test_update_room_refuses_capacity_below_an_active_party():
     ]
     room.refresh_from_db()
     assert room.capacity == 3
+
+
+def test_update_room_locks_the_room_row(actor):
+    """`check_in` trava o Room; sem o mesmo lock aqui, os dois nunca serializam."""
+    room = RoomFactory(capacity=2)
+    book(room, actor=actor)
+
+    with CaptureQueriesContext(connection) as captured:
+        catalog.update_room(room, capacity=3)
+
+    locks = [
+        query["sql"]
+        for query in captured.captured_queries
+        if "FOR UPDATE" in query["sql"] and "rooms_room" in query["sql"]
+    ]
+    assert len(locks) == 1, locks
 
 
 def test_delete_room_without_history():

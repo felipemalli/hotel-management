@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.db import transaction
 from django.db.models.deletion import ProtectedError
 
 from core.errors import DomainError, DomainValidationError, translate_integrity_error
@@ -37,28 +38,34 @@ def create_room(*, number: str, capacity: int) -> Room:
 
 
 def update_room(room: Room, *, capacity: int | None = None, is_active: bool | None = None) -> Room:
-    fields: list[str] = []
+    with transaction.atomic():
+        # Room e a linha que este caminho compartilha com check_in e add_companions:
+        # sem o lock, a leitura da agenda aqui e a escrita de la nao se enxergam, e o
+        # quarto acaba desativado com hospede dentro ou menor que um grupo ja aceito.
+        locked = Room.objects.select_for_update().get(pk=room.pk)
+        fields: list[str] = []
 
-    if is_active is False and reservation_selectors.active_reservations_of(room).exists():
-        raise RoomInUseError()
+        if is_active is False and reservation_selectors.active_reservations_of(locked).exists():
+            raise RoomInUseError()
 
-    if capacity is not None:
-        occupants = reservation_selectors.largest_active_party(room)
-        if capacity < occupants:
-            raise DomainValidationError(
-                "capacity",
-                f"O quarto {room.number} tem reserva ativa para {occupants} pessoas.",
-            )
-        room.capacity = capacity
-        fields.append("capacity")
+        if capacity is not None:
+            occupants = reservation_selectors.largest_active_party(locked)
+            if capacity < occupants:
+                raise DomainValidationError(
+                    "capacity",
+                    f"O quarto {locked.number} tem reserva ativa para {occupants} pessoas.",
+                )
+            locked.capacity = capacity
+            fields.append("capacity")
 
-    if is_active is not None:
-        room.is_active = is_active
-        fields.append("is_active")
+        if is_active is not None:
+            locked.is_active = is_active
+            fields.append("is_active")
 
-    if fields:
-        room.save(update_fields=fields)
-    return room
+        if fields:
+            locked.save(update_fields=fields)
+
+    return locked
 
 
 def delete_room(room: Room) -> None:

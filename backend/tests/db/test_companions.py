@@ -334,3 +334,20 @@ def test_remove_companion_rejects_anything_but_pending(actor):
         service.remove_companion(reservation, companion_id=eva.pk)
 
     assert excinfo.value.extra["status"] == ReservationStatus.CHECKED_IN
+
+
+def test_add_companions_locks_room_before_reservation(actor):
+    """A ordem tem que ser a mesma do check_in: invertida, as duas dao deadlock."""
+    reservation = book(actor=actor)
+
+    with CaptureQueriesContext(connection) as captured:
+        service.add_companions(reservation, companions=[GuestFactory()])
+
+    locked = [
+        table
+        for query in captured.captured_queries
+        if "FOR UPDATE" in query["sql"]
+        for table in ("rooms_room", "reservations_reservation")
+        if table in query["sql"]
+    ]
+    assert locked == ["rooms_room", "reservations_reservation"]

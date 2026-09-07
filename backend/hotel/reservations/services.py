@@ -114,6 +114,7 @@ def add_companions(reservation: Reservation, *, companions: Sequence[Guest]) -> 
         raise DomainValidationError("companion_ids", "Informe ao menos um acompanhante.")
 
     with transaction.atomic():
+        room = _lock_room(reservation)
         locked = _lock(reservation)
         if locked.status != ReservationStatus.PENDING:
             raise InvalidStatusError(
@@ -126,7 +127,7 @@ def add_companions(reservation: Reservation, *, companions: Sequence[Guest]) -> 
             raise DomainValidationError(
                 "companion_ids", "Este hóspede já é acompanhante desta reserva."
             )
-        _assert_party(locked.guest, [*existing, *companions], locked.room)
+        _assert_party(locked.guest, [*existing, *companions], room)
         locked.companions.add(*companions)
 
     return selectors.reservation_queryset().get(pk=reservation.pk)
@@ -372,8 +373,8 @@ def _lock_people(reservation: Reservation) -> list[int]:
     return ids
 
 
-def _lock_room(reservation: Reservation) -> None:
-    Room.objects.select_for_update().get(pk=reservation.room_id)
+def _lock_room(reservation: Reservation) -> Room:
+    return Room.objects.select_for_update().get(pk=reservation.room_id)
 
 
 def _assert_room_free(
