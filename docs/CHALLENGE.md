@@ -54,7 +54,7 @@ exist` em `.github/workflows/ci.yml`).
 | RF1 | Cadastro persistente de hóspede      | `test_create_guest_persists_normalized_pii`         | `GuestForm.test.tsx::test_requires_name_document_phone`           | `reception.spec.ts`                     |
 | RF2 | Reservas persistentes                | `test_create_reservation_persists_pending`          | `ReservationForm.test.tsx::test_submits_dates_and_vehicle_flag`   | `reception.spec.ts`                     |
 | RF3 | Localizar por nome, documento, tel.  | `test_search_name_fragment` e afins                 | `GuestTable.test.tsx::test_search_input_debounces_and_queries`    | `reception.spec.ts`                     |
-| RF4 | Hóspedes ainda no hotel              | `test_in_hotel_only_checked_in`                     | `GuestTable.test.tsx::test_tab_in_hotel_switches_dataset`         | —                                       |
+| RF4 | Hóspedes ainda no hotel              | `test_in_hotel_only_checked_in`                     | `GuestTable.test.tsx::test_tab_in_hotel_switches_dataset`         | (nenhum e2e próprio)                    |
 | RF5 | Com reserva, sem check-in            | `test_pending_checkin_lists_pending`                | `GuestTable.test.tsx::test_tab_pending_switches_dataset`          | `reception.spec.ts`                     |
 | RF6 | Atendente realiza o check-in         | `test_checkin_after_14_succeeds`                    | `EarlyCheckinFlow.test.tsx::test_checkin_success_updates_row`     | `reception.spec.ts`                     |
 | RF7 | Atendente realiza o checkout         | `test_checkout_freezes_totals`                      | `CheckoutStatementDialog.test.tsx::test_T7_full_statement`        | `reception.spec.ts`, `checkout.spec.ts` |
@@ -114,7 +114,7 @@ tem um caso numérico em que a alternativa daria outro valor.
 
 ## 5. Requisitos técnicos
 
-**RT1 — stack.**
+**RT1: stack.**
 
 | Pedido      | Entregue                                                                                                        |
 | ----------- | --------------------------------------------------------------------------------------------------------------- |
@@ -124,7 +124,7 @@ tem um caso numérico em que a alternativa daria outro valor.
 | React       | 18 + TypeScript, Vite, TanStack Query e Table, react-hook-form + zod, Tailwind, shadcn (Base UI)                |
 | Adicionados | Docker Compose, Redis (cache de throttle), Caddy (TLS em produção), Pytest, Vitest + Testing Library, Playwright |
 
-**RT2 — testes unitários no frontend e no backend.** Unitários no sentido
+**RT2: testes unitários no frontend e no backend.** Unitários no sentido
 estrito: `backend/tests/unit/` (motor de cálculo com T1–T9, fronteiras
 11:59 / 12:00:00 / 12:01, day-use e normalização de PII, sem banco) e, no
 frontend, `src/lib/**/*.test.ts` e `src/features/*/schemas.test.ts` (dinheiro,

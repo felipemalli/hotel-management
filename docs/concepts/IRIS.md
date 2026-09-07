@@ -1,15 +1,15 @@
-# Íris — o copiloto do hotel
+# Íris: o copiloto do hotel
 
 > Feature **opcional e desacoplada**: sem `OPENAI_API_KEY` ela fica desligada e
 > o resto do sistema não muda em nada.
 >
-> Este documento é **o que** a Íris faz. Para **como** ela foi feita — o caminho
-> do código, arquivo por arquivo, na ordem em que uma requisição acontece —
+> Este documento é **o que** a Íris faz. Para **como** ela foi feita (o caminho
+> do código, arquivo por arquivo, na ordem em que uma requisição acontece),
 > veja [`IRIS-CODE.md`](../code/IRIS-CODE.md).
 
 A Íris tem uma página própria (`/iris`, primeiro item de OPERAÇÃO). O atendente
-pergunta em linguagem natural — "a Ana Souza chegou", "alguém passou do horário
-de checkout?", "quanto faturamos até agora?" — e recebe um texto curto e, quando
+pergunta em linguagem natural ("a Ana Souza chegou", "alguém passou do horário
+de checkout?", "quanto faturamos até agora?") e recebe um texto curto e, quando
 há uma ação clara, **um** botão.
 
 O que a torna diferente de um chat colado no produto é quem faz as consultas. O
@@ -20,12 +20,12 @@ leituras, e nenhuma escrita:
 | Ferramenta          | O que devolve                                                                    |
 | ------------------- | -------------------------------------------------------------------------------- |
 | `find_reservations` | Reservas de um status, achadas por titular, **acompanhante**, quarto ou nº        |
-| `preview_checkout`  | O extrato que sairia agora — diárias, vaga, multa, total — sem gravar nada        |
+| `preview_checkout`  | O extrato que sairia agora (diárias, vaga, multa, total), sem gravar nada        |
 | `available_rooms`   | Quartos livres num período, com a capacidade de cada um                          |
 | `revenue_summary`   | Faturamento das estadias encerradas: fechado, recebido, multas (hoje / mês / tudo)|
 
 A resposta termina numa função `answer`, então a saída é **estruturada por
-construção** — nenhum JSON é garimpado de dentro de prosa. Se a pergunta tem uma
+construção**: nenhum JSON é garimpado de dentro de prosa. Se a pergunta tem uma
 ação, ela vem em `proposed_action` e o clique passa pelos endpoints de check-in e
 de checkout de sempre: o `409 EARLY_CHECKIN` ainda abre o diálogo de confirmação,
 e o checkout ainda mostra o extrato com os mesmos números. **A IA não grava
@@ -34,7 +34,7 @@ nada** (*human-in-the-loop*).
 > ⚠️ **Aviso de envio a provedor externo.** Com a chave configurada, saem para
 > a OpenAI (`https://api.openai.com/v1/responses`) os **nomes** (titular e
 > acompanhantes), quartos, datas, o extrato projetado e os agregados de
-> faturamento. **Documento e telefone nunca saem** — o recorte que vai para o
+> faturamento. **Documento e telefone nunca saem**: o recorte que vai para o
 > provedor não tem esses campos. Nada do conteúdo é registrado em log, e o
 > request pede `store: false`: a conversa não fica retida do lado do provedor.
 > Esta é a única saída de dados do sistema para fora da sua infraestrutura, e
@@ -57,7 +57,7 @@ docker compose up -d --build backend
 ```
 
 Para conferir que a chave pegou, sem abrir o navegador (é a única forma de exercitar
-o provedor — **nenhum teste automatizado chama a API**, [`QUALITY.md`](QUALITY.md)):
+o provedor, pois **nenhum teste automatizado chama a API**; ver [`QUALITY.md`](QUALITY.md)):
 
 ```bash
 docker compose exec -T backend uv run python manage.py shell -c "
@@ -77,11 +77,11 @@ Saída de modelo é **input não confiável**, e em três frentes:
 
 - **argumentos**: cada chamada de ferramenta passa por um serializer antes de
   virar consulta. Onde o modelo costuma omitir um campo, o serializer é
-  tolerante — um argumento faltante custa uma rodada com `{"error": …}`, que o
+  tolerante: um argumento faltante custa uma rodada com `{"error": …}`, que o
   modelo lê e corrige, nunca um `502`;
 - **identidade**: um botão só aparece se a reserva **apareceu** num resultado e
   foi **isolada** nele. Um id que já apareceu ao lado de outro fica travado pelo
-  resto da requisição, mesmo que o modelo afunile sozinho depois — nesse caso
+  resto da requisição, mesmo que o modelo afunile sozinho depois. Nesse caso
   quem escolheu foi ele, não o atendente. Id inventado derruba o botão, não a
   resposta: o texto foi construído com dados reais e continua valendo;
 - **status**: antes de devolver a ação, o servidor relê a reserva. Um check-in
@@ -91,11 +91,11 @@ Saída de modelo é **input não confiável**, e em três frentes:
 Tudo isso dentro de um orçamento global de **15 s** para o laço inteiro e de
 **sete rodadas** no máximo (`BUDGET_SECONDS` e `MAX_ROUNDS` em `ai/config.py`);
 cada timeout é encurtado para o que resta do orçamento, e na última rodada o
-`tool_choice` força `answer` — um modelo que fica repetindo consultas termina
+`tool_choice` força `answer`. Um modelo que fica repetindo consultas termina
 em resposta, não em 502. Com folga sobre o timeout de 30 s do worker: no pior
 caso o atendente vê um toast, nunca um worker morto.
 
-O app é **removível por construção** — o núcleo do sistema não sabe que ele
+O app é **removível por construção**: o núcleo do sistema não sabe que ele
 existe. `ai/` importa só `hotel.reservations` e `core/` (e o import-linter cobra
 isso: `ai` não pode tocar `billing`, `rooms` ou `guests` direto), nenhum app de
 `hotel/` importa `ai/`, o pacote não entra em `INSTALLED_APPS` (não tem models

@@ -38,8 +38,8 @@ O DRF não tem forma única de erro: ora dict de campos, ora `{"detail": "..."}`
 ### Os três caminhos até o envelope
 
 1. **Exceção do DRF.** O handler pega o `default_code` do DRF e coloca em maiúsculas (`throttled` → `THROTTLED`). Só trata à mão o que isso deixaria fora do contrato: `ValidationError` (viraria `INVALID`) e `AuthenticationFailed` (viraria `AUTHENTICATION_FAILED`). `Http404` e o `PermissionDenied` do Django são convertidos na entrada; sem isso, saem como `ERROR`.
-2. **`DomainError`** (`core/errors.py`) — regra de negócio, tem ramo próprio antes do handler do DRF.
-3. **`ApiError`** (`core/exceptions.py`) — `APIException` com um `code` nosso.
+2. **`DomainError`** (`core/errors.py`): regra de negócio, tem ramo próprio antes do handler do DRF.
+3. **`ApiError`** (`core/exceptions.py`): `APIException` com um `code` nosso.
 
 Bug não previsto (`TypeError`, etc.) **não** entra no envelope: o handler devolve `None` e o Django responde 500.
 
@@ -69,9 +69,9 @@ def validate_document(self, value: str) -> str:
     return value.strip()
 ```
 
-Com `validate_<campo>`, o DRF usa o nome depois de `validate_` como chave — aqui, `{"document": [...]}`.
+Com `validate_<campo>`, o DRF usa o nome depois de `validate_` como chave. Aqui, `{"document": [...]}`.
 
-3. `raise` explícito no serviço — regra de negócio (`hotel/reservations/services.py`):
+3. `raise` explícito no serviço, para regra de negócio (`hotel/reservations/services.py`):
 
 ```python
 if checkin_date < today:
@@ -144,14 +144,14 @@ Papéis diferentes: a guarda decide o caso comum e entrega mensagem específica 
 
 #### Quando não traduzir
 
-No `check_in` as guardas rodam sob lock: `_lock_people` trava as linhas de `Guest` (titular e acompanhantes) e um `select_for_update` trava o `Room`, antes de qualquer leitura. Dois check-ins concorrentes da mesma pessoa — ou no mesmo quarto — serializam no banco, e o segundo só lê depois do commit do primeiro. Sem janela não há violação a traduzir: `resv_one_active_per_guest` e `resv_one_active_per_room` ficam como invariantes do banco, e as guardas dão a resposta, com `extra` que a constraint não teria (`active_reservation_id`, `conflicting_reservation_id`).
+No `check_in` as guardas rodam sob lock: `_lock_people` trava as linhas de `Guest` (titular e acompanhantes) e um `select_for_update` trava o `Room`, antes de qualquer leitura. Dois check-ins concorrentes da mesma pessoa, ou no mesmo quarto, serializam no banco, e o segundo só lê depois do commit do primeiro. Sem janela não há violação a traduzir: `resv_one_active_per_guest` e `resv_one_active_per_room` ficam como invariantes do banco, e as guardas dão a resposta, com `extra` que a constraint não teria (`active_reservation_id`, `conflicting_reservation_id`).
 
 O eixo não é "qual erro merece tradução", é **se existe linha para travar**:
 
 | | Linha para travar | Autoridade | Tradução |
 |---|---|---|---|
-| `create_guest`, `create_room` | não — a linha é a que está sendo criada | constraint | sim |
+| `create_guest`, `create_room` | não: a linha é a que está sendo criada | constraint | sim |
 | `create_reservation` | o conflito é com um intervalo de datas, não com uma linha | `EXCLUDE` | sim |
-| `check_in` | sim — `Guest` e `Room` já existem | guarda sob lock | não |
+| `check_in` | sim: `Guest` e `Room` já existem | guarda sob lock | não |
 
 Traduza quando não há o que travar; trave quando há, e ganhe o `extra` melhor de graça.

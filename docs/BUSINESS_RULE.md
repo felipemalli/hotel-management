@@ -1,7 +1,7 @@
 # Regras de negócio
 
 RN1–RN6 são as regras do desafio, na ordem do enunciado. De RN7 em diante estão
-as regras adicionadas na implementação — as que resolvem uma ambiguidade do
+as regras adicionadas na implementação, que resolvem uma ambiguidade do
 enunciado e as que o produto precisou para funcionar. Os casos numéricos que
 fixam os valores (T1–T9) estão em [CHALLENGE.md](./CHALLENGE.md).
 
@@ -23,7 +23,7 @@ fixam os valores (T1–T9) estão em [CHALLENGE.md](./CHALLENGE.md).
 | ID   | Regra                                                                                                                                                                                                                                 |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | RN7  | Uma diária por **data**, no intervalo semiaberto de `min(entrada real, entrada contratada)` até `max(saída real, saída contratada)`. Mínimo de 1 diária: day-use cobra a data da entrada.                                             |
-| RN8  | Sair antes da data contratada, ou chegar depois dela, não desconta diária: paga-se o período contratado. Chegar antes ou sair depois cobra as diárias a mais.                                                                          |
+| RN8  | Chegar depois da data contratada, ou sair antes dela, não desconta diária: paga-se o período contratado. Chegar antes ou sair depois cobra as diárias a mais.                                                                          |
 | RN9  | Cada diária e cada vaga usam a tarifa do dia da **própria data** (sex→seg = 120 + 180 + 180).                                                                                                                                          |
 | RN10 | A multa de checkout tardio é **por dia**, do dia de saída contratado em diante: um dia entra se o hóspede ainda estava nele depois das 12:00:00, e vale 50% da tarifa **daquele dia**. 12:00:00 em ponto é isento. Não se cobra vaga do dia da saída. |
 | RN11 | O check-in abre às 14:00:00. Antes disso a API responde `409 EARLY_CHECKIN` com a hora do servidor; o atendente pode confirmar e efetivar mesmo assim (`allow_early`). O enunciado pede alerta, não bloqueio.                          |

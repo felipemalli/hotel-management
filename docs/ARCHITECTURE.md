@@ -15,10 +15,10 @@ backend/
 ├── core/         sem models: erros, envelope, money (quantize), serializers comuns
 ├── accounts/     CustomUser + Role; o atendente nasce do seed
 ├── hotel/        pacote agregador (`__init__.py` vazio): quatro apps, um por pergunta do domínio
-│   ├── guests/       QUEM   — cadastro, normalização de PII, busca
-│   ├── rooms/        ONDE   — inventário, capacidade, operação
-│   ├── billing/      QUANTO — engine.py (PURO) · PricingPolicy · Account/AccountLine/Payment
-│   └── reservations/ QUANDO — agenda, transições, extrato, seed_demo
+│   ├── guests/       QUEM: cadastro, normalização de PII, busca
+│   ├── rooms/        ONDE: inventário, capacidade, operação
+│   ├── billing/      QUANTO: engine.py (PURO) · PricingPolicy · Account/AccountLine/Payment
+│   └── reservations/ QUANDO: agenda, transições, extrato, seed_demo
 ├── ai/           a Íris: importa só hotel.reservations e core/
 └── tests/{unit,db,api}/
 
@@ -156,11 +156,11 @@ para a paginação não repetir nem perder linha sobre datas iguais.
 
 | Método & rota                                                             | Auth      | Função                                                                                      |
 | ------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------- |
-| `POST /api/auth/token/`                                                   | —         | Login → `{access}` no corpo + refresh no cookie                                             |
-| `POST /api/auth/token/refresh/`                                           | —         | Renova pelo cookie (exige `X-CSRFToken`)                                                    |
-| `POST /api/auth/logout/`                                                  | —         | Revoga na denylist e apaga o cookie (exige `X-CSRFToken`)                                   |
+| `POST /api/auth/token/`                                                   | pública   | Login → `{access}` no corpo + refresh no cookie                                             |
+| `POST /api/auth/token/refresh/`                                           | pública   | Renova pelo cookie (exige `X-CSRFToken`)                                                    |
+| `POST /api/auth/logout/`                                                  | pública   | Revoga na denylist e apaga o cookie (exige `X-CSRFToken`)                                   |
 | `GET /api/auth/me/`                                                       | ✔         | `{id, username, role}`: o papel vem do servidor                                             |
-| `GET /api/health/`                                                        | —         | `{"status":"ok"}` (healthcheck do Compose)                                                  |
+| `GET /api/health/`                                                        | pública   | `{"status":"ok"}` (healthcheck do Compose)                                                  |
 | `GET /api/guests/` · `POST`                                               | ✔         | Lista + busca (`?search=`) / cadastro                                                       |
 | `GET /api/guests/{id}/`                                                   | ✔         | Detalhe (valor gravado, não mascarado)                                                      |
 | `GET /api/guests/in-hotel/`                                               | ✔         | **RF4**: `CHECKED_IN`; `?search=` compõe com o status                                       |
@@ -179,7 +179,7 @@ para a paginação não repetir nem perder linha sobre datas iguais.
 | `GET /api/pricing-policies/quote/`                                        | ✔         | Estimativa de uma estadia agendada (`?checkin_date=&checkout_date=&has_vehicle=`)           |
 | `POST /api/pricing-policies/`                                             | **admin** | Publica tarifa (append-only; vigência = agora)                                              |
 | `GET /api/ai/status/` · `POST /api/ai/copilot/`                           | ✔         | A Íris (§10)                                                                                |
-| `GET /api/schema/` · `/api/docs/`                                         | —         | OpenAPI 3 + Swagger UI                                                                      |
+| `GET /api/schema/` · `/api/docs/`                                         | pública   | OpenAPI 3 + Swagger UI                                                                      |
 
 A reserva expõe `account` aninhado (`null` fora de CHECKED_IN e CHECKED_OUT),
 com `status`, `total_amount`, `opened_at`, `closed_at` e `payment`. O extrato
