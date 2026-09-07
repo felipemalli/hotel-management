@@ -8,14 +8,14 @@ import { LoginPage } from '@/pages/LoginPage'
 
 import { AppLayout } from './layout/AppLayout'
 
-const DashboardPage = lazy(() =>
-  import('@/pages/DashboardPage').then((module) => ({ default: module.DashboardPage })),
+const GuestsPage = lazy(() =>
+  import('@/pages/GuestsPage').then((module) => ({ default: module.GuestsPage })),
 )
 const ReservationsPage = lazy(() =>
   import('@/pages/ReservationsPage').then((module) => ({ default: module.ReservationsPage })),
 )
-const PricingPage = lazy(() =>
-  import('@/pages/PricingPage').then((module) => ({ default: module.PricingPage })),
+const PricingPolicyPage = lazy(() =>
+  import('@/pages/PricingPolicyPage').then((module) => ({ default: module.PricingPolicyPage })),
 )
 const RoomsPage = lazy(() =>
   import('@/pages/RoomsPage').then((module) => ({ default: module.RoomsPage })),
@@ -44,12 +44,12 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path={ROUTES.home} element={<DashboardPage />} />
+          <Route path={ROUTES.home} element={<GuestsPage />} />
           <Route path={ROUTES.iris} element={<IrisPage />} />
           <Route path={ROUTES.reservations} element={<ReservationsPage />} />
           <Route path={`${ROUTES.reservations}/:id`} element={<ReservationDetailPage />} />
           <Route path={ROUTES.rooms} element={<RoomsPage />} />
-          <Route path={ROUTES.pricing} element={<PricingPage />} />
+          <Route path={ROUTES.pricing} element={<PricingPolicyPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to={ROUTES.home} replace />} />

@@ -16,8 +16,9 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      # Publicada para o caminho hibrido do README. DB_PORT_HOST evita colisao
-      # com um PostgreSQL ja rodando na maquina.
+      # Publicada para o backend rodar fora do compose (ex. o e2e do README, em que
+      # o Playwright sobe o gunicorn na maquina). DB_PORT_HOST evita colisao com um
+      # PostgreSQL ja rodando na maquina.
       - "${DB_PORT_HOST:-5432}:5432"
 
   redis:
@@ -42,8 +43,8 @@ services:
       # Dentro da rede do compose o banco e o servico `db` na porta interna.
       DB_HOST: db
       DB_PORT: "5432"
-      # Presente => cache do throttle no Redis; ausente (execucao nativa e
-      # hibrida do README) => settings.py cai no DatabaseCache do Postgres.
+      # Presente => cache do throttle no Redis; ausente (backend rodando fora do
+      # compose) => settings.py cai no DatabaseCache do Postgres.
       REDIS_URL: redis://redis:6379/1
     depends_on:
       db:

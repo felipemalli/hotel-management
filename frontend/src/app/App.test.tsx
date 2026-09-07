@@ -34,7 +34,7 @@ describe('App', () => {
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
-  it('abre o dashboard com sessao valida', async () => {
+  it('abre a listagem de hospedes com sessao valida', async () => {
     signInForTest()
     render(<App />)
 

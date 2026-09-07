@@ -14,7 +14,6 @@ import { ROUTES } from '@/lib/routing/routes'
 import { PageFallback } from '../PageFallback'
 import { SessionMenu } from '../SessionMenu'
 
-// end só na recepção: /reservas/7 ainda é "Reservas".
 const NAV_GROUPS = [
   {
     label: 'OPERAÇÃO',

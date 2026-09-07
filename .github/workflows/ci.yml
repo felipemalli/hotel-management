@@ -111,7 +111,7 @@ jobs:
           for p in $paths; do test -e "$p" || { echo "::error::guard path missing: $p"; exit 1; }; done
           ! grep -RnE "Number\(|parseFloat|parseInt|toLocaleString|Intl\.NumberFormat" $paths
 
-      # A matriz RF/RN (RESUMO §10) aponta estes ids como prova: o arquivo pode
+      # A matriz RF/RN (docs/CHALLENGE.md §2) aponta estes ids como prova: o arquivo pode
       # mudar de pasta, mas o nome do arquivo e o id do caso ficam.
       - name: Guard - normative test ids exist
         run: |

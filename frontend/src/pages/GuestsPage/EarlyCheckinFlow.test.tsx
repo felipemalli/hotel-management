@@ -10,7 +10,7 @@ import { ReservationActions } from '@/features/reservations/components/Reservati
 import type { Reservation } from '@/features/reservations/types'
 import { ApiError } from '@/lib/errors/errors'
 import { toastStore } from '@/lib/notify/toast'
-import { DashboardPage } from '@/pages/DashboardPage'
+import { GuestsPage } from '@/pages/GuestsPage'
 import { elementAt, page } from '@/test/fixtures'
 import { renderPage } from '@/test/renderPage'
 import { renderWithProviders, signInForTest } from '@/test/renderWithProviders'
@@ -118,7 +118,7 @@ describe('EarlyCheckinFlow · RF6 · RN4', () => {
       return checkedInReservation()
     })
 
-    renderPage(<DashboardPage />, { route: '/' })
+    renderPage(<GuestsPage />, { route: '/' })
 
     await user.click(screen.getByRole('tab', { name: /Check-in pendente/ }))
     await screen.findByText(GUEST_NAME)

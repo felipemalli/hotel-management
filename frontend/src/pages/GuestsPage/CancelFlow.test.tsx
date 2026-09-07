@@ -8,7 +8,7 @@ import { reservation } from '@/features/reservations/__fixtures__/reservations'
 import { cancelReservation } from '@/features/reservations/api'
 import type { Reservation } from '@/features/reservations/types'
 import { toastStore } from '@/lib/notify/toast'
-import { DashboardPage } from '@/pages/DashboardPage'
+import { GuestsPage } from '@/pages/GuestsPage'
 import { page } from '@/test/fixtures'
 import { renderPage } from '@/test/renderPage'
 import { signInForTest } from '@/test/renderWithProviders'
@@ -30,7 +30,7 @@ function cancelledReservation(): Reservation {
   })
 }
 
-function arrangeDashboard(stillPending: () => boolean) {
+function arrangeGuests(stillPending: () => boolean) {
   const anaPending = pendingCheckin(ANA)
 
   vi.mocked(fetchGuests).mockResolvedValue(page([anaPending]))
@@ -54,13 +54,13 @@ describe('CancelFlow', () => {
     signInForTest()
 
     let cancelled = false
-    arrangeDashboard(() => !cancelled)
+    arrangeGuests(() => !cancelled)
     vi.mocked(cancelReservation).mockImplementation(async () => {
       cancelled = true
       return cancelledReservation()
     })
 
-    renderPage(<DashboardPage />, { route: '/' })
+    renderPage(<GuestsPage />, { route: '/' })
 
     const confirmation = await openConfirmation(user)
     expect(confirmation).toHaveTextContent(GUEST_NAME)
@@ -90,14 +90,14 @@ describe('CancelFlow', () => {
       release = resolve
     })
 
-    arrangeDashboard(() => !cancelled)
+    arrangeGuests(() => !cancelled)
     vi.mocked(cancelReservation).mockImplementation(async () => {
       cancelled = true
       await held
       return cancelledReservation()
     })
 
-    const { queryClient } = renderPage(<DashboardPage />, { route: '/' })
+    const { queryClient } = renderPage(<GuestsPage />, { route: '/' })
 
     const confirmation = await openConfirmation(user)
     await user.click(within(confirmation).getByRole('button', { name: 'Cancelar reserva' }))
@@ -118,9 +118,9 @@ describe('CancelFlow', () => {
     const user = userEvent.setup()
     signInForTest()
 
-    arrangeDashboard(() => true)
+    arrangeGuests(() => true)
 
-    renderPage(<DashboardPage />, { route: '/' })
+    renderPage(<GuestsPage />, { route: '/' })
 
     const confirmation = await openConfirmation(user)
     await user.click(within(confirmation).getByRole('button', { name: 'Voltar' }))

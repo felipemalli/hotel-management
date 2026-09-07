@@ -63,7 +63,7 @@ exclude_type_checking_imports = true
 name = "DAG: ai -> reservations -> folhas -> (core | accounts)"
 type = "layers"
 layers = ["ai", "hotel.reservations", "hotel.guests | hotel.rooms | hotel.billing", "core | accounts"]
-ignore_imports = ["hotel.rooms.services -> hotel.reservations.selectors"]   # unica excecao documentada (ARQUITECTURE.md)
+ignore_imports = ["hotel.rooms.services -> hotel.reservations.selectors"]   # unica excecao documentada (docs/ARCHITECTURE.md §3)
 
 [[tool.importlinter.contracts]]
 name = "billing nao conhece o resto do dominio"

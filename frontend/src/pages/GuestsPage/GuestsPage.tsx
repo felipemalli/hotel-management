@@ -32,7 +32,7 @@ import { useDialogState } from '@/lib/hooks/useDialogState'
 import { whenClosed } from '@/lib/hooks/useDismissibleOpen'
 import { notifySuccess } from '@/lib/notify/toast'
 
-type DashboardDialog =
+type GuestsDialog =
   | { kind: 'guest' }
   | { kind: 'reservation'; guest: GuestRef }
   | { kind: 'cancel'; reservationId: number; guestName: string }
@@ -40,14 +40,14 @@ type DashboardDialog =
 
 type ReservationRow = GuestInHotelRow | GuestPendingRow
 
-function DashboardReservationActions({
+function RowReservationActions({
   row,
   state,
   onOpen,
 }: {
   row: ReservationRow
   state: ReservationActionState
-  onOpen: (dialog: DashboardDialog) => void
+  onOpen: (dialog: GuestsDialog) => void
 }) {
   return (
     <ReservationActions
@@ -67,8 +67,8 @@ function DashboardReservationActions({
 }
 
 // Dialogs na página, não na linha: checkout/cancel desmontam a linha.
-export function DashboardPage() {
-  const { current, open, close } = useDialogState<DashboardDialog>()
+export function GuestsPage() {
+  const { current, open, close } = useDialogState<GuestsDialog>()
 
   // Referência estável: senão a linha remonta debaixo do diálogo e perde o foco.
   const renderNewReservation = useCallback(
@@ -85,16 +85,12 @@ export function DashboardPage() {
   )
 
   const renderInHotelActions = useCallback(
-    (row: GuestInHotelRow) => (
-      <DashboardReservationActions row={row} state="CHECKED_IN" onOpen={open} />
-    ),
+    (row: GuestInHotelRow) => <RowReservationActions row={row} state="CHECKED_IN" onOpen={open} />,
     [open],
   )
 
   const renderPendingActions = useCallback(
-    (row: GuestPendingRow) => (
-      <DashboardReservationActions row={row} state="PENDING" onOpen={open} />
-    ),
+    (row: GuestPendingRow) => <RowReservationActions row={row} state="PENDING" onOpen={open} />,
     [open],
   )
 

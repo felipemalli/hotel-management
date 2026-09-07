@@ -5,7 +5,7 @@ import { CARLA, inHotel } from '@/features/guests/__fixtures__/guests'
 import { fetchGuests, fetchGuestsInHotel, fetchGuestsPendingCheckin } from '@/features/guests/api'
 import { PAID_T7_STATEMENT } from '@/features/reservations/__fixtures__/bills'
 import { checkOut } from '@/features/reservations/api'
-import { DashboardPage } from '@/pages/DashboardPage'
+import { GuestsPage } from '@/pages/GuestsPage'
 import { page } from '@/test/fixtures'
 import { renderPage } from '@/test/renderPage'
 import { signInForTest } from '@/test/renderWithProviders'
@@ -43,7 +43,7 @@ describe('CheckoutFlow', () => {
       return PAID_T7_STATEMENT
     })
 
-    renderPage(<DashboardPage />, { route: '/' })
+    renderPage(<GuestsPage />, { route: '/' })
 
     fireEvent.click(screen.getByRole('tab', { name: /No hotel/ }))
     await screen.findByText(GUEST_NAME)

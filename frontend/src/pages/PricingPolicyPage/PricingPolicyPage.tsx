@@ -24,7 +24,7 @@ import { whenClosed } from '@/lib/hooks/useDismissibleOpen'
 import { notifySuccess } from '@/lib/notify/toast'
 import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
 
-export function PricingPage() {
+export function PricingPolicyPage() {
   const isAdmin = useIsAdmin()
   const [searchParams, setSearchParams] = useSearchParams()
   const [publishing, setPublishing] = useState(false)

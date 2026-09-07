@@ -32,16 +32,17 @@ def converse(
     for round_number in range(MAX_ROUNDS):
         # Na última rodada a escolha deixa de ser livre: sem isso um modelo que
         # ficou repetindo consultas gasta o teto e o atendente leva um 502.
-        forced = terminal if round_number == MAX_ROUNDS - 1 else None
-        output = _post(_payload(system, items, tools, forced), deadline, key)
-        calls = [item for item in output if item.get("type") == "function_call"]
-        if not calls:
-            raise AiUpstreamError
+        last_round = round_number == MAX_ROUNDS - 1
+        payload = _payload(system, items, tools, terminal if last_round else None)
+        output = _post(payload, deadline, key)
+        calls = _function_calls(output)
 
-        final = next((call for call in calls if call.get("name") == terminal), None)
+        final = _call_named(calls, terminal)
         if final is not None:
             return _arguments(final)
 
+        # O `function_call` tem de chegar antes do seu `function_call_output`:
+        # inverter as duas linhas quebra o pareamento do lado da API.
         items.extend(output)
         items.extend(_tool_output(call, run_tool) for call in calls)
 
@@ -85,6 +86,19 @@ def _post(payload: dict[str, Any], deadline: float, key: str) -> list[Any]:
     if not isinstance(output, list):
         raise AiUpstreamError
     return output
+
+
+def _function_calls(output: list[Any]) -> list[dict[str, Any]]:
+    calls = [item for item in output if item.get("type") == "function_call"]
+    if not calls:
+        # `tool_choice` "required" proíbe prosa: texto solto aqui é o provedor
+        # furando o contrato, e garimpar JSON de dentro dele erra mais que falhar.
+        raise AiUpstreamError
+    return calls
+
+
+def _call_named(calls: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
+    return next((call for call in calls if call.get("name") == name), None)
 
 
 def _arguments(call: dict[str, Any]) -> dict[str, Any]:

@@ -13,7 +13,7 @@ import { elementAt, page } from '@/test/fixtures'
 import { renderPage } from '@/test/renderPage'
 import { signInForTest } from '@/test/renderWithProviders'
 
-import { PricingPage } from './PricingPage'
+import { PricingPolicyPage } from './PricingPolicyPage'
 
 vi.mock('@/features/pricing/api')
 vi.mock('@/features/auth/api')
@@ -21,10 +21,10 @@ vi.mock('@/features/auth/api')
 function renderPricing(role: UserRole = 'ATTENDANT') {
   vi.mocked(fetchCurrentUser).mockResolvedValue(role === 'ADMIN' ? ADMIN : ATTENDANT)
   signInForTest()
-  return renderPage(<PricingPage />, { route: ROUTES.pricing })
+  return renderPage(<PricingPolicyPage />, { route: ROUTES.pricing })
 }
 
-describe('PricingPage', () => {
+describe('PricingPolicyPage', () => {
   beforeEach(() => {
     vi.mocked(fetchCurrentPolicy).mockResolvedValue(BOOTSTRAP_POLICY)
     vi.mocked(fetchPolicies).mockResolvedValue(page([BOOTSTRAP_POLICY]))
