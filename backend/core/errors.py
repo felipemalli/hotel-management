@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
 from typing import Any
 
@@ -40,7 +40,7 @@ def constraint_name(exc: IntegrityError) -> str | None:
 @contextmanager
 def translate_integrity_error(
     errors: Mapping[str, Callable[[], DomainError]],
-) -> Iterator[None]:
+) -> Generator[None]:
     """Traduz violacao de constraint em erro de dominio, por nome.
 
     O atomic interno e o savepoint: sem ele o IntegrityError aborta a transacao
