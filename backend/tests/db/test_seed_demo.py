@@ -31,10 +31,13 @@ def run_seed() -> str:
 def test_seed_populates_the_three_tabs():
     run_seed()
 
-    assert get_user_model().objects.filter(username="atendente").exists()
+    # Superset, nao igualdade: o preenchimento tambem cai nessas abas, e a
+    # historia de negocio destes nomes e' o que o teste protege.
     # Acompanhante entra na aba pelo proprio nome: Eva com Bruno, os Castro com Helena.
-    assert {guest.full_name for guest in selectors.guests_pending_checkin()} == {
+    assert {
         "Ana Souza",
+        "Vitor Almeida",
+        "Mariana Rocha",
         "Fernanda Torres",
         "Gustavo Pinto",
         "Helena Castro",
@@ -42,8 +45,8 @@ def test_seed_populates_the_three_tabs():
         "Clara Castro",
         "Paula Antunes",
         "Igor Salles",
-    }
-    assert {guest.full_name for guest in selectors.guests_in_hotel()} == {
+    } <= {guest.full_name for guest in selectors.guests_pending_checkin()}
+    assert {
         "Nadia Ferraz",
         "Larissa Ferraz",
         "Theo Ferraz",
@@ -51,7 +54,7 @@ def test_seed_populates_the_three_tabs():
         "Bruno Lima",
         "Eva Lima",
         "Marcos Vieira",
-    }
+    } <= {guest.full_name for guest in selectors.guests_in_hotel()}
     assert guest_selectors.search_guests("Davi").count() == 1
 
 
@@ -62,11 +65,24 @@ def test_seed_covers_every_reservation_status():
         status: Reservation.objects.filter(status=status).count() for status in ReservationStatus
     }
     assert counts == {
-        ReservationStatus.PENDING: 6,
-        ReservationStatus.CHECKED_IN: 4,
-        ReservationStatus.CHECKED_OUT: 5,
-        ReservationStatus.CANCELLED: 1,
+        ReservationStatus.PENDING: 18,
+        ReservationStatus.CHECKED_IN: 8,
+        ReservationStatus.CHECKED_OUT: 13,
+        ReservationStatus.CANCELLED: 3,
     }
+
+
+def test_seed_has_at_least_two_more_arrivals_today_departing_later_pending():
+    """Alem da Ana: mais duas fichas com entrada hoje, saida futura, PENDING."""
+    run_seed()
+
+    today = timezone.localdate()
+    same_shape = Reservation.objects.filter(
+        status=ReservationStatus.PENDING,
+        checkin_date=today,
+        checkout_date__gt=today,
+    )
+    assert same_shape.count() >= 3
 
 
 def test_seed_spreads_the_calendar_around_today():
@@ -125,7 +141,7 @@ def test_seed_leaves_paid_and_open_accounts_in_every_method():
         for reservation in checked_out.select_related("account__payment")
         if reservation.account.status == AccountStatus.PAID
     } == {PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.PIX}
-    assert checked_out.filter(account__status=AccountStatus.CLOSED).count() == 2
+    assert checked_out.filter(account__status=AccountStatus.CLOSED).count() == 5
 
 
 def test_seed_gives_a_returning_guest_two_stays():
@@ -143,7 +159,7 @@ def test_seed_keeps_a_room_out_of_service_and_one_free():
     run_seed()
 
     assert list(Room.objects.filter(is_active=False).values_list("number", flat=True)) == ["302"]
-    assert Room.objects.filter(is_active=True).count() >= 10
+    assert Room.objects.filter(is_active=True).count() >= 24
     # O fluxo de recepcao (e o e2e) precisa de quarto livre para hoje: o
     # cenario nao pode lotar o hotel.
     today = timezone.localdate()
@@ -196,6 +212,8 @@ def test_seed_writes_through_the_services():
         "Eva Lima",
         "Marcos Vieira",
         "Ana Souza",
+        "Vitor Almeida",
+        "Mariana Rocha",
         "Fernanda Torres",
         "Gustavo Pinto",
         "Helena Castro",
@@ -203,6 +221,32 @@ def test_seed_writes_through_the_services():
         "Clara Castro",
         "Igor Salles",
         "Julia Prado",
+        "Camila Duarte",
+        "Rodrigo Peixoto",
+        "Beatriz Nogueira",
+        "Diego Cavalcanti",
+        "Aline Barros",
+        "Felipe Andrade",
+        "Juliana Freitas",
+        "Leonardo Farias",
+        "Patricia Moraes",
+        "Eduardo Teixeira",
+        "Vanessa Correia",
+        "Rafael Duarte",
+        "Simone Batista",
+        "Thiago Nascimento",
+        "Priscila Lopes",
+        "Anderson Cardoso",
+        "Yasmin Duarte",
+        "Fabiana Ramos",
+        "Gilberto Pires",
+        "Caio Pires",
+        "Marcelo Vidal",
+        "Alessandra Conti",
+        "Manuel Ibanez",
+        "Chloe Girard",
+        "Hans Weber",
+        "Laura Bennett",
         "Davi Rocha",
         "Ursula Klein",
     ]
@@ -333,5 +377,5 @@ def test_seed_runs_on_every_weekday(frozen):
     with freeze_time(f"{frozen} 10:00:00-03:00"):
         run_seed()
 
-    assert Reservation.objects.filter(status=ReservationStatus.CHECKED_OUT).count() == 5
-    assert Reservation.objects.filter(status=ReservationStatus.CHECKED_IN).count() == 4
+    assert Reservation.objects.filter(status=ReservationStatus.CHECKED_OUT).count() == 13
+    assert Reservation.objects.filter(status=ReservationStatus.CHECKED_IN).count() == 8

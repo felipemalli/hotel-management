@@ -84,6 +84,35 @@ CLARA = Person("Clara Castro", "112.233.445-56", "+55 11 98112-2334", "BR")
 IGOR = Person("Igor Salles", "US1122334", "+1 212 234 5678", "US")
 JULIA = Person("Julia Prado", "FR5566778", "+33 6 12 34 56 78", "FR")
 URSULA = Person("Ursula Klein", "DE9900112", "+49 30 12345678", "DE")
+VITOR = Person("Vitor Almeida", "123.987.456-30", "+55 71 98999-1122", "BR")
+MARIANA = Person("Mariana Rocha", "456.123.789-40", "+55 81 98999-2233", "BR")
+CAMILA = Person("Camila Duarte", "234.567.890-12", "+55 11 98123-4567", "BR")
+RODRIGO = Person("Rodrigo Peixoto", "345.678.901-23", "+55 21 98234-5678", "BR")
+BEATRIZ = Person("Beatriz Nogueira", "456.789.012-34", "+55 31 98345-6789", "BR")
+DIEGO = Person("Diego Cavalcanti", "567.890.123-45", "+55 41 98456-7890", "BR")
+ALINE = Person("Aline Barros", "678.901.234-56", "+55 51 98567-8901", "BR")
+FELIPE = Person("Felipe Andrade", "789.012.345-67", "+55 61 98678-9012", "BR")
+JULIANA = Person("Juliana Freitas", "890.123.456-78", "+55 71 98789-0123", "BR")
+LEONARDO = Person("Leonardo Farias", "901.234.567-89", "+55 81 98890-1234", "BR")
+PATRICIA = Person("Patricia Moraes", "012.345.678-90", "+55 91 98901-2345", "BR")
+EDUARDO = Person("Eduardo Teixeira", "135.792.468-01", "+55 19 98012-3456", "BR")
+VANESSA = Person("Vanessa Correia", "246.813.579-02", "+55 27 98123-5678", "BR")
+RAFAEL = Person("Rafael Duarte", "357.924.680-13", "+55 47 98234-6789", "BR")
+SIMONE = Person("Simone Batista", "468.035.791-24", "+55 48 98345-7890", "BR")
+THIAGO = Person("Thiago Nascimento", "579.146.802-35", "+55 62 98456-8901", "BR")
+PRISCILA = Person("Priscila Lopes", "680.257.913-46", "+55 85 98567-9012", "BR")
+ANDERSON = Person("Anderson Cardoso", "791.368.024-57", "+55 34 98678-0123", "BR")
+FABIANA = Person("Fabiana Ramos", "802.479.135-68", "+55 45 98789-1234", "BR")
+GILBERTO = Person("Gilberto Pires", "913.580.246-79", "+55 54 98890-2345", "BR")
+MARCELO = Person("Marcelo Vidal", "PT3344556", "+351 913 456 789", "PT")
+ALESSANDRA = Person("Alessandra Conti", "IT2233445", "+39 340 123 4567", "IT")
+MANUEL = Person("Manuel Ibanez", "ES6677889", "+34 611 234 567", "ES")
+CHLOE = Person("Chloe Girard", "FR8899001", "+33 6 23 45 67 89", "FR")
+HANS = Person("Hans Weber", "DE0011223", "+49 30 87654321", "DE")
+LAURA = Person("Laura Bennett", "US4455667", "+1 212 345 6789", "US")
+# Companhia de dois fillers, so para variar tambem o tamanho do grupo.
+YASMIN = Person("Yasmin Duarte", "024.681.357-80", "+55 71 98999-3344", "BR")
+CAIO = Person("Caio Pires", "135.792.468-91", "+55 81 98999-4455", "BR")
 
 # Sem ficha nenhuma: alimentam a busca por nome, documento e telefone.
 GUESTS_WITHOUT_STAY = (DAVI, URSULA)
@@ -102,6 +131,32 @@ ROOMS = (
     ("302", 4, False),
     ("401", 2, True),
     ("402", 3, True),
+    ("701", 2, True),
+    ("702", 3, True),
+    ("501", 2, True),
+    ("502", 2, True),
+    ("503", 3, True),
+    ("504", 2, True),
+    ("505", 2, True),
+    ("506", 3, True),
+    ("507", 4, True),
+    ("508", 2, True),
+    ("509", 2, True),
+    ("510", 3, True),
+    ("601", 2, True),
+    ("602", 3, True),
+    ("603", 2, True),
+    ("604", 4, True),
+    ("605", 2, True),
+    ("606", 2, True),
+    ("607", 3, True),
+    ("608", 2, True),
+    ("609", 5, True),
+    ("610", 2, True),
+    ("703", 2, True),
+    ("704", 3, True),
+    ("705", 2, True),
+    ("706", 2, True),
 )
 
 
@@ -111,7 +166,9 @@ def scenario(today: date) -> list[Stay]:
     A ordem e' significativa: uma ficha com data de entrada no passado faz o
     servico checar se o quarto tem alguem hospedado *agora* (RoomUnavailable),
     entao as estadias encerradas nascem antes das ativas, e as pendentes
-    depois de todas -- e o mesmo quarto pode contar historia sem colidir.
+    depois de todas -- e o mesmo quarto pode contar historia sem colidir. O
+    preenchimento (a partir da Camila) usa um quarto exclusivo cada, entao a
+    posicao dele na lista nao importa.
     """
 
     def day(offset: int) -> date:
@@ -207,6 +264,21 @@ def scenario(today: date) -> list[Stay]:
             has_vehicle=True,
         ),
         Stay(
+            VITOR,
+            room="701",
+            checkin=today,
+            checkout=day(3),
+            stage=ReservationStatus.PENDING,
+        ),
+        Stay(
+            MARIANA,
+            room="702",
+            checkin=today,
+            checkout=day(5),
+            stage=ReservationStatus.PENDING,
+            has_vehicle=True,
+        ),
+        Stay(
             FERNANDA,
             room="104",
             checkin=day(-1),
@@ -249,6 +321,192 @@ def scenario(today: date) -> list[Stay]:
             checkin=day(5),
             checkout=day(6),
             stage=ReservationStatus.CANCELLED,
+        ),
+        # Preenchimento: quarto exclusivo cada, entao sem risco de colidir
+        # agenda com as fichas acima nem entre si.
+        Stay(
+            CAMILA,
+            room="501",
+            checkin=day(-15),
+            checkout=day(-13),
+            stage=ReservationStatus.CHECKED_OUT,
+            payment=PaymentMethod.CASH,
+        ),
+        Stay(
+            RODRIGO,
+            room="502",
+            checkin=day(-13),
+            checkout=day(-10),
+            stage=ReservationStatus.CHECKED_OUT,
+            has_vehicle=True,
+            payment=PaymentMethod.CARD,
+        ),
+        Stay(
+            BEATRIZ,
+            room="503",
+            checkin=day(-10),
+            checkout=day(-9),
+            stage=ReservationStatus.CHECKED_OUT,
+            payment=PaymentMethod.PIX,
+        ),
+        Stay(
+            DIEGO,
+            room="504",
+            checkin=day(-8),
+            checkout=day(-6),
+            stage=ReservationStatus.CHECKED_OUT,
+            has_vehicle=True,
+            checkout_at=LATE_CHECKOUT,
+        ),
+        Stay(
+            ALINE,
+            room="505",
+            checkin=day(-6),
+            checkout=day(-5),
+            stage=ReservationStatus.CHECKED_OUT,
+        ),
+        Stay(
+            FELIPE,
+            room="506",
+            checkin=day(-3),
+            checkout=day(-2),
+            stage=ReservationStatus.CHECKED_OUT,
+            has_vehicle=True,
+            payment=PaymentMethod.CASH,
+        ),
+        Stay(
+            JULIANA,
+            room="507",
+            checkin=day(-7),
+            checkout=day(2),
+            stage=ReservationStatus.CHECKED_IN,
+            has_vehicle=True,
+        ),
+        Stay(
+            LEONARDO,
+            room="508",
+            checkin=day(-6),
+            checkout=day(-1),
+            stage=ReservationStatus.CHECKED_IN,
+        ),
+        Stay(
+            PATRICIA,
+            room="509",
+            checkin=day(-3),
+            checkout=today,
+            stage=ReservationStatus.CHECKED_IN,
+            has_vehicle=True,
+        ),
+        Stay(
+            EDUARDO,
+            room="510",
+            checkin=day(-1),
+            checkout=day(6),
+            stage=ReservationStatus.CHECKED_IN,
+        ),
+        Stay(
+            VANESSA,
+            room="601",
+            checkin=today,
+            checkout=day(1),
+            stage=ReservationStatus.PENDING,
+        ),
+        Stay(
+            RAFAEL,
+            room="602",
+            checkin=day(-2),
+            checkout=day(3),
+            stage=ReservationStatus.PENDING,
+            has_vehicle=True,
+        ),
+        Stay(
+            SIMONE,
+            room="603",
+            checkin=day(1),
+            checkout=day(2),
+            stage=ReservationStatus.PENDING,
+        ),
+        Stay(
+            THIAGO,
+            room="604",
+            checkin=day(2),
+            checkout=day(5),
+            stage=ReservationStatus.PENDING,
+            has_vehicle=True,
+        ),
+        Stay(
+            PRISCILA,
+            room="605",
+            checkin=day(4),
+            checkout=day(6),
+            stage=ReservationStatus.PENDING,
+        ),
+        Stay(
+            ANDERSON,
+            room="606",
+            checkin=day(6),
+            checkout=day(9),
+            stage=ReservationStatus.PENDING,
+            companions=(YASMIN,),
+        ),
+        Stay(
+            FABIANA,
+            room="607",
+            checkin=day(9),
+            checkout=day(11),
+            stage=ReservationStatus.PENDING,
+        ),
+        Stay(
+            GILBERTO,
+            room="608",
+            checkin=day(14),
+            checkout=day(16),
+            stage=ReservationStatus.PENDING,
+            companions=(CAIO,),
+        ),
+        Stay(
+            MARCELO,
+            room="609",
+            checkin=day(18),
+            checkout=day(20),
+            stage=ReservationStatus.PENDING,
+        ),
+        Stay(
+            ALESSANDRA,
+            room="610",
+            checkin=day(3),
+            checkout=day(4),
+            stage=ReservationStatus.CANCELLED,
+        ),
+        Stay(
+            MANUEL,
+            room="703",
+            checkin=day(-4),
+            checkout=day(-3),
+            stage=ReservationStatus.CANCELLED,
+        ),
+        Stay(
+            CHLOE,
+            room="704",
+            checkin=day(-14),
+            checkout=day(-12),
+            stage=ReservationStatus.CHECKED_OUT,
+            payment=PaymentMethod.CARD,
+        ),
+        Stay(
+            HANS,
+            room="705",
+            checkin=day(-12),
+            checkout=day(-11),
+            stage=ReservationStatus.CHECKED_OUT,
+        ),
+        Stay(
+            LAURA,
+            room="706",
+            checkin=day(7),
+            checkout=day(9),
+            stage=ReservationStatus.PENDING,
+            has_vehicle=True,
         ),
     ]
 
