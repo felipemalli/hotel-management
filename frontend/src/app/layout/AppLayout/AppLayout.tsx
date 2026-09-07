@@ -29,11 +29,9 @@ const NAV_GROUPS = [
       { to: ROUTES.pricing, label: 'Tarifas', end: false, icon: Banknote },
     ],
   },
-   {
+  {
     label: 'AUTOMAÇÃO',
-    items: [
-      { to: ROUTES.iris, label: 'Íris', end: true, icon: Sparkles },
-    ],
+    items: [{ to: ROUTES.iris, label: 'Íris', end: true, icon: Sparkles }],
   },
 ] as const
 

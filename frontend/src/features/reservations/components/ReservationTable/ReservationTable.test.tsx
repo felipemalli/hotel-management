@@ -74,7 +74,9 @@ describe('ReservationTable', () => {
     const onOrderingChange = vi.fn()
     renderTable({ ordering: 'checkout_date', onOrderingChange })
 
-    await user.click(screen.getByRole('button', { name: /^Saída/ }))
+    await user.click(
+      within(screen.getByRole('columnheader', { name: /^Saída/ })).getByRole('button'),
+    )
 
     expect(onOrderingChange).toHaveBeenCalledWith('-checkout_date')
   })
@@ -95,16 +97,16 @@ describe('ReservationTable', () => {
 
   it('avisa quem sai hoje, e acusa o atraso depois do limite de checkout', () => {
     renderTable({ reservations: [BRUNO_CHECKED_IN], clock: clockAt('09:00:00') })
-    expect(screen.getByText('Sai hoje')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sai hoje' })).toBeInTheDocument()
 
     renderTable({ reservations: [BRUNO_CHECKED_IN], clock: clockAt('12:30:00') })
-    expect(screen.getByText('Saída atrasada')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Saída atrasada' })).toBeInTheDocument()
   })
 
   it('nao avisa nada sem relogio nem politica vigente', () => {
     renderTable({ reservations: [BRUNO_CHECKED_IN] })
 
-    expect(screen.queryByText('Sai hoje')).not.toBeInTheDocument()
-    expect(screen.queryByText('Saída atrasada')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sai hoje' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Saída atrasada' })).not.toBeInTheDocument()
   })
 })

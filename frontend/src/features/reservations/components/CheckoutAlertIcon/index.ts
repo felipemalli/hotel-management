@@ -1,0 +1,1 @@
+export { CheckoutAlertIcon } from './CheckoutAlertIcon'

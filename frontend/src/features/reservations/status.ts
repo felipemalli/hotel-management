@@ -37,11 +37,6 @@ export const CHECKOUT_ALERT_LABELS: Record<CheckoutAlert, string> = {
   overdue: 'Saída atrasada',
 }
 
-export const CHECKOUT_ALERT_TONES: Record<CheckoutAlert, BadgeVariant> = {
-  due: 'warning',
-  overdue: 'destructive',
-}
-
 export interface CheckoutClock {
   today: string
   /** Hora local `HH:MM:SS`; `checkoutLimit` vem `HH:MM` da política vigente. */

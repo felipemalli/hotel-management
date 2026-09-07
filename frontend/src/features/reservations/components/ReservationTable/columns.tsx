@@ -3,16 +3,11 @@ import { ChevronRightIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { type DataTableColumns, type dataTableFeatures, SortableHeader } from '@/components/common'
-import { Badge, buttonVariants, Typography } from '@/components/ui'
+import { buttonVariants, Typography } from '@/components/ui'
+import { CheckoutAlertIcon } from '@/features/reservations/components/CheckoutAlertIcon'
 import { ReservationStatusBadge } from '@/features/reservations/components/ReservationStatusBadge'
 import { nextOrdering, sortDirectionOf } from '@/features/reservations/filters'
-import {
-  CHECKOUT_ALERT_LABELS,
-  CHECKOUT_ALERT_TONES,
-  type CheckoutAlert,
-  paymentLabel,
-  peopleCount,
-} from '@/features/reservations/status'
+import { type CheckoutAlert, paymentLabel, peopleCount } from '@/features/reservations/status'
 import type {
   Reservation,
   ReservationOrdering,
@@ -94,9 +89,7 @@ export function reservationColumns({
             <Typography as="span" variant="caption" className="whitespace-nowrap">
               {formatISODate(row.original.checkout_date)}
             </Typography>
-            {alert === null ? null : (
-              <Badge variant={CHECKOUT_ALERT_TONES[alert]}>{CHECKOUT_ALERT_LABELS[alert]}</Badge>
-            )}
+            {alert === null ? null : <CheckoutAlertIcon alert={alert} />}
           </div>
         )
       },

@@ -168,7 +168,9 @@ describe('ReservationsPage', () => {
     renderReservations()
     await screen.findByRole('table', { name: 'Reservas' })
 
-    await user.click(screen.getByRole('button', { name: /^Saída/ }))
+    await user.click(
+      within(screen.getByRole('columnheader', { name: /^Saída/ })).getByRole('button'),
+    )
 
     await waitFor(() =>
       expect(fetchReservations).toHaveBeenLastCalledWith({ ordering: 'checkout_date' }),
@@ -181,12 +183,12 @@ describe('ReservationsPage', () => {
 
     freezeHotelClock(MORNING)
     const { unmount } = renderReservations()
-    expect(await screen.findByText('Sai hoje')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Sai hoje' })).toBeInTheDocument()
     unmount()
 
     freezeHotelClock(AFTER_LIMIT)
     renderReservations()
-    expect(await screen.findByText('Saída atrasada')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Saída atrasada' })).toBeInTheDocument()
   })
 
   it('busca por reserva, hospede ou quarto no servidor, com debounce', async () => {

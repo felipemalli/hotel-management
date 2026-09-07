@@ -3,6 +3,7 @@ import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 
 import { Toaster } from '@/components/common'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { TooltipProvider } from '@/components/ui'
 import { createQueryClient } from '@/lib/api/queryClient'
 import { session } from '@/lib/auth/session'
 
@@ -31,7 +32,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ErrorBoundary scope="app">{children}</ErrorBoundary>
+      <TooltipProvider>
+        <ErrorBoundary scope="app">{children}</ErrorBoundary>
+      </TooltipProvider>
       <Toaster />
       {QueryDevtools ? (
         <Suspense fallback={null}>

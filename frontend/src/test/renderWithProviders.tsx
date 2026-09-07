@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from 'react'
 import { act } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 
+import { TooltipProvider } from '@/components/ui'
 import { createQueryClient } from '@/lib/api/queryClient'
 import { session } from '@/lib/auth/session'
 import { toastStore } from '@/lib/notify/toast'
@@ -22,13 +23,15 @@ export function renderWithProviders(ui: ReactElement, options: RenderWithProvide
   function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        {route === undefined ? (
-          children
-        ) : (
-          <MemoryRouter initialEntries={[route]} future={ROUTER_FUTURE}>
-            {children}
-          </MemoryRouter>
-        )}
+        <TooltipProvider>
+          {route === undefined ? (
+            children
+          ) : (
+            <MemoryRouter initialEntries={[route]} future={ROUTER_FUTURE}>
+              {children}
+            </MemoryRouter>
+          )}
+        </TooltipProvider>
       </QueryClientProvider>
     )
   }

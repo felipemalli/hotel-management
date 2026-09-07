@@ -435,7 +435,7 @@ def _assert_room_ready(reservation: Reservation, *, now: datetime) -> None:
     if promised is not None:
         raise RoomUnavailableError(
             f"Chegada antecipada tomaria o quarto de outra reserva a partir de "
-            f"{promised.checkin_date.isoformat()}.",
+            f"{promised.checkin_date.strftime('%d/%m/%Y')}.",
             extra={
                 "room_id": reservation.room_id,
                 "conflicting_reservation_id": promised.pk,

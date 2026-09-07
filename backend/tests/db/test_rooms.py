@@ -200,7 +200,11 @@ def test_early_arrival_cannot_take_a_room_promised_to_another_pending(actor):
     with pytest.raises(service.RoomUnavailableError) as excinfo:
         service.check_in(early, now=local(MARCH_7, 15), actor=actor)
 
+    assert excinfo.value.detail == (
+        "Chegada antecipada tomaria o quarto de outra reserva a partir de 07/03/2025."
+    )
     assert excinfo.value.extra["conflicting_reservation_id"] == promised.pk
+    assert excinfo.value.extra["conflicting_checkin_date"] == MARCH_7.isoformat()
 
 
 def test_early_arrival_is_allowed_when_the_room_is_free(actor):
