@@ -28,6 +28,7 @@ test.describe('admin · controles restritos', { tag: ['@RF8'] }, () => {
       const menu = page.getByRole('menu')
       await expect(menu.getByRole('menuitem', { name: 'Editar capacidade' })).toBeVisible()
       await expect(menu.getByRole('menuitem', { name: 'Desativar' })).toBeVisible()
+      await expect(menu.getByRole('menuitem', { name: 'Excluir' })).toBeVisible()
       await page.keyboard.press('Escape')
 
       await page.goto('/tarifas')

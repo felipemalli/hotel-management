@@ -151,11 +151,13 @@ seção 1 do [README](../README.md).
 9. **Quartos (`/quartos`).** O atendente vê o inventário em leitura — número,
    capacidade e situação —, o que ajuda no balcão. Saia e entre como **`admin`
    / `admin123`**: aparecem o chip "admin" no cabeçalho, "Novo quarto" e, em
-   cada linha, o menu **"⋯"** ("Ações do quarto 101") com "Editar capacidade" e
-   "Desativar"/"Reativar". Cadastre o 301, edite uma capacidade pelo menu
+   cada linha, o menu **"⋯"** ("Ações do quarto 101") com "Editar capacidade",
+   "Desativar"/"Reativar" e "Excluir". Cadastre o 301, edite uma capacidade pelo menu
    (abaixo do maior grupo com reserva ativa o servidor recusa no próprio
    campo) e tente desativar o 102, que tem estadia em curso: `409` no aviso, e
-   a confirmação continua aberta. Nenhum 403 chega ao atendente, porque nem o
+   a confirmação continua aberta. Excluir o 301 (acabou de nascer, sem reserva)
+   some com a linha; tentar excluir o 102 responde `409` — histórico de reserva
+   fica, e o caminho é desativar. Nenhum 403 chega ao atendente, porque nem o
    menu nem "Novo quarto" são renderizados para ele.
 10. **Tarifas (`/tarifas`).** Ainda como `admin`: a tarifa vigente aparece com
     diárias, vagas, fator da multa e horários; o histórico lista o que já

@@ -76,6 +76,21 @@ from hotel.rooms.serializers import RoomCreateSerializer, RoomSerializer, RoomUp
             409: ErrorEnvelopeSerializer,
         },
     ),
+    destroy=extend_schema(
+        summary="Exclui um quarto",
+        description=(
+            "Restrito ao `ADMIN`. Só cabe quarto sem histórico de reserva — o "
+            "`PROTECT` na agenda impede apagar o passado. Com qualquer reserva "
+            "(inclusive encerrada) responde `409 INVALID_STATUS`. Fora de "
+            "operação, use `PATCH is_active`."
+        ),
+        responses={
+            204: None,
+            403: PERMISSION_DENIED_RESPONSE,
+            404: ErrorEnvelopeSerializer,
+            409: ErrorEnvelopeSerializer,
+        },
+    ),
 )
 class RoomViewSet(
     mixins.ListModelMixin,
@@ -87,7 +102,7 @@ class RoomViewSet(
     serializer_class = RoomSerializer
 
     def get_permissions(self):
-        if self.action in {"create", "partial_update"}:
+        if self.action in {"create", "partial_update", "destroy"}:
             return [IsHotelAdmin()]
         return super().get_permissions()
 
@@ -112,6 +127,10 @@ class RoomViewSet(
         payload.is_valid(raise_exception=True)
         updated = catalog_service.update_room(room, **payload.validated_data)
         return Response(RoomSerializer(updated).data)
+
+    def destroy(self, request: Request, *args, **kwargs) -> Response:
+        catalog_service.delete_room(self.get_object())
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 __all__ = ["RoomViewSet"]

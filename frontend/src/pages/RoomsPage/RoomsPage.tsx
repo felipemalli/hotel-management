@@ -18,6 +18,7 @@ import { useIsAdmin } from '@/features/auth/hooks'
 import { RoomActions } from '@/features/rooms/components/RoomActions'
 import { RoomCapacityDialog } from '@/features/rooms/components/RoomCapacityDialog'
 import { RoomDeactivateDialog } from '@/features/rooms/components/RoomDeactivateDialog'
+import { RoomDeleteDialog } from '@/features/rooms/components/RoomDeleteDialog'
 import { RoomsTable } from '@/features/rooms/components/RoomsTable'
 import { RoomForm } from '@/features/rooms/RoomForm'
 import type { Room } from '@/features/rooms/types'
@@ -29,7 +30,10 @@ import { notifySuccess } from '@/lib/notify/toast'
 import { pageFromSearchParams, withPage } from '@/lib/routing/pagination'
 
 type RoomsDialog =
-  { kind: 'create' } | { kind: 'capacity'; room: Room } | { kind: 'deactivate'; room: Room }
+  | { kind: 'create' }
+  | { kind: 'capacity'; room: Room }
+  | { kind: 'deactivate'; room: Room }
+  | { kind: 'delete'; room: Room }
 
 // is_active=false AMPLIA a listagem no servidor (nome da API, não da tela).
 const INACTIVE_PARAM = 'is_active'
@@ -66,6 +70,7 @@ export function RoomsPage() {
         room={room}
         onEditCapacity={(chosen) => open({ kind: 'capacity', room: chosen })}
         onRequestDeactivate={(chosen) => open({ kind: 'deactivate', room: chosen })}
+        onRequestDelete={(chosen) => open({ kind: 'delete', room: chosen })}
       />
     ),
     [open],
@@ -158,6 +163,17 @@ export function RoomsPage() {
           onDeactivated={(room) => {
             close()
             notifySuccess(`Quarto ${room.number} desativado.`)
+          }}
+        />
+      ) : null}
+
+      {dialog?.kind === 'delete' ? (
+        <RoomDeleteDialog
+          room={dialog.room}
+          onClose={close}
+          onDeleted={(room) => {
+            close()
+            notifySuccess(`Quarto ${room.number} excluído.`)
           }}
         />
       ) : null}

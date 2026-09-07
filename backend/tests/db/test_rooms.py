@@ -325,6 +325,39 @@ def test_update_room_refuses_capacity_below_an_active_party():
     assert room.capacity == 3
 
 
+def test_delete_room_without_history():
+    room = RoomFactory()
+
+    catalog.delete_room(room)
+
+    assert not Room.objects.filter(pk=room.pk).exists()
+
+
+def test_delete_room_refuses_a_room_with_history():
+    reservation = ReservationFactory()
+
+    with pytest.raises(catalog.RoomHasHistoryError) as excinfo:
+        catalog.delete_room(reservation.room)
+
+    assert excinfo.value.code == "INVALID_STATUS"
+    assert Room.objects.filter(pk=reservation.room_id).exists()
+
+
+@pytest.mark.parametrize(
+    "trait",
+    [{"status": ReservationStatus.CANCELLED}, {"checked_out": True}],
+    ids=["cancelled", "checked_out"],
+)
+def test_delete_room_refuses_ended_stays_too(trait):
+    """Desativar olha a agenda viva; excluir olha qualquer historico."""
+    reservation = ReservationFactory(**trait)
+
+    with pytest.raises(catalog.RoomHasHistoryError):
+        catalog.delete_room(reservation.room)
+
+    assert Room.objects.filter(pk=reservation.room_id).exists()
+
+
 def test_seed_dates_do_not_collide_in_the_same_room():
     """Regressao do seed: as fichas usam quartos distintos de proposito."""
     today = timezone.localdate()

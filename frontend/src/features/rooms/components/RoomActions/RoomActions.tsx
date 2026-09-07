@@ -15,9 +15,15 @@ export interface RoomActionsProps {
   room: Room
   onEditCapacity: (room: Room) => void
   onRequestDeactivate: (room: Room) => void
+  onRequestDelete: (room: Room) => void
 }
 
-export function RoomActions({ room, onEditCapacity, onRequestDeactivate }: RoomActionsProps) {
+export function RoomActions({
+  room,
+  onEditCapacity,
+  onRequestDeactivate,
+  onRequestDelete,
+}: RoomActionsProps) {
   // Reativar na linha (ela fica visível). Desativar tira a linha: confirmação na página.
   const reactivate = useUpdateRoom({
     onSuccess: (updated) => notifySuccess(`Quarto ${updated.number} reativado.`),
@@ -32,7 +38,7 @@ export function RoomActions({ room, onEditCapacity, onRequestDeactivate }: RoomA
       >
         <EllipsisIcon />
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
+      <DropdownMenuContent className="min-w-36">
         <DropdownMenuItem onClick={() => onEditCapacity(room)}>Editar capacidade</DropdownMenuItem>
         {room.is_active ? (
           <DropdownMenuItem variant="destructive" onClick={() => onRequestDeactivate(room)}>
@@ -46,6 +52,9 @@ export function RoomActions({ room, onEditCapacity, onRequestDeactivate }: RoomA
             {reactivate.isPending ? 'Reativando…' : 'Reativar'}
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem variant="destructive" onClick={() => onRequestDelete(room)}>
+          Excluir
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

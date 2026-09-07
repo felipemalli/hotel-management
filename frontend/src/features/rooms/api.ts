@@ -42,3 +42,7 @@ export async function updateRoom(id: number, patch: UpdateRoomPatch): Promise<Ro
   const response = await apiClient.patch<unknown>(`/rooms/${id}/`, patch)
   return parseResponse(roomSchema, response)
 }
+
+export async function deleteRoom(id: number): Promise<void> {
+  await apiClient.delete(`/rooms/${id}/`)
+}

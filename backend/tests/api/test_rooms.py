@@ -79,11 +79,33 @@ def test_deactivating_a_room_in_use_returns_409(admin_client):
     assert response.data["code"] == "INVALID_STATUS"
 
 
-def test_rooms_have_no_delete(admin_client):
-    """`PROTECT` + histórico: quarto sai de operação, não some."""
+def test_rooms_delete_requires_admin_403(auth_client):
     room = RoomFactory()
 
-    assert admin_client.delete(f"{ROOMS_URL}{room.pk}/").status_code == 405
+    response = auth_client.delete(f"{ROOMS_URL}{room.pk}/")
+
+    assert response.status_code == 403
+    assert response.data["code"] == "PERMISSION_DENIED"
+    assert Room.objects.filter(pk=room.pk).exists()
+
+
+def test_admin_deletes_a_room_without_history_204(admin_client):
+    room = RoomFactory()
+
+    response = admin_client.delete(f"{ROOMS_URL}{room.pk}/")
+
+    assert response.status_code == 204
+    assert not Room.objects.filter(pk=room.pk).exists()
+
+
+def test_deleting_a_room_with_reservation_returns_409(admin_client):
+    reservation = ReservationFactory()
+
+    response = admin_client.delete(f"{ROOMS_URL}{reservation.room_id}/")
+
+    assert response.status_code == 409
+    assert response.data["code"] == "INVALID_STATUS"
+    assert Room.objects.filter(pk=reservation.room_id).exists()
 
 
 def test_list_hides_inactive_rooms_by_default(auth_client):

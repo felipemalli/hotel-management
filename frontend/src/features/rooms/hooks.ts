@@ -4,7 +4,7 @@ import { DEFAULT_STALE_TIME_MS } from '@/lib/api/queryClient'
 import { ROOMS_ROOT } from '@/lib/api/queryKeys'
 import { useInvalidateServerState } from '@/lib/api/useInvalidateServerState'
 
-import { createRoom, fetchAvailableRooms, fetchRooms, updateRoom } from './api'
+import { createRoom, deleteRoom, fetchAvailableRooms, fetchRooms, updateRoom } from './api'
 import type {
   AvailabilityQuery,
   CreateRoomPayload,
@@ -67,6 +67,18 @@ export function useUpdateRoom(options?: { onSuccess?: (room: Room) => void }) {
     onSuccess: (room) => {
       invalidateServerState()
       options?.onSuccess?.(room)
+    },
+  })
+}
+
+export function useDeleteRoom(options?: { onSuccess?: () => void }) {
+  const invalidateServerState = useInvalidateServerState()
+
+  return useMutation({
+    mutationFn: (id: number) => deleteRoom(id),
+    onSuccess: () => {
+      invalidateServerState()
+      options?.onSuccess?.()
     },
   })
 }

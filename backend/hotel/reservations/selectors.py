@@ -186,6 +186,11 @@ def active_reservations_of(room: Room) -> QuerySet[Reservation]:
     return room.reservations.filter(status__in=OCCUPYING_STATUSES)
 
 
+def has_reservation_history(room: Room) -> bool:
+    """Qualquer reserva, inclusive encerrada: o PROTECT guarda o passado."""
+    return room.reservations.exists()
+
+
 def largest_active_party(room: Room) -> int:
     """Maior grupo ja aceito para o quarto; 0 sem reserva ativa."""
     parties = active_reservations_of(room).annotate(party=Value(1) + Count("companions"))
