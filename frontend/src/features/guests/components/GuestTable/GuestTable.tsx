@@ -158,6 +158,7 @@ export function GuestTable({ renderActions, headerActions }: GuestTableProps) {
       <div className="flex flex-wrap items-center gap-3">
         <SearchField
           label="Buscar hóspede"
+          hideLabel
           placeholder="Nome, documento ou telefone"
           value={search}
           onChange={changeSearch}

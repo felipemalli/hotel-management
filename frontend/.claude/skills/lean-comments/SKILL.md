@@ -3,7 +3,7 @@ name: lean-comments
 description: Comentários enxutos. Use ao criar ou editar código.
 ---
 
-# Comentários
+# Comentáriosø
 
 Não comentar. Exceção: o porquê não-óbvio, 1–3 linhas — lock, invariante surpresa, por que não o aparente.
 

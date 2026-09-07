@@ -6,6 +6,7 @@ import { FormField } from '../FormField'
 
 export interface SearchFieldProps {
   label: string
+  hideLabel?: boolean
   hint?: string
   placeholder?: string
   value: string
@@ -16,6 +17,7 @@ export interface SearchFieldProps {
 // Rótulo só acessível: o design não mostra texto acima do campo de busca.
 export function SearchField({
   label,
+  hideLabel,
   hint,
   placeholder,
   value,
@@ -23,7 +25,7 @@ export function SearchField({
   className,
 }: SearchFieldProps) {
   return (
-    <FormField label={label} hint={hint} hideLabel>
+    <FormField label={label} hint={hint} hideLabel={hideLabel}>
       {(control) => (
         <div className={className}>
           <div className="relative">

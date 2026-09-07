@@ -90,6 +90,7 @@ export function RoomsPage() {
       <div className="flex flex-wrap items-center gap-4">
         <SearchField
           label="Buscar quarto"
+          hideLabel
           placeholder="Número do quarto"
           value={roomQuery}
           onChange={changeRoomQuery}

@@ -53,7 +53,7 @@ export function ReservationFilters({
       />
 
       <div className="w-full sm:w-56">
-        <FormField label="Status" hideLabel>
+        <FormField label="Status">
           {(control) => (
             <Select items={STATUS_ITEMS} value={filters.status} onValueChange={onStatusChange}>
               <SelectTrigger {...control} className="w-full">
