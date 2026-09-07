@@ -19,7 +19,6 @@ const NAV_GROUPS = [
   {
     label: 'OPERAÇÃO',
     items: [
-      { to: ROUTES.iris, label: 'Íris', end: true, icon: Sparkles },
       { to: ROUTES.home, label: 'Hóspedes', end: true, icon: ConciergeBell },
       { to: ROUTES.reservations, label: 'Reservas', end: false, icon: CalendarCheck },
     ],
@@ -29,6 +28,12 @@ const NAV_GROUPS = [
     items: [
       { to: ROUTES.rooms, label: 'Quartos', end: false, icon: BedDouble },
       { to: ROUTES.pricing, label: 'Tarifas', end: false, icon: Banknote },
+    ],
+  },
+   {
+    label: 'AUTOMAÇÃO',
+    items: [
+      { to: ROUTES.iris, label: 'Íris', end: true, icon: Sparkles },
     ],
   },
 ] as const
