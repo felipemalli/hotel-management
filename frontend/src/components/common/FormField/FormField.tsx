@@ -14,8 +14,6 @@ export interface FormFieldProps {
   hint?: string
   error?: string
   htmlFor?: string
-  // Rótulo continua o nome acessível (via `<label>`), só não aparece na tela —
-  // uso: campo de busca/filtro cujo design não mostra rótulo, ex. o mockup Aurelia.
   hideLabel?: boolean
   children: (control: FormFieldControl) => ReactNode
 }

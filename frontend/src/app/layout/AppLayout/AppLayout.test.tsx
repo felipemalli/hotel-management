@@ -112,7 +112,7 @@ describe('AppLayout', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('quebrou a página')
     expect(screen.getByRole('navigation', { name: 'Principal' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Aurelia' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Relia' })).toBeInTheDocument()
   })
 
   it('oferece o atalho para o conteudo, que e o alvo do foco apos os dialogos', () => {

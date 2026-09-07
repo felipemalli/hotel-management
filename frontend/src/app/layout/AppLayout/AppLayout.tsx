@@ -74,7 +74,7 @@ export function AppLayout() {
           </div>
           <div className="flex min-w-0 flex-col gap-px">
             <Typography as="h1" variant="title" className="font-display leading-none">
-              Aurelia
+              Relia
             </Typography>
             <Typography
               as="span"
