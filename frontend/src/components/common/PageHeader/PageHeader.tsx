@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react'
 
 import { Typography } from '@/components/ui'
-import { HOTEL_NAME } from '@/lib/brand'
-
 export interface PageHeaderProps {
   title: string
   titleId?: string
@@ -17,7 +15,6 @@ export interface PageHeaderProps {
 export function PageHeader({
   title,
   titleId,
-  breadcrumb = HOTEL_NAME,
   description,
   badge,
   actions,
@@ -27,11 +24,6 @@ export function PageHeader({
     <header className="sticky top-0 z-10 -mx-6 -mt-6 border-b border-border bg-card/90 px-6 py-5 backdrop-blur sm:-mx-8 sm:-mt-8 sm:px-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          {breadcrumb ? (
-            <Typography as="p" variant="caption" className="mb-1.5">
-              {breadcrumb}
-            </Typography>
-          ) : null}
           <div className="flex flex-wrap items-center gap-3">
             <Typography as="h2" id={titleId} variant="pageTitle">
               {title}

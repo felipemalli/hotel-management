@@ -16,7 +16,6 @@ import {
 import { ReservationStatusBadge } from '@/features/reservations/components/ReservationStatusBadge'
 import { parseReservationId } from '@/features/reservations/filters'
 import { useReservation, useReservationStatement } from '@/features/reservations/hooks'
-import { HOTEL_NAME } from '@/lib/brand'
 import { errorMessage, isApiErrorCode } from '@/lib/errors/errors'
 import { useDialogState } from '@/lib/hooks/useDialogState'
 import { notifySuccess } from '@/lib/notify/toast'
@@ -59,7 +58,6 @@ export function ReservationDetailPage() {
         title={`Reserva #${current.id}`}
         breadcrumb={
           <>
-            {HOTEL_NAME}{' '}
             <Link to={ROUTES.reservations} className="underline decoration-border">
               Reservas
             </Link>

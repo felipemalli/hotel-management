@@ -7,7 +7,6 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Typography } from '@/components/ui'
 import { useCurrentUser } from '@/features/auth/hooks'
 import { useAuth } from '@/features/auth/useAuth'
-import { HOTEL_NAME } from '@/lib/brand'
 import { errorMessage } from '@/lib/errors/errors'
 import { toastStore } from '@/lib/notify/toast'
 import { ROUTES } from '@/lib/routing/routes'
@@ -82,12 +81,6 @@ export function AppLayout() {
               Hotel PMS
             </Typography>
           </div>
-        </div>
-
-        <div className="px-4 pb-4">
-          <Typography as="p" variant="label" className="truncate">
-            {HOTEL_NAME}
-          </Typography>
         </div>
 
         <nav aria-label="Principal" className="flex-1 overflow-y-auto px-3">
