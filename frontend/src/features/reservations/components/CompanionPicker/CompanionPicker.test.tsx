@@ -72,8 +72,6 @@ describe('CompanionPicker', () => {
     expect(screen.queryByRole('option', { name: /Bruno Lima/ })).not.toBeInTheDocument()
   })
 
-  // Combobox (Base UI) trava em jsdom se aberto via clique — a interação real
-  // é provada no e2e. Aqui, seleção por teclado, que não trava.
   it('adiciona ao selecionar, limpa a busca e devolve o conjunto novo', async () => {
     const { onChange } = setup()
 
