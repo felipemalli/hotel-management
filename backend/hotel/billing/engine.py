@@ -53,14 +53,25 @@ class BillLine:
 
 
 @dataclass(frozen=True)
+class LateFee:
+    date: date
+    weekday_label: str
+    base_rate: Decimal
+    amount: Decimal
+
+
+@dataclass(frozen=True)
 class Bill:
     lines: list[BillLine]
     subtotal_daily: Decimal
     subtotal_parking: Decimal
-    late_fee_applied: bool
-    late_fee_base: Decimal | None
+    late_fees: list[LateFee]
     late_fee: Decimal
     total: Decimal
+
+    @property
+    def late_fee_applied(self) -> bool:
+        return bool(self.late_fees)
 
 
 def is_weekend(day: date) -> bool:
@@ -97,6 +108,23 @@ def early_checkin(local_time: time, rates: RateTable = DEFAULT_RATES) -> bool:
     return local_time < rates.checkin_opens
 
 
+def late_fee_days(
+    *,
+    checkout_day: date,
+    checkout_time: time,
+    booked_checkout_day: date,
+    rates: RateTable = DEFAULT_RATES,
+) -> list[date]:
+    """Um dia multado por dia com permanência além do limite, do contratado em diante."""
+    days: list[date] = []
+    day = booked_checkout_day
+    while day <= checkout_day:
+        if day < checkout_day or checkout_time > rates.checkout_limit:
+            days.append(day)
+        day += timedelta(days=1)
+    return days
+
+
 def late_checkout(
     *,
     checkout_day: date,
@@ -104,7 +132,14 @@ def late_checkout(
     booked_checkout_day: date,
     rates: RateTable = DEFAULT_RATES,
 ) -> bool:
-    return checkout_day >= booked_checkout_day and checkout_time > rates.checkout_limit
+    return bool(
+        late_fee_days(
+            checkout_day=checkout_day,
+            checkout_time=checkout_time,
+            booked_checkout_day=booked_checkout_day,
+            rates=rates,
+        )
+    )
 
 
 def calculate_bill(
@@ -132,22 +167,27 @@ def calculate_bill(
     subtotal_daily = quantize_money(sum((line.daily_rate for line in lines), ZERO))
     subtotal_parking = quantize_money(sum((line.parking_fee for line in lines), ZERO))
 
-    applied = late_checkout(
-        checkout_day=checkout_day,
-        checkout_time=checkout_time,
-        booked_checkout_day=booked_checkout_day,
-        rates=rates,
-    )
-    # A multa usa a tarifa do dia da saida: e o procedimento de checkout que se penaliza.
-    base = daily_rate(checkout_day, rates) if applied else None
-    fee = quantize_money(rates.late_fee_factor * base) if applied else ZERO
+    fees = [
+        LateFee(
+            date=day,
+            weekday_label=weekday_label(day),
+            base_rate=daily_rate(day, rates),
+            amount=quantize_money(rates.late_fee_factor * daily_rate(day, rates)),
+        )
+        for day in late_fee_days(
+            checkout_day=checkout_day,
+            checkout_time=checkout_time,
+            booked_checkout_day=booked_checkout_day,
+            rates=rates,
+        )
+    ]
+    late_fee = quantize_money(sum((fee.amount for fee in fees), ZERO))
 
     return Bill(
         lines=lines,
         subtotal_daily=subtotal_daily,
         subtotal_parking=subtotal_parking,
-        late_fee_applied=applied,
-        late_fee_base=base,
-        late_fee=fee,
-        total=quantize_money(subtotal_daily + subtotal_parking + fee),
+        late_fees=fees,
+        late_fee=late_fee,
+        total=quantize_money(subtotal_daily + subtotal_parking + late_fee),
     )

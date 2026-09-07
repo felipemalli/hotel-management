@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from core.money import ZERO, quantize_money
-from hotel.billing.engine import Bill, BillLine, weekday_label
+from hotel.billing.engine import Bill, BillLine, LateFee, weekday_label
 from hotel.billing.models import AccountLine, LineKind
 from hotel.reservations.errors import InvalidStatusError
 
@@ -15,12 +15,15 @@ class Statement:
     lines: list[BillLine]
     subtotal_daily: Decimal
     subtotal_parking: Decimal
-    late_fee_applied: bool
-    late_fee_base: Decimal | None
+    late_fees: list[LateFee]
     late_fee: Decimal
     extras: list[AccountLine]
     subtotal_extras: Decimal
     total: Decimal
+
+    @property
+    def late_fee_applied(self) -> bool:
+        return bool(self.late_fees)
 
     @classmethod
     def from_bill(cls, bill: Bill, *, extras: Iterable[AccountLine] = ()) -> Statement:
@@ -31,8 +34,7 @@ class Statement:
             lines=bill.lines,
             subtotal_daily=bill.subtotal_daily,
             subtotal_parking=bill.subtotal_parking,
-            late_fee_applied=bill.late_fee_applied,
-            late_fee_base=bill.late_fee_base,
+            late_fees=bill.late_fees,
             late_fee=bill.late_fee,
             extras=extras,
             subtotal_extras=subtotal_extras,
@@ -44,7 +46,7 @@ def statement_from_lines(lines: Sequence[AccountLine], *, total: Decimal) -> Sta
     """Hidrata o extrato do livro. Nunca chama o motor: `total` e o congelado da conta."""
     dailies: dict = {}
     parkings: dict = {}
-    late_fee_line = None
+    late_fee_lines: list[AccountLine] = []
     extras: list[AccountLine] = []
 
     for line in lines:
@@ -53,7 +55,7 @@ def statement_from_lines(lines: Sequence[AccountLine], *, total: Decimal) -> Sta
         elif line.kind == LineKind.PARKING:
             parkings[line.service_date] = line
         elif line.kind == LineKind.LATE_FEE:
-            late_fee_line = line
+            late_fee_lines.append(line)
         else:
             extras.append(line)
 
@@ -70,15 +72,23 @@ def statement_from_lines(lines: Sequence[AccountLine], *, total: Decimal) -> Sta
         for day in sorted(dailies)
     ]
 
+    late_fees = [
+        LateFee(
+            date=line.service_date,
+            weekday_label=weekday_label(line.service_date),
+            base_rate=line.unit_amount,
+            amount=line.amount,
+        )
+        for line in sorted(late_fee_lines, key=lambda line: line.service_date)
+    ]
+
     subtotal_extras = quantize_money(sum((line.amount for line in extras), ZERO))
     return Statement(
         lines=bill_lines,
         subtotal_daily=quantize_money(sum((line.daily_rate for line in bill_lines), ZERO)),
         subtotal_parking=quantize_money(sum((line.parking_fee for line in bill_lines), ZERO)),
-        late_fee_applied=late_fee_line is not None,
-        late_fee_base=late_fee_line.unit_amount if late_fee_line is not None else None,
-        # Nunca None: o frontend exige um valor em `late_fee.amount`.
-        late_fee=late_fee_line.amount if late_fee_line is not None else ZERO,
+        late_fees=late_fees,
+        late_fee=quantize_money(sum((fee.amount for fee in late_fees), ZERO)),
         extras=extras,
         subtotal_extras=subtotal_extras,
         total=total,

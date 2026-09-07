@@ -58,7 +58,9 @@ describe('CheckoutStatementDialog · RF7 · RN1 · RN2 · RN3 · RN5 · RN6', ()
     expect(screen.getByText('R$ 35,00')).toBeInTheDocument()
 
     // O extrato não carrega o fator da multa: a linha nomeia a base, não uma %.
-    expect(screen.getByText('Multa de checkout tardio (base R$ 180,00)')).toBeInTheDocument()
+    expect(
+      screen.getByText('Multa de checkout tardio · domingo (base R$ 180,00)'),
+    ).toBeInTheDocument()
     expect(screen.getByText('R$ 90,00')).toBeInTheDocument()
 
     expect(screen.getByText('Total a pagar')).toBeInTheDocument()

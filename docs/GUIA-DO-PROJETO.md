@@ -669,11 +669,11 @@ O algoritmo, em quatro funções pequenas:
 2. **Quanto vale cada data** — `daily_rate` (`:75-77`) e `parking_fee`
    (`:80-83`): a tarifa é a **do próprio dia da diária**, não a do dia em que a
    noite termina.
-3. **Multa** — `late_checkout`: exige **as duas** condições — a saída não ser
-   antecipada (`data(checkout real) >= data(checkout contratado)`) **e** a hora
-   local ser **estritamente maior** que 12:00:00. Aí cobra-se 50% da tarifa **do
-   dia da saída real**. `12:00:00` em ponto é isento, e quem sai antes do prazo
-   nunca atrasa.
+3. **Multa** — `late_fee_days`: uma multa **por dia**, a partir do dia de saída
+   contratado. Um dia entra se o hóspede permaneceu nele depois das 12:00:00 —
+   os anteriores ao da saída entram sempre; o da saída, só se ele vagou passado
+   o limite. Cada multa é 50% da tarifa **daquele dia**. `12:00:00` em ponto é
+   isento, e quem sai antes do prazo nunca é multado.
 4. **Total** — `quantize_money` (`:66-68`): duas casas, `ROUND_HALF_UP`. É a
    única função que arredonda no sistema inteiro.
 
@@ -689,7 +689,7 @@ Agora o caso **T7**, que exercita tudo de uma vez. Entrada: check-in sexta
 | `parking_fee(07/03)` — sexta, com vaga | `15.00` |
 | `parking_fee(08/03)` — sábado, com vaga | `20.00` |
 | `subtotal_parking` | **35.00** |
-| `late_checkout(saída 09/03 12:01, contratado 09/03)` | `True` — não é antecipação **e** 12:01 > 12:00:00 |
+| `late_fee_days(saída 09/03 12:01, contratado 09/03)` | `[09/03]` — um dia, porque vagou passado o limite |
 | base da multa = `daily_rate(09/03)` — **domingo** | `180.00` |
 | `late_fee` = `0.5 × 180.00` | **90.00** |
 | `total` | **425.00** |

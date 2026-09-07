@@ -54,7 +54,7 @@ nome e devolve o 409 do domínio.
 | `guests`       | `Guest`                          | `guest_document_unique`                                                                            | documento normalizado alfanumérico  |
 | `rooms`        | `Room`                           | `room_number_unique`, `room_capacity_positive`                                                     | `capacity` freia o tamanho do grupo |
 | `billing`      | `PricingPolicy`                  | `policy_money_non_negative`, `policy_checkout_before_checkin`                                       | append-only; `effective_from`       |
-| `billing`      | `Account`, `AccountLine`, `Payment` | `account_closed_is_complete`, `account_total_non_negative`, `accountline_one_per_kind_date`, `accountline_one_late_fee`, `accountline_quantity_non_negative`, `payment_amount_non_negative` | `AccountLine.amount` e `Account.total_amount` |
+| `billing`      | `Account`, `AccountLine`, `Payment` | `account_closed_is_complete`, `account_total_non_negative`, `accountline_one_per_kind_date`, `accountline_quantity_non_negative`, `payment_amount_non_negative` | `AccountLine.amount` e `Account.total_amount` |
 | `reservations` | `Reservation`                    | `resv_room_no_overlap` (EXCLUDE), `resv_one_active_per_room`, `resv_one_active_per_guest`, `resv_active_has_policy`, `resv_checked_out_complete`, `resv_account_matches_status` | status ⇔ conta                      |
 
 `AccountLine` não tem CHECK aritmético ligando `amount` a `quantity × unit_amount`: um fator como

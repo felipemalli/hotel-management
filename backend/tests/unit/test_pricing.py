@@ -149,10 +149,7 @@ def bill_of(
     booked_checkout=None,
     booked_checkin=None,
 ) -> pricing.Bill:
-    """A tabela-verdade e escrita em datetimes locais; o motor so aceita date/time.
-
-    Sem `booked_checkout`, a saida contratada e a real: e o caso dos nove T.
-    """
+    """Sem `booked_*`, o contratado e o real: e o caso dos nove T."""
     return pricing.calculate_bill(
         checkin_day=checkin.date(),
         checkout_day=checkout.date(),
@@ -191,7 +188,9 @@ def test_truth_table(
     assert bill.subtotal_daily == expected_daily
     assert bill.subtotal_parking == expected_parking
     assert bill.late_fee_applied is (expected_late_base is not None)
-    assert bill.late_fee_base == expected_late_base
+    assert [fee.base_rate for fee in bill.late_fees] == (
+        [] if expected_late_base is None else [expected_late_base]
+    )
     assert bill.late_fee == expected_late_fee
     assert bill.total == expected_total
 
@@ -243,11 +242,6 @@ def test_late_checkout_boundaries(now, expected):
 
 
 def test_early_checkout_costs_the_same_as_staying_to_the_booked_end():
-    """BUSINESS_RULE: `caso o checkout ocorra antes, o valor de todas as diarias se mantem`.
-
-    Mesma reserva do T1 (seg 03 15:00 -> qua 05), com saida real na terca 04 as
-    18:00: as duas diarias contratadas continuam sendo cobradas.
-    """
     early = bill_of(dt(3, 15), dt(4, 18), False, booked_checkout=date(2025, 3, 5))
 
     assert [line.date.day for line in early.lines] == [3, 4]
@@ -256,11 +250,6 @@ def test_early_checkout_costs_the_same_as_staying_to_the_booked_end():
 
 
 def test_late_check_in_still_pays_every_booked_daily():
-    """BUSINESS_RULE: `caso o check-in ocorra depois, o valor de todas as diarias se mantem`.
-
-    Mesma reserva do T1 (contratada seg 03 -> qua 05); o hospede so chegou na
-    terca 04. As duas diarias contratadas continuam sendo cobradas.
-    """
     late_arrival = bill_of(dt(4, 15), dt(5, 11), False, booked_checkin=date(2025, 3, 3))
 
     assert [line.date.day for line in late_arrival.lines] == [3, 4]
@@ -268,11 +257,6 @@ def test_late_check_in_still_pays_every_booked_daily():
 
 
 def test_leaving_early_after_noon_is_not_a_late_checkout():
-    """O limite das 12:00 vale para o ultimo dia contratado, nao para todo dia.
-
-    Quem sai um dia antes as 18:00 nao atrasou nada -- antes esta reserva
-    levava multa de 50%.
-    """
     early = bill_of(dt(3, 15), dt(4, 18), False, booked_checkout=date(2025, 3, 5))
 
     assert early.late_fee_applied is False
@@ -280,18 +264,16 @@ def test_leaving_early_after_noon_is_not_a_late_checkout():
 
 
 def test_overstay_charges_the_extra_night_and_then_the_late_fee():
-    """Contratado ate qua 05; saiu qui 06 as 14:00.
-
-    A noite extra (05->06) e diaria cheia; a tarde do dia 06 e a multa de 50%
-    da diaria daquele dia (quinta, 120,00).
-    """
     over = bill_of(dt(3, 15), dt(6, 14), False, booked_checkout=date(2025, 3, 5))
 
     assert [line.date.day for line in over.lines] == [3, 4, 5]
     assert over.subtotal_daily == D("360.00")
-    assert over.late_fee_base == D("120.00")
-    assert over.late_fee == D("60.00")
-    assert over.total == D("420.00")
+    assert [(fee.date.day, fee.amount) for fee in over.late_fees] == [
+        (5, D("60.00")),
+        (6, D("60.00")),
+    ]
+    assert over.late_fee == D("120.00")
+    assert over.total == D("480.00")
 
 
 @pytest.mark.parametrize(
@@ -301,7 +283,7 @@ def test_overstay_charges_the_extra_night_and_then_the_late_fee():
         (dt(5, 12, 0, 0), 5, False),
         (dt(5, 12, 0, 1), 5, True),
         (dt(4, 23, 59, 59), 5, False),
-        (dt(6, 0, 0, 1), 5, False),
+        (dt(6, 0, 0, 1), 5, True),
         (dt(6, 12, 0, 1), 5, True),
     ],
 )
@@ -386,7 +368,7 @@ def test_rate_table_reaches_parking_and_late_fee():
 
     assert bill.subtotal_daily == D("340.00")
     assert bill.subtotal_parking == D("43.00")
-    assert bill.late_fee_base == D("200.00")
+    assert [fee.base_rate for fee in bill.late_fees] == [D("200.00")]
     assert bill.late_fee == D("100.00")
     assert bill.total == D("483.00")
 

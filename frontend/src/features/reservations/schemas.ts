@@ -60,10 +60,25 @@ export const billLineSchema = z.object({
   parking_fee: moneyString,
 })
 
-// União discriminada: multa cobrada sem base_rate era estado impossível que escondia cobrança.
+export const lateFeeDaySchema = z.object({
+  date: isoDate,
+  weekday: z.string(),
+  base_rate: moneyString,
+  amount: moneyString,
+})
+
+// União discriminada: multa cobrada sem os dias era estado impossível que escondia cobrança.
 export const lateFeeSchema = z.discriminatedUnion('applied', [
-  z.object({ applied: z.literal(true), base_rate: moneyString, amount: moneyString }),
-  z.object({ applied: z.literal(false), base_rate: z.null(), amount: moneyString }),
+  z.object({
+    applied: z.literal(true),
+    amount: moneyString,
+    days: z.array(lateFeeDaySchema).nonempty(),
+  }),
+  z.object({
+    applied: z.literal(false),
+    amount: moneyString,
+    days: z.array(lateFeeDaySchema).max(0),
+  }),
 ])
 
 export const reservationPageSchema = paginated(reservationSchema)

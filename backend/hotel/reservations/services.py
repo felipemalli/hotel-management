@@ -196,7 +196,7 @@ def check_out(reservation: Reservation, *, now: datetime, actor: AbstractBaseUse
         rates = rate_table_of(locked.policy)
         billing.post_lines(
             locked.account,
-            _line_inputs(bill, rates=rates, now=now),
+            _line_inputs(bill, rates=rates),
             posted_by=actor,
             now=now,
         )
@@ -221,8 +221,7 @@ def _bill_for(reservation: Reservation, *, now: datetime) -> engine.Bill:
     if reservation.checked_in_at is None:
         raise InvalidStatusError("Reserva sem check-in registrado.")
 
-    # Cobranca pelos fatos, com a politica amarrada no check-in. A conversao
-    # para hora local mora aqui: o motor so aceita date/time, sem fuso para errar.
+    # O motor so aceita date/time: a conversao para hora local mora aqui.
     checkin_local = timezone.localtime(reservation.checked_in_at)
     checkout_local = timezone.localtime(now)
     return engine.calculate_bill(
@@ -236,9 +235,7 @@ def _bill_for(reservation: Reservation, *, now: datetime) -> engine.Bill:
     )
 
 
-def _line_inputs(
-    bill: engine.Bill, *, rates: engine.RateTable, now: datetime
-) -> list[billing.LineInput]:
+def _line_inputs(bill: engine.Bill, *, rates: engine.RateTable) -> list[billing.LineInput]:
     lines = [
         billing.LineInput(
             kind=LineKind.DAILY,
@@ -258,16 +255,16 @@ def _line_inputs(
         for line in bill.lines
         if line.parking_fee != ZERO
     ]
-    if bill.late_fee_applied:
-        lines.append(
-            billing.LineInput(
-                kind=LineKind.LATE_FEE,
-                service_date=timezone.localdate(now),
-                unit_amount=bill.late_fee_base,
-                quantity=rates.late_fee_factor,
-                description=f"checkout após {rates.checkout_limit:%H:%M}",
-            )
+    lines += [
+        billing.LineInput(
+            kind=LineKind.LATE_FEE,
+            service_date=fee.date,
+            unit_amount=fee.base_rate,
+            quantity=rates.late_fee_factor,
+            description=f"permanência após {rates.checkout_limit:%H:%M}",
         )
+        for fee in bill.late_fees
+    ]
     return lines
 
 

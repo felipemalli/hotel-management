@@ -215,28 +215,29 @@ def test_extra_lines_may_repeat_a_date():
     assert AccountLine.objects.filter(account=account, kind=LineKind.EXTRA).count() == 2
 
 
-def test_only_one_late_fee_per_account():
+def test_only_one_late_fee_per_day():
     account = billing.open_account(now=NOW)
-    billing.post_line(
-        account,
-        kind=LineKind.LATE_FEE,
-        service_date=MARCH_8,
-        unit_amount=Decimal("180.00"),
-        posted_by=None,
-        now=NOW,
-    )
-
-    with pytest.raises(IntegrityError) as excinfo, transaction.atomic():
+    for day in (MARCH_8, MARCH_8 + timedelta(days=1)):
         billing.post_line(
             account,
             kind=LineKind.LATE_FEE,
-            service_date=MARCH_8 + timedelta(days=1),
+            service_date=day,
             unit_amount=Decimal("180.00"),
             posted_by=None,
             now=NOW,
         )
 
-    assert "accountline_one_late_fee" in str(excinfo.value)
+    with pytest.raises(IntegrityError) as excinfo, transaction.atomic():
+        billing.post_line(
+            account,
+            kind=LineKind.LATE_FEE,
+            service_date=MARCH_8,
+            unit_amount=Decimal("180.00"),
+            posted_by=None,
+            now=NOW,
+        )
+
+    assert "accountline_one_per_kind_date" in str(excinfo.value)
 
 
 def test_account_with_payment_is_protected_from_deletion(actor):

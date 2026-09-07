@@ -153,11 +153,12 @@ export function ReservationAccountSection({
     { label: 'Diárias', value: money(statement?.subtotal_daily ?? null) },
     { label: 'Vaga', value: money(statement?.subtotal_parking ?? null) },
     {
-      // Base da multa, não o fator: o extrato não carrega o fator.
       label: 'Multa de checkout tardio',
       value: !statement?.late_fee.applied
         ? '—'
-        : `${money(statement.late_fee.amount)} (base ${money(statement.late_fee.base_rate)})`,
+        : `${money(statement.late_fee.amount)} (${statement.late_fee.days.length} dia${
+            statement.late_fee.days.length > 1 ? 's' : ''
+          })`,
     },
   ]
   const paymentLine =

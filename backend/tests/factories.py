@@ -154,15 +154,15 @@ def _frozen_account(obj) -> Account:
         for line in bill.lines
         if line.parking_fee
     ]
-    if bill.late_fee_applied:
-        lines.append(
-            billing.LineInput(
-                kind=LineKind.LATE_FEE,
-                service_date=obj.checkout_date,
-                unit_amount=bill.late_fee_base,
-                quantity=pricing.DEFAULT_RATES.late_fee_factor,
-            )
+    lines += [
+        billing.LineInput(
+            kind=LineKind.LATE_FEE,
+            service_date=fee.date,
+            unit_amount=fee.base_rate,
+            quantity=pricing.DEFAULT_RATES.late_fee_factor,
         )
+        for fee in bill.late_fees
+    ]
 
     billing.post_lines(account, lines, posted_by=None, now=closed_at)
     return billing.close_account(account, now=closed_at)

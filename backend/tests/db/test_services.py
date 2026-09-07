@@ -490,7 +490,7 @@ def test_check_out_freezes_totals_matching_T7(actor):
     assert statement.subtotal_daily == Decimal("300.00")
     assert statement.subtotal_parking == Decimal("35.00")
     assert statement.late_fee_applied is True
-    assert statement.late_fee_base == Decimal("180.00")
+    assert [fee.base_rate for fee in statement.late_fees] == [Decimal("180.00")]
     assert statement.late_fee == Decimal("90.00")
     assert statement.total == Decimal("425.00")
 
@@ -516,7 +516,10 @@ def test_check_out_charges_real_stay_not_scheduled_dates(actor):
     bill = service.check_out(reservation, now=local(date(2025, 3, 10), 11, 0), actor=actor)
 
     assert [line.date.day for line in bill.lines] == [7, 8, 9]
-    assert bill.total == Decimal("535.00")  # caso T3
+    # O domingo contratado virou noite extra: diaria cheia mais a multa de 50%.
+    assert [fee.date.day for fee in bill.late_fees] == [9]
+    assert bill.late_fee == Decimal("90.00")
+    assert bill.total == Decimal("625.00")
 
 
 def test_check_out_exactly_at_noon_is_exempt(actor):

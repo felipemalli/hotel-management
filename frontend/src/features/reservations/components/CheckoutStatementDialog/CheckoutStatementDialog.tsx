@@ -149,13 +149,15 @@ export function CheckoutStatementDialog({
           <div className="rounded-lg bg-slate-50 px-4 py-3 ring-1 ring-slate-200">
             <SummaryRow label="Subtotal diárias" value={formatBRL(shown.subtotal_daily)} />
             <SummaryRow label="Subtotal vaga" value={formatBRL(shown.subtotal_parking)} />
-            {/* O fator da multa é da política e o extrato não o carrega. */}
-            {lateFee.applied ? (
-              <SummaryRow
-                label={`Multa de checkout tardio (base ${formatBRL(lateFee.base_rate)})`}
-                value={formatBRL(lateFee.amount)}
-              />
-            ) : null}
+            {lateFee.applied
+              ? lateFee.days.map((day) => (
+                  <SummaryRow
+                    key={day.date}
+                    label={`Multa de checkout tardio · ${day.weekday} (base ${formatBRL(day.base_rate)})`}
+                    value={formatBRL(day.amount)}
+                  />
+                ))
+              : null}
             <SummaryRow label="Total a pagar" value={formatBRL(shown.total)} emphasis />
 
             <div className="mt-3 flex flex-col gap-2 border-t border-slate-200 pt-3">

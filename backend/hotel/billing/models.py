@@ -13,7 +13,6 @@ ACCOUNT_CLOSED_IS_COMPLETE = "account_closed_is_complete"
 ACCOUNTLINE_QUANTITY_NON_NEGATIVE = "accountline_quantity_non_negative"
 ACCOUNTLINE_MONEY_NON_NEGATIVE = "accountline_money_non_negative"
 ACCOUNTLINE_ONE_PER_KIND_DATE = "accountline_one_per_kind_date"
-ACCOUNTLINE_ONE_LATE_FEE = "accountline_one_late_fee"
 PAYMENT_AMOUNT_NON_NEGATIVE = "payment_amount_non_negative"
 
 
@@ -153,12 +152,7 @@ class AccountLine(models.Model):
             models.UniqueConstraint(
                 name=ACCOUNTLINE_ONE_PER_KIND_DATE,
                 fields=["account", "kind", "service_date"],
-                condition=Q(kind__in=["DAILY", "PARKING"]),
-            ),
-            models.UniqueConstraint(
-                name=ACCOUNTLINE_ONE_LATE_FEE,
-                fields=["account"],
-                condition=Q(kind="LATE_FEE"),
+                condition=Q(kind__in=["DAILY", "PARKING", "LATE_FEE"]),
             ),
         ]
 

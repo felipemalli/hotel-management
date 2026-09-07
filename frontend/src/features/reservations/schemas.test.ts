@@ -108,12 +108,16 @@ describe('checkoutStatementSchema', () => {
   it('recusa multa cobrada sem a tarifa que a originou', () => {
     const impossible = {
       ...T7_STATEMENT,
-      late_fee: { applied: true, base_rate: null, amount: '90.00' },
+      late_fee: { applied: true, amount: '90.00', days: [] },
     }
 
     expect(checkoutStatementSchema.safeParse(impossible).success).toBe(false)
     expect(
-      lateFeeSchema.safeParse({ applied: false, base_rate: '180.00', amount: '0.00' }).success,
+      lateFeeSchema.safeParse({
+        applied: false,
+        amount: '0.00',
+        days: [{ date: '2025-03-09', weekday: 'domingo', base_rate: '180.00', amount: '90.00' }],
+      }).success,
     ).toBe(false)
   })
 

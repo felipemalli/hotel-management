@@ -392,8 +392,15 @@ def test_copilot_previews_checkout_without_writing(auth_client, ai_on, calls, t7
     assert statement["total"] == "425.00"
     assert statement["late_fee"] == {
         "applied": True,
-        "base_rate": "180.00",
         "amount": "90.00",
+        "days": [
+            {
+                "date": "2025-03-09",
+                "weekday": "domingo",
+                "base_rate": "180.00",
+                "amount": "90.00",
+            }
+        ],
     }
     assert statement["lines"][0] == {
         "date": "2025-03-07",

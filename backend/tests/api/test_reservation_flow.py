@@ -249,7 +249,18 @@ def test_checkout_statement_matches_T7(auth_client):
         "lines": T7_LINES,
         "subtotal_daily": "300.00",
         "subtotal_parking": "35.00",
-        "late_fee": {"applied": True, "base_rate": "180.00", "amount": "90.00"},
+        "late_fee": {
+            "applied": True,
+            "amount": "90.00",
+            "days": [
+                {
+                    "date": "2025-03-09",
+                    "weekday": "domingo",
+                    "base_rate": "180.00",
+                    "amount": "90.00",
+                }
+            ],
+        },
         "extras": [],
         "subtotal_extras": "0.00",
         "total": "425.00",
@@ -314,8 +325,8 @@ def test_checkout_at_noon_has_no_late_fee(auth_client):
     assert response.status_code == 200
     assert response.data["late_fee"] == {
         "applied": False,
-        "base_rate": None,
         "amount": "0.00",
+        "days": [],
     }
     assert response.data["extras"] == []
     assert response.data["subtotal_extras"] == "0.00"

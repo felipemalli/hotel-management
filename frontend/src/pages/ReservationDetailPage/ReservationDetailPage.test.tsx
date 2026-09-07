@@ -104,7 +104,7 @@ describe('ReservationDetailPage', () => {
     const account = await screen.findByRole('region', { name: 'Conta' })
     expect(within(account).getByText('R$ 425,00')).toBeInTheDocument()
     // Diárias/Vaga/Multa vêm do extrato, que carrega numa segunda consulta.
-    expect(await within(account).findByText('R$ 90,00 (base R$ 180,00)')).toBeInTheDocument()
+    expect(await within(account).findByText('R$ 90,00 (1 dia)')).toBeInTheDocument()
     expect(within(account).getByText('Em aberto')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver extrato' }))

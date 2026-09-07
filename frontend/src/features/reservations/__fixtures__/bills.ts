@@ -22,7 +22,7 @@ export const T1_STATEMENT: CheckoutStatement = {
   ],
   subtotal_daily: '240.00',
   subtotal_parking: '0.00',
-  late_fee: { applied: false, base_rate: null, amount: '0.00' },
+  late_fee: { applied: false, amount: '0.00', days: [] },
   total: '240.00',
   payment: null,
 }
@@ -49,7 +49,7 @@ export const T2_STATEMENT: CheckoutStatement = {
   ],
   subtotal_daily: '360.00',
   subtotal_parking: '40.00',
-  late_fee: { applied: false, base_rate: null, amount: '0.00' },
+  late_fee: { applied: false, amount: '0.00', days: [] },
   total: '400.00',
   payment: null,
 }
@@ -82,7 +82,7 @@ export const T3_STATEMENT: CheckoutStatement = {
   ],
   subtotal_daily: '480.00',
   subtotal_parking: '55.00',
-  late_fee: { applied: false, base_rate: null, amount: '0.00' },
+  late_fee: { applied: false, amount: '0.00', days: [] },
   total: '535.00',
   payment: null,
 }
@@ -109,7 +109,7 @@ export const T4_STATEMENT: CheckoutStatement = {
   ],
   subtotal_daily: '240.00',
   subtotal_parking: '0.00',
-  late_fee: { applied: false, base_rate: null, amount: '0.00' },
+  late_fee: { applied: false, amount: '0.00', days: [] },
   total: '240.00',
   payment: null,
 }
@@ -136,7 +136,11 @@ export const T5_STATEMENT: CheckoutStatement = {
   ],
   subtotal_daily: '240.00',
   subtotal_parking: '0.00',
-  late_fee: { applied: true, base_rate: '120.00', amount: '60.00' },
+  late_fee: {
+    applied: true,
+    amount: '60.00',
+    days: [{ date: '2025-03-06', weekday: 'quinta-feira', base_rate: '120.00', amount: '60.00' }],
+  },
   total: '300.00',
   payment: null,
 }
@@ -163,7 +167,7 @@ export const T6_STATEMENT: CheckoutStatement = {
   ],
   subtotal_daily: '300.00',
   subtotal_parking: '0.00',
-  late_fee: { applied: false, base_rate: null, amount: '0.00' },
+  late_fee: { applied: false, amount: '0.00', days: [] },
   total: '300.00',
   payment: null,
 }
@@ -190,7 +194,11 @@ export const T7_STATEMENT: CheckoutStatement = {
   ],
   subtotal_daily: '300.00',
   subtotal_parking: '35.00',
-  late_fee: { applied: true, base_rate: '180.00', amount: '90.00' },
+  late_fee: {
+    applied: true,
+    amount: '90.00',
+    days: [{ date: '2025-03-09', weekday: 'domingo', base_rate: '180.00', amount: '90.00' }],
+  },
   total: '425.00',
   payment: null,
 }
@@ -217,7 +225,7 @@ export const T8_STATEMENT: CheckoutStatement = {
   ],
   subtotal_daily: '240.00',
   subtotal_parking: '0.00',
-  late_fee: { applied: false, base_rate: null, amount: '0.00' },
+  late_fee: { applied: false, amount: '0.00', days: [] },
   total: '240.00',
   payment: null,
 }
@@ -238,7 +246,11 @@ export const T9_STATEMENT: CheckoutStatement = {
   ],
   subtotal_daily: '120.00',
   subtotal_parking: '15.00',
-  late_fee: { applied: true, base_rate: '120.00', amount: '60.00' },
+  late_fee: {
+    applied: true,
+    amount: '60.00',
+    days: [{ date: '2025-03-03', weekday: 'segunda-feira', base_rate: '120.00', amount: '60.00' }],
+  },
   total: '195.00',
   payment: null,
 }

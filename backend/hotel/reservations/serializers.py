@@ -203,10 +203,17 @@ class BillLineSerializer(serializers.Serializer):
     parking_fee = money_field()
 
 
+class LateFeeDaySerializer(serializers.Serializer):
+    date = serializers.DateField()
+    weekday = serializers.CharField(source="weekday_label")
+    base_rate = money_field()
+    amount = money_field()
+
+
 class LateFeeSerializer(serializers.Serializer):
     applied = serializers.BooleanField()
-    base_rate = money_field(allow_null=True)
     amount = money_field()
+    days = LateFeeDaySerializer(many=True)
 
 
 class StatementSerializer(serializers.Serializer):
@@ -235,8 +242,8 @@ def build_statement(reservation: Reservation, statement: Statement) -> dict[str,
         "subtotal_parking": statement.subtotal_parking,
         "late_fee": {
             "applied": statement.late_fee_applied,
-            "base_rate": statement.late_fee_base,
             "amount": statement.late_fee,
+            "days": statement.late_fees,
         },
         "extras": statement.extras,
         "subtotal_extras": statement.subtotal_extras,
