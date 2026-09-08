@@ -89,9 +89,7 @@ export function GuestForm({ onSuccess, onCancel }: GuestFormProps) {
         hint="CPF, RG ou passaporte — com ou sem pontuação."
         error={errors.document?.message}
       >
-        {(control) => (
-          <Input placeholder="123.456.789-01" {...control} {...register('document')} />
-        )}
+        {(control) => <Input placeholder="123.456.789-01" {...control} {...register('document')} />}
       </FormField>
       <FormField label="Nacionalidade" error={errors.nationality?.message}>
         {(selectControl) => (
