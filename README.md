@@ -13,7 +13,7 @@ Vitest · Playwright.
 🌐 **Deploy:** <https://reliapms.online/> (AWS EC2, Docker Compose + Caddy).
 Mesmas credenciais de demonstração abaixo.
 
-🎥 **Vídeo de apresentação:** _em breve_
+🎥 **Vídeo de apresentação:** https://youtu.be/LE8lIVfArUI
 
 📖 **Documentação:**
 
