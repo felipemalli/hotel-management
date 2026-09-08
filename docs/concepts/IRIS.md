@@ -76,31 +76,29 @@ Portão de fallback (a parte que interessa em revisão):
 Saída de modelo é **input não confiável**, e em três frentes:
 
 - **argumentos**: cada chamada de ferramenta passa por um serializer antes de
-  virar consulta. Onde o modelo costuma omitir um campo, o serializer é
-  tolerante: um argumento faltante custa uma rodada com `{"error": …}`, que o
-  modelo lê e corrige, nunca um `502`;
+  virar consulta. Argumento inválido ou faltante não derruba a requisição: volta
+  ao modelo como `{"error": …}`, que ele lê e corrige na rodada seguinte, ao
+  custo de uma rodada e nunca de um `502`;
 - **identidade**: um botão só aparece se a reserva **apareceu** num resultado e
   foi **isolada** nele. Um id que já apareceu ao lado de outro fica travado pelo
-  resto da requisição, mesmo que o modelo afunile sozinho depois. Nesse caso
-  quem escolheu foi ele, não o atendente. Id inventado derruba o botão, não a
-  resposta: o texto foi construído com dados reais e continua valendo;
+  resto da requisição, mesmo que o modelo afunile sozinho depois — nesse
+  desempate quem escolheu foi ele, não o atendente. Id inventado derruba o
+  botão, não a resposta: o texto veio de dados reais e continua valendo;
 - **status**: antes de devolver a ação, o servidor relê a reserva. Um check-in
   concorrente entre a busca e a resposta zera a ação em vez de oferecer um botão
   que já falharia.
 
-Tudo isso dentro de um orçamento global de **15 s** para o laço inteiro e de
-**sete rodadas** no máximo (`BUDGET_SECONDS` e `MAX_ROUNDS` em `ai/config.py`);
-cada timeout é encurtado para o que resta do orçamento, e na última rodada o
-`tool_choice` força `answer`. Um modelo que fica repetindo consultas termina
-em resposta, não em 502. Com folga sobre o timeout de 30 s do worker: no pior
-caso o atendente vê um toast, nunca um worker morto.
+Tudo isso dentro de um orçamento global de **15 s** e de **sete rodadas**
+(`BUDGET_SECONDS` e `MAX_ROUNDS` em `ai/config.py`): cada timeout é encurtado
+para o que resta do orçamento, e na última rodada o `tool_choice` força
+`answer`, então um modelo que fica repetindo consultas termina em resposta, não
+em 502. A folga sobre o timeout de 30 s do worker é deliberada: no pior caso o
+atendente vê um toast, nunca um worker morto.
 
-O app é **removível por construção**: o núcleo do sistema não sabe que ele
-existe. `ai/` importa só `hotel.reservations` e `core/` (e o import-linter cobra
-isso: `ai` não pode tocar `billing`, `rooms` ou `guests` direto), nenhum app de
-`hotel/` importa `ai/`, o pacote não entra em `INSTALLED_APPS` (não tem models
-nem migrações) e nada no resto do frontend importa `features/ai/`. A feature
-inteira cabe em:
+O app é **removível por construção**: nenhum app de `hotel/` importa `ai/`, o
+pacote não entra em `INSTALLED_APPS` (não tem models nem migrações) e, no
+frontend, só `pages/IrisPage/` importa `features/ai/`. A feature inteira cabe
+em:
 
 - `backend/ai/` e `backend/tests/api/test_ai.py`;
 - uma linha de rota em `backend/config/urls.py` e o quarto contrato em
@@ -110,8 +108,8 @@ inteira cabe em:
   e o item de menu em `AppLayout.tsx`;
 - a dependência `httpx` no `backend/pyproject.toml`.
 
-O `useCheckInFlow` fica: ele é refatoração da recepção, não da Íris, e a página
-de reservas o usa.
+O `useCheckInFlow` fica: é refatoração da recepção, não da Íris, e a página de
+reservas o usa.
 
 **Roteiro da demonstração** (com o seed, `docker compose down -v` antes):
 "a Ana Souza chegou" → o texto cita o horário de abertura e oferece o check-in;

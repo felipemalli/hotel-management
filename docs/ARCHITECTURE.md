@@ -2,7 +2,11 @@
 
 ## 1. Propósito e estilo
 
-Monólito Django modular com **camada de serviço** e um **núcleo funcional puro** no lugar exato onde a correção precisa ser auditável: `hotel/billing/engine.py` calcula o dinheiro sem ORM, sem I/O e sem relógio, e é o único módulo que sobreviveria intacto a uma troca de framework. Não é hexagonal e não é DDD: o domínio importa Django de propósito, porque a única fronteira que paga aqui é a do motor financeiro.
+Monólito Django modular com **camada de serviço** e um **núcleo funcional puro**
+onde a correção precisa ser auditável: `hotel/billing/engine.py` calcula o
+dinheiro sem ORM, sem I/O e sem relógio. Não é hexagonal e não é DDD: o domínio
+importa Django de propósito, e a única fronteira isolada é a do motor
+financeiro.
 
 Quatro apps de domínio aninhados em `hotel/`, um por pergunta do domínio, cada
 um com seus models, migrações e rotas. Toda mutação passa por um service; toda
@@ -64,13 +68,14 @@ ai  ->  hotel.reservations  ->  hotel.guests | hotel.rooms | hotel.billing  ->  
         hotel.rooms.services --+ (única exceção: guardas de leitura da agenda)
 ```
 
-Irmãos na mesma faixa não se importam. Nada em `hotel.*` importa `ai` nem
-`config`. Um quarto contrato (`forbidden`) fecha o outro lado: `ai` não pode
-importar `hotel.billing`, `hotel.rooms` nem `hotel.guests` direto, só
-`hotel.reservations`, que já é a fachada das leituras cruzadas. É
-`allow_indirect_imports`, porque `reservations` importa as folhas e a cadeia é
-legítima. `billing` não conhece nenhum irmão: a conta não sabe que existe
-reserva. A exceção é `hotel.rooms.services → hotel.reservations.selectors`:
+Irmãos na mesma faixa não se importam, e nada em `hotel.*` importa `ai` ou
+`config`. Um contrato `forbidden` fecha o outro lado: `ai` só alcança
+`hotel.reservations`, a fachada das leituras cruzadas, nunca `billing`, `rooms`
+ou `guests` direto (`allow_indirect_imports`, porque a cadeia via
+`reservations` é legítima). `billing` não conhece nenhum irmão: a conta não
+sabe que existe reserva.
+
+A única exceção é `hotel.rooms.services → hotel.reservations.selectors`:
 desativar ou excluir um quarto e reduzir capacidade precisam ler a agenda, e o
 selector encapsula os status para que `rooms` não conheça o ciclo de vida da
 reserva. O contrato vive em `backend/pyproject.toml` (`[tool.importlinter]`) e
@@ -110,11 +115,11 @@ que precisam concordar: `hotel/billing/migrations/0001_initial.py` (bootstrap),
 | a qualquer hora | `preview_checkout(reservation, now=…)` calcula sem lock e sem escrita; é a costura que a Íris consome             |
 
 `statement()` hidrata das linhas gravadas e **nunca** chama o motor: o recibo
-de uma estadia encerrada é um fato, não uma função. `calculate_bill` tem
-exatamente três chamadores, e só um deles escreve: `check_out` e
-`preview_checkout` são o mesmo cálculo com e sem efeito; `quote_scheduled_stay`
-estima a estadia antes de existir reserva, assumindo saída no limite (nunca
-antecipa multa). Ordem de lock: **Guest (pk asc) → Room → Reservation →
+de uma estadia encerrada é um fato, não um recálculo. `calculate_bill` tem dois
+chamadores: `_bill_for` (por trás de `check_out` e `preview_checkout` — o mesmo
+cálculo com e sem efeito, e só `check_out` escreve) e `quote_scheduled_stay`,
+que estima a estadia antes de existir reserva assumindo saída no limite, logo
+nunca antecipa multa. Ordem de lock: **Guest (pk asc) → Room → Reservation →
 Account**. `billing` não importa `reservations` e não registra admin: livro
 append-only não se edita pela tela.
 
@@ -143,16 +148,18 @@ Base `/api/`. Rotas de negócio com `Authorization: Bearer <access>` (JWT de 60
 min, **em memória no cliente**). O refresh não trafega em JSON: sai num cookie
 `HttpOnly; SameSite=Strict; Path=/api/auth/` (mais `Secure` atrás de TLS, via
 `COOKIE_SECURE=1`; a demo em http usa `0`), e o `exp` fixado no login é o teto
-de 12 h; renovar não estende a sessão. As duas rotas que se autenticam por esse
-cookie exigem `X-CSRFToken`; as de negócio não, porque header não é credencial
-ambiente. Não existe CORS: no navegador tudo é a mesma origem, porque o Vite
-faz proxy de `/api` para o backend (`VITE_API_PROXY_TARGET`) e, em produção, o
-Caddy encaminha `/api*` para o Django e o resto para o nginx do SPA. O proxy
-repassa o `Origin` do navegador, por isso `CSRF_TRUSTED_ORIGINS` continua
-obrigatória. Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**.
-Paginação DRF (`page_size=20`). A listagem de reservas ordena por `ordering=`
-(`checkin_date` ou `checkout_date`, com `-` para inverter) e desempata por id,
-para a paginação não repetir nem perder linha sobre datas iguais.
+de 12 h. As duas rotas que se autenticam por esse cookie exigem `X-CSRFToken`;
+as de negócio não, porque header não é credencial ambiente.
+
+Não existe CORS: tudo é a mesma origem, porque o Vite faz proxy de `/api` para o
+backend (`VITE_API_PROXY_TARGET`) e, em produção, o Caddy encaminha `/api*` para
+o Django e o resto para o nginx do SPA. O proxy repassa o `Origin` do navegador,
+por isso `CSRF_TRUSTED_ORIGINS` continua obrigatória.
+
+Datas `YYYY-MM-DD`; dinheiro sempre **string decimal**; paginação DRF
+(`page_size=20`). A listagem de reservas ordena por `ordering=` (`checkin_date`
+ou `checkout_date`, com `-` para inverter) e desempata por id, para a paginação
+não repetir nem perder linha sobre datas iguais.
 
 | Método & rota                                                             | Auth      | Função                                                                                      |
 | ------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------- |
@@ -214,69 +221,59 @@ está no Swagger (`/api/docs/`).
 
 ## 8. Frontend: erros, formulários e contrato
 
-**Cada falha tem um lugar na tela, e só um.** Erro de validação de campo vai ao
-**campo culpado** (`aria-invalid` + mensagem, com a dica de formato ainda
-visível ao lado). O `409 EARLY_CHECKIN` abre o **diálogo** de alerta com a hora
-do servidor e o botão de confirmar (RN11). Erro de mutation que nenhuma tela
-apresenta vira **toast**, nunca um boundary, que apagaria o formulário e o que
-o atendente digitou. Erro de render, e `5xx` na **primeira** carga de uma query,
-caem no **ErrorBoundary** ("Algo deu errado", com "Tentar novamente" e
-"Recarregar a página"); o boundary da tabela é local, então uma quebra nela mantém o
-header, o "Novo hóspede" e os diálogos vivos. `4xx` e backend fora do ar seguem
-inline, com retry, porque recarregar a aplicação não traz o servidor de volta.
-E a **sessão expirada** é anunciada pelo interceptor de 401, não pela tela que
-por acaso pediu a requisição: toast "Sua sessão expirou. Entre novamente.",
-cache limpo e volta ao login. A tabela desse roteamento está em
-`frontend/src/lib/api/queryClient.ts`.
+**Cada falha tem um lugar na tela, e só um.** O roteamento está em
+`frontend/src/lib/api/queryClient.ts`:
+
+| Falha                                     | Onde aparece                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------ |
+| Validação de campo                        | No campo culpado (`aria-invalid` + mensagem, com a dica de formato ainda visível)     |
+| `409 EARLY_CHECKIN`                       | Diálogo com a hora do servidor e botão de confirmar (RN11)                            |
+| Mutation que nenhuma tela apresenta       | Toast — nunca boundary, que apagaria o que o atendente digitou                        |
+| Erro de render, e `5xx` na 1ª carga        | ErrorBoundary; o da tabela é local, e mantém header, "Novo hóspede" e diálogos vivos |
+| `4xx` e backend fora do ar                | Inline, com retry: recarregar a aplicação não traz o servidor de volta                |
+| `401`                                     | Interceptor, não a tela que pediu: toast de sessão expirada, cache limpo, login       |
 
 **Formulários.** Login, cadastro de hóspede e criação de reserva usam
 **react-hook-form + zod**, com um schema por feature
-(`frontend/src/features/<x>/schemas.ts`) que **espelha as regras do servidor**:
+(`frontend/src/features/<x>/schemas.ts`) que espelha as regras do servidor:
 documento com ≥ 4 alfanuméricos e telefone internacional válido (RN24), entrada
-não anterior a hoje e mínimo de 1 noite (RN16), para o balcão errar antes da
-rede. Espelhar não é confiar: o servidor continua **autoritativo**, e o
-`400 VALIDATION_ERROR` que ele devolver é remapeado campo a campo; chave que o
-formulário não declara (`non_field_errors`, `detail`) aparece no alerta de topo
-em vez de sumir em silêncio.
+não anterior a hoje e mínimo de 1 noite (RN16). O servidor continua
+**autoritativo**: o `400 VALIDATION_ERROR` é remapeado campo a campo, e chave
+que o formulário não declara (`non_field_errors`, `detail`) vai ao alerta de
+topo em vez de sumir.
 
 **Contrato validado em runtime.** Toda resposta da API passa por um schema zod
 antes de chegar à tela, e dinheiro só é aceito como string decimal de duas casas
-(`frontend/src/lib/api/schemas.ts`). Um desvio de contrato vira `CONTRACT_ERROR`
+(`frontend/src/lib/api/schemas.ts`). Desvio de contrato vira `CONTRACT_ERROR`
 visível, nunca um total plausível e errado na conta do hóspede.
 
 ## 9. Segurança, e o que continua em aberto
 
-Segurança, em uma linha cada: JWT com permissão global fechada
-(`IsAuthenticated`) e exceções explícitas; documento e telefone em claro
-normalizado, busca por fragmento, PII fora de log; CSP estrita **nas respostas
-do Django**, montada por middleware do backend, com isenção pontual só na página
-do Swagger; headers de nosniff, referrer-policy e clickjacking; imagens Docker do backend
-e do frontend de desenvolvimento rodando como usuário **non-root** (o nginx do
-frontend de produção e o Caddy sobem como root, padrão das imagens oficiais);
-assets do Swagger servidos localmente (funciona offline).
+Em uma linha cada: JWT com permissão global fechada (`IsAuthenticated`) e
+exceções explícitas; documento e telefone em claro normalizado, busca por
+fragmento, PII fora de log; CSP estrita **nas respostas do Django**, montada por
+middleware, com isenção pontual só na página do Swagger; headers de nosniff,
+referrer-policy e clickjacking; imagens Docker do backend e do frontend de
+desenvolvimento como usuário **non-root** (o nginx de produção e o Caddy sobem
+como root, padrão das imagens oficiais); assets do Swagger servidos localmente.
 
-**Nenhuma credencial mora em disco**, o que fecha o trade-off clássico "os tokens
-vivem em `localStorage`, logo um XSS os lê". O access fica numa variável de módulo
-(`frontend/src/lib/auth/session.ts`) e morre com a aba; o refresh saiu do
-alcance de qualquer script, num cookie `HttpOnly; SameSite=Strict;
-Path=/api/auth/` (e `Secure` atrás de TLS) que o navegador só anexa às duas
-rotas de sessão. Há teste em
-cada camada afirmando que `localStorage` e `sessionStorage` ficam vazios.
+**Nenhuma credencial mora em disco.** O access fica numa variável de módulo
+(`frontend/src/lib/auth/session.ts`) e morre com a aba; o refresh vai num cookie
+`HttpOnly; SameSite=Strict; Path=/api/auth/` (e `Secure` atrás de TLS) que o
+navegador só anexa às duas rotas de sessão. Há teste em cada camada afirmando
+que `localStorage` e `sessionStorage` ficam vazios. `POST /auth/logout/` revoga
+o refresh na denylist, e o teto absoluto de sessão sai sem código próprio: o
+`exp` fixado no login é o prazo, e renovar não o estende. O CSRF fica confinado
+às rotas de cookie — rota autenticada por `Bearer` é imune por construção, já
+que o navegador não anexa header sozinho.
+[concepts/AUTH.md](./concepts/AUTH.md) explica cada decisão, incluindo por que a
+denylist não foi para o Redis e por que a rotação de refresh foi recusada.
 
-Junto vêm `POST /auth/logout/`, que revoga o refresh na denylist do servidor, e um
-teto absoluto de sessão, sem código próprio: o `exp` fixado no login é o prazo, e
-renovar devolve um access novo sem estendê-lo. O CSRF ficou confinado às rotas de
-cookie: rota autenticada por `Bearer` é imune por construção, já que o navegador
-não anexa header sozinho. [concepts/AUTH.md](./concepts/AUTH.md) explica cada
-uma dessas decisões, incluindo por que a denylist não foi para o Redis e por que
-a rotação de refresh token foi recusada.
-
-O que **continua** em aberto, dito com o nome certo: a CSP não cobre o documento
-HTML da aplicação, porque quem o serve é o Vite (ou o nginx do compose de
-produção) e o cabeçalho vem do middleware do Django. Com XSS ativo na página,
-`HttpOnly` impede a exfiltração do refresh, não o abuso da sessão enquanto a aba
-está aberta. Uma CSP própria no servidor do SPA fica registrada como o próximo
-passo, não escondida como defeito.
+**Em aberto:** a CSP não cobre o documento HTML da aplicação, porque quem o
+serve é o Vite (ou o nginx do compose de produção) e o cabeçalho vem do
+middleware do Django. Com XSS ativo na página, `HttpOnly` impede a exfiltração
+do refresh, não o abuso da sessão com a aba aberta. Uma CSP própria no servidor
+do SPA é o próximo passo.
 
 ## 10. Íris
 
@@ -292,10 +289,10 @@ Saída de modelo é input não confiável em três frentes: **argumentos** valid
 por serializer (erro volta ao modelo como resultado, não como 502);
 **identidade** conferida contra um resultado real, isolado; **status** relido
 antes de a ação sair. Orçamento de 15 s e no máximo sete rodadas; na última o
-`tool_choice` força `answer`. `ai` importa um único app de domínio,
-`hotel.reservations` (§3): desligar a chave, ou apagar o pacote, remove a
-feature sem tocar em regra de negócio. O que ela faz e o que sai para o
-provedor: [concepts/IRIS.md](./concepts/IRIS.md). O código, passo a passo:
+`tool_choice` força `answer`. Como `ai` importa um único app de domínio (§3),
+desligar a chave ou apagar o pacote remove a feature sem tocar em regra de
+negócio. O que ela faz e o que sai para o provedor:
+[concepts/IRIS.md](./concepts/IRIS.md). O código, passo a passo:
 [code/IRIS-CODE.md](./code/IRIS-CODE.md).
 
 ## 11. Testes e CI
@@ -309,25 +306,3 @@ passos de `pnpm run check` um a um, mais as guardas de dinheiro, de ids
 normativos e de pinos de cobertura; o de e2e sobe o backend real com o seed.
 Doutrina e ferramental: [concepts/QUALITY.md](./concepts/QUALITY.md). A matriz
 requisito → teste: [CHALLENGE.md](./CHALLENGE.md).
-
-## 12. Gatilhos de evolução
-
-| Quando                                                            | O que muda                                                                                                                                                                      |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| lançamento avulso vira feature                                    | `LineKind.EXTRA` de volta + `accountline_one_per_kind_date` volta a ser parcial (avulso repete data) + endpoint em `billing` + `extras`/`subtotal_extras` no extrato              |
-| uma estadia precisar de mais de uma conta                         | `Reservation.account` OneToOne → FK                                                                                                                                             |
-| pagamento parcial ou estorno                                      | `Payment.account` OneToOne → FK, status da conta derivado da soma                                                                                                                |
-| multi-hotel                                                       | `UniqueConstraint(hotel, document)` em `guests`                                                                                                                                 |
-| tarifa que varia por quarto, e não só por dia da semana           | `RoomType` (ou preço no `Room`), consumido por `hotel.billing.services.rate_table_of`                                                                                           |
-| vigência futura agendada de tarifa                                | `effective_from` no futuro já é suportado pelo modelo; falta a tela e a leitura por data                                                                                        |
-| troca de quarto no meio da estadia                                | tabela de ocupação por trecho: a reserva deixa de ser a unidade de alocação                                                                                                     |
-| segundo cliente da API (mobile, integrador)                       | versionar a rota antes de ele existir, nunca depois                                                                                                                             |
-| efeito externo que não pode ser perdido (e-mail, channel manager) | outbox transacional, não um broker no caminho crítico                                                                                                                           |
-| consumidor do domínio fora do processo Django                     | aí sim, considerar inversão de dependência: `billing/engine.py` já é o hexágono                                                                                                 |
-
-Hexagonal, DDD tático e CQRS foram avaliados e recusados **para este tamanho**.
-`hotel/billing/engine.py` já é o hexágono, e o que sobra em
-`hotel/reservations/services.py` é orquestração de transação, justamente a coisa
-que *ports & adapters* abstrai pior. Comprar essas camadas agora seria vender
-curva de aprendizado como robustez. Discordar exige um caso concreto que quebre
-aqui e não quebre no desenho proposto.

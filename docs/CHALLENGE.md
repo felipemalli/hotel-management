@@ -154,28 +154,15 @@ copiloto que responde em linguagem natural pedindo consultas ao Django, uma por
 vez, sem nunca gravar nada. Desligada sem `OPENAI_API_KEY`; o núcleo do sistema
 não sabe que ela existe, e o import-linter cobra isso.
 
-**Deliberadamente fora:** tarifa por quarto e vigência futura agendada, troca de
-quarto no meio da estadia, estorno e pagamento parcial, edição e exclusão
-genéricas de hóspede e reserva, no-show automático, gestão de usuários via API,
-recuperação de senha, Celery, WebSockets, i18n, multi-tenancy, tema dark,
-Storybook, hexagonal, DDD tático, CQRS. Os que têm caminho de evolução previsto
-(tarifa por quarto, vigência futura, troca de quarto, estorno e pagamento
-parcial, multi-tenancy, hexagonal/DDD/CQRS) têm o gatilho em
-[ARCHITECTURE.md §12](./ARCHITECTURE.md); os demais ficaram fora por não terem
-sido pedidos nem criados pelo enunciado. O no-show automático, em particular,
-porque o sistema não muda estado sem gesto humano (RN19).
-
 ## 7. Dados de demonstração
 
 O `seed_demo` roda na subida do Compose (e uma vez, por comando, em produção).
 É idempotente e usa **datas relativas**, então o cenário vale em qualquer dia; as
 transições passam pelos mesmos services que a API usa, com o relógio injetado.
-Quarenta e duas fichas cobrem os quatro status e espalham entrada/saída pela
-vizinhança de hoje — chegada atrasada, hoje, amanhã e daqui a mais de duas
-semanas; saída hoje, no passado (overstay) e no futuro. A tabela abaixo lista
-só a história de negócio com nome próprio; o resto é preenchimento (mais
-hóspede, mais reserva, mais quarto) para não deixar o cenário curto demais em
-nenhuma tela:
+As reservas cobrem os quatro status e espalham entrada/saída pela vizinhança de
+hoje — chegada atrasada, hoje, amanhã e daqui a mais de duas semanas; saída
+hoje, no passado (overstay) e no futuro. A tabela lista as fichas com história
+de negócio; o resto é preenchimento, para nenhuma tela ficar curta demais:
 
 | Hóspede            | Situação                                                     | Demonstra                                              |
 | ------------------ | -------------------------------------------------------------| ------------------------------------------------------ |

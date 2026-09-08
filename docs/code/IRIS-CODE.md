@@ -2,7 +2,7 @@
 
 Este documento segue uma requisição `POST /api/ai/copilot/` pelo código, na ordem em que ela acontece. Como ligar a feature e o que sai para o provedor ficam fora dele.
 
-O modelo não recebe o banco nem escreve SQL: a cada rodada ele pede **uma função**, e o Django a executa pelos mesmos selectors e serviços das telas. A conversa termina numa função `answer`, cujos argumentos são a resposta. Nenhuma ferramenta grava: a ação proposta vira um botão que chama os endpoints de check-in e de checkout de sempre.
+O modelo não recebe o banco nem escreve SQL: a cada rodada ele pede **uma função**, e o Django a executa pelos mesmos selectors e serviços das telas. A conversa termina numa função `answer`, cujos argumentos são a resposta.
 
 ## Mapa
 
@@ -254,7 +254,7 @@ Campos declarados são *allowlist*: uma coluna nova no model não sai para o pro
 
 ## Guarda de identidade
 
-"João Silva" no 201 e "João Pereira" no 202, ambos hospedados; o atendente diz "o João está saindo". O modelo busca "João", recebe duas reservas e ainda pode devolver `checkout` com o id de um deles. Aceitar isso seria mostrar um botão que fecha a conta errada.
+"João Silva" no 201 e "João Pereira" no 202, ambos hospedados; o atendente diz "o João está saindo". O modelo busca "João", recebe duas reservas e ainda pode devolver `checkout` com o id de um deles — um botão que fecharia a conta errada.
 
 ```python
 def _find(self, args):
