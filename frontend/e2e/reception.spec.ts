@@ -9,8 +9,13 @@ test.describe(
   'recepção · do cadastro ao checkout',
   { tag: ['@RF1', '@RF2', '@RF3', '@RF5', '@RF6', '@RF7', '@RN4', '@RN6'] },
   () => {
-    const document = uniqueDocument()
-    const guestName = `Hóspede E2E ${document}`
+    let document = ''
+    let guestName = ''
+
+    test.beforeAll(() => {
+      document = uniqueDocument()
+      guestName = `Hóspede E2E ${document}`
+    })
 
     test('cadastra o hóspede e cria a reserva', async ({ page }) => {
       await page.goto('/')
@@ -53,12 +58,17 @@ test.describe(
       await row.getByRole('button', { name: 'Check-in' }).click()
 
       const early = page.getByRole('alertdialog', { name: /^Check-in antes das/ })
-      const inHotelTab = page.getByRole('tab', { name: 'No hotel' })
-      await expect(early.or(inHotelTab)).toBeVisible()
+      await expect
+        .poll(async () => (await early.isVisible()) || (await row.count()) === 0)
+        .toBe(true)
       if (await early.isVisible()) {
         await early.getByRole('button', { name: 'Confirmar mesmo assim' }).click()
         await expect(early).toBeHidden()
       }
+
+      await page.getByRole('tab', { name: 'No hotel' }).click()
+      const inHotel = page.getByRole('table', { name: 'Hóspedes no hotel' })
+      await expect(inHotel.getByRole('row').filter({ hasText: guestName })).toBeVisible()
     })
 
     test('faz o checkout e confere o extrato', async ({ page }) => {
