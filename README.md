@@ -39,14 +39,6 @@ cd hotel-management
 cp .env.example .env
 ```
 
-Gere uma `SECRET_KEY` e cole no `.env`:
-
-```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(50))"
-```
-
-> Sem `python3` na máquina: `docker compose build backend && docker compose run --rm --no-deps backend uv run python -c "import secrets; print(secrets.token_urlsafe(50))"`
-
 **Executar o projeto:**
 
 ```bash
@@ -62,11 +54,11 @@ collectstatic → seed_demo → gunicorn`, cadeia definida no próprio
 
 ## Execução
 
-|                              |                                                   |
-| ---------------------------- | ------------------------------------------------- |
-| Aplicação                    | <http://localhost:5173>                           |
-| API                          | <http://localhost:8000/api/>                      |
-| Swagger (contrato navegável) | <http://localhost:8000/api/docs/>                 |
+|                              |                                                     |
+| ---------------------------- | --------------------------------------------------- |
+| Aplicação                    | <http://localhost:5173>                             |
+| API                          | <http://localhost:8000/api/>                        |
+| Swagger (contrato navegável) | <http://localhost:8000/api/docs/>                   |
 | Credenciais de demonstração  | `atendente` / `atendente123` · `admin` / `admin123` |
 
 O `atendente` opera o balcão; o `admin` também cadastra quartos e publica

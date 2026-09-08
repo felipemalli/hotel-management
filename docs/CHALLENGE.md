@@ -170,13 +170,18 @@ porque o sistema não muda estado sem gesto humano (RN19).
 O `seed_demo` roda na subida do Compose (e uma vez, por comando, em produção).
 É idempotente e usa **datas relativas**, então o cenário vale em qualquer dia; as
 transições passam pelos mesmos services que a API usa, com o relógio injetado.
-Dezesseis fichas cobrem os quatro status e espalham entrada/saída pela
-vizinhança de hoje — chegada atrasada, hoje, amanhã e daqui a mais de uma
-semana; saída hoje, no passado (overstay) e no futuro:
+Quarenta e duas fichas cobrem os quatro status e espalham entrada/saída pela
+vizinhança de hoje — chegada atrasada, hoje, amanhã e daqui a mais de duas
+semanas; saída hoje, no passado (overstay) e no futuro. A tabela abaixo lista
+só a história de negócio com nome próprio; o resto é preenchimento (mais
+hóspede, mais reserva, mais quarto) para não deixar o cenário curto demais em
+nenhuma tela:
 
 | Hóspede            | Situação                                                     | Demonstra                                              |
 | ------------------ | -------------------------------------------------------------| ------------------------------------------------------ |
 | **Ana Souza**      | `PENDING`, entrada hoje, com veículo                          | aba "Check-in pendente" e o fluxo de check-in          |
+| **Vitor Almeida**  | `PENDING`, entrada hoje, saída em 3 dias                      | segunda ficha de entrada hoje                          |
+| **Mariana Rocha**  | `PENDING`, entrada hoje, saída em 5 dias, com veículo          | terceira ficha de entrada hoje                         |
 | **Fernanda Torres**| `PENDING`, entrada ontem (atrasada)                           | chegada em atraso na mesma aba                         |
 | **Gustavo Pinto**  | `PENDING`, entrada amanhã, com veículo                        | chegada futura próxima                                 |
 | **Helena Castro**  | `PENDING` daqui a 3 dias, com acompanhantes Bento e Clara      | acompanhantes ainda em reserva pendente                |
@@ -195,8 +200,9 @@ semana; saída hoje, no passado (overstay) e no futuro:
 | **Davi Rocha**     | Sem reserva                                                    | busca por nome, documento e telefone                   |
 | **Ursula Klein**   | Sem reserva, alemã                                             | busca por hóspede estrangeiro sem estadia              |
 
-Doze quartos (101–105, 201–203, 301–302, 401–402), o 302 desativado para
-mostrar o quarto fora de serviço; capacidades de 2 a 6. Dois usuários,
+Trinta e oito quartos (101–105, 201–203, 301–302, 401–402, 501–510, 601–610,
+701–706), o 302 desativado para mostrar o quarto fora de serviço; capacidades
+de 2 a 6. Cinquenta hóspedes, quarenta e duas reservas. Dois usuários,
 `atendente` / `atendente123` e `admin` / `admin123`, ambos usuários comuns do
 Django: o papel `ATTENDANT`/`ADMIN` é do produto. Para
 inspecionar dados, use o Swagger ou `docker compose exec db psql -U hotel -d hotel`.
