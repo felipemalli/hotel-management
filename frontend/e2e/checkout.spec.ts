@@ -21,7 +21,7 @@ test.describe(
 
       const account = page.getByRole('region', { name: 'Conta' })
       await expect(account).toBeVisible()
-      await expect(account.getByText('R$ 90,00 (base R$ 180,00)')).toBeVisible()
+      await expect(account.getByText('R$ 90,00 (1 dia)')).toBeVisible()
 
       await page.getByRole('button', { name: 'Ver extrato' }).click()
       const statement = page.getByRole('dialog', { name: 'Extrato de checkout' })

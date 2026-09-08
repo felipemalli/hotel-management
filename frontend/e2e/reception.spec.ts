@@ -29,7 +29,7 @@ test.describe(
       await reservationDialog
         .getByRole('checkbox', { name: 'Utilizará vaga de estacionamento' })
         .click()
-      await expect(reservationDialog.getByText('Valor estimado')).toBeVisible()
+      await expect(reservationDialog.getByRole('heading', { name: 'Valor estimado' })).toBeVisible()
       await expect(reservationDialog.getByText('Total estimado')).toBeVisible()
       await expect(reservationDialog.getByText(/^R\$ [\d.]+,\d{2}$/).first()).toBeVisible()
       await reservationDialog.getByRole('button', { name: 'Criar reserva' }).click()

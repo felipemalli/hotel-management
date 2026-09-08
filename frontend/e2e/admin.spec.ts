@@ -21,7 +21,9 @@ test.describe('admin · controles restritos', { tag: ['@RF8'] }, () => {
       await login(page, ADMIN)
 
       await page.goto('/quartos')
-      await expect(page.getByText('admin', { exact: true })).toBeVisible()
+      await expect(
+        page.getByRole('button', { name: 'Menu da sessão' }).locator('[data-slot="badge"]'),
+      ).toHaveText('admin')
       await expect(page.getByRole('button', { name: 'Novo quarto' })).toBeVisible()
 
       await page.getByRole('button', { name: 'Ações do quarto 201' }).click()
