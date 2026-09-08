@@ -201,6 +201,9 @@ jobs:
       # Alto o bastante para o login de cada spec não esbarrar no throttle.
       THROTTLE_LOGIN: 1000/min
       VITE_API_PROXY_TARGET: http://127.0.0.1:8000
+      # O e2e é HTTP em 127.0.0.1; o default `not DEBUG` ligaria Secure e o
+      # Chromium descartaria o cookie de sessão (compose e `.env.example` usam 0).
+      COOKIE_SECURE: "0"
     steps:
       - uses: actions/checkout@v4
 

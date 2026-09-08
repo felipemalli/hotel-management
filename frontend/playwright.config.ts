@@ -5,9 +5,11 @@ const CI = !!process.env.CI
 // Gunicorn (`config.wsgi`), não `runserver`. THROTTLE_LOGIN alto para o login
 // repetido; a chave vazia desliga a Íris — nenhum spec a exercita, e a suíte
 // não fala com o provedor.
+// COOKIE_SECURE=0: o e2e é HTTP em 127.0.0.1, e Secure sobre IP some no Chromium
+// (o default `not DEBUG` ligaria a flag no CI, onde DEBUG=0 e não há `.env`).
 const BACKEND_COMMAND =
   '[ -f ../.env ] && . ../.env; ' +
-  'THROTTLE_LOGIN=1000/min THROTTLE_REFRESH=1000/min OPENAI_API_KEY= ' +
+  'COOKIE_SECURE=0 THROTTLE_LOGIN=1000/min THROTTLE_REFRESH=1000/min OPENAI_API_KEY= ' +
   'uv run gunicorn config.wsgi -b 127.0.0.1:8000'
 
 export default defineConfig({
