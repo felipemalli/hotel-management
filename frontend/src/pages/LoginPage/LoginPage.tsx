@@ -52,7 +52,7 @@ export function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
       <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
         <Typography as="h1" variant="pageTitle">
-          Gestão de Hóspedes
+          Gestão de Hotel
         </Typography>
         <Typography as="p" variant="body" tone="muted" className="mt-1">
           Acesso do atendente.

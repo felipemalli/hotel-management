@@ -26,7 +26,7 @@ describe('App', () => {
   it('cai no login sem sessao', () => {
     render(<App />)
 
-    expect(screen.getByRole('heading', { name: 'Gestão de Hóspedes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Gestão de Hotel' })).toBeInTheDocument()
     expect(screen.getByLabelText('Usuário')).toBeInTheDocument()
     expect(screen.getByLabelText('Senha')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Entrar' })).toBeInTheDocument()
